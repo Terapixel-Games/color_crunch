@@ -1,10 +1,12 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/scenes/MainMenu.gd" id=1]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id=2]
 [ext_resource type="Script" path="res://src/ui/GlassPanel.gd" id=3]
 [ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id=4]
 [ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=5]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/arrow_left.tres" id=6]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/arrow_right.tres" id=7]
 
 [node name="MainMenu" type="Control"]
 theme = ExtResource( 4 )
@@ -65,7 +67,10 @@ theme_override_constants/separation = 14
 
 [node name="TrackPrev" type="Button" parent="UI/VBox/TrackCarousel"]
 script = ExtResource( 5 )
-text = "<"
+text = ""
+icon = ExtResource( 6 )
+icon_alignment = 1
+expand_icon = true
 custom_minimum_size = Vector2(88, 88)
 corner_radius = 0.5
 
@@ -82,7 +87,10 @@ vertical_alignment = 1
 
 [node name="TrackNext" type="Button" parent="UI/VBox/TrackCarousel"]
 script = ExtResource( 5 )
-text = ">"
+text = ""
+icon = ExtResource( 7 )
+icon_alignment = 1
+expand_icon = true
 custom_minimum_size = Vector2(88, 88)
 corner_radius = 0.5
 

@@ -16,3 +16,10 @@
   - `process_mode`
   - modal `mouse_filter` contract
   - close button press frees the modal
+
+## Styling Cues
+- Any `Control` that animates `scale` or `rotation` must set `pivot_offset = size * 0.5`.
+- Refresh animated control pivots on `NOTIFICATION_RESIZED` (layout changes can shift pivots).
+- For modal layouts, verify both mobile portrait and desktop landscape so CTA buttons stay fully inside the panel and centered.
+- Keep button interaction tests with both hover and click behavior; hover-only success can hide input routing regressions.
+- Prefer atlas sprite-sheet icons over unicode glyph text for controls (`Pause`, arrows, powerups) to avoid font/render inconsistencies across devices.

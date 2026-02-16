@@ -2,8 +2,14 @@ extends Control
 
 @onready var track_prev: Button = $UI/VBox/TrackCarousel/TrackPrev
 @onready var track_next: Button = $UI/VBox/TrackCarousel/TrackNext
+@onready var track_label: Label = $UI/VBox/TrackLabel
+@onready var track_carousel: HBoxContainer = $UI/VBox/TrackCarousel
+@onready var track_name_host: Control = $UI/VBox/TrackCarousel/TrackNameHost
 @onready var track_name: Label = $UI/VBox/TrackCarousel/TrackNameHost/TrackName
 @onready var title_label: Label = $UI/VBox/Title
+@onready var panel: Control = $UI/Panel
+@onready var menu_box: VBoxContainer = $UI/VBox
+@onready var start_button: Button = $UI/VBox/Start
 @onready var account_button: Button = $UI/Account
 @onready var shop_button: Button = $UI/Shop
 @onready var coin_badge: Label = $UI/Shop/CoinBadge
@@ -29,7 +35,8 @@ func _ready() -> void:
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_main_menu(self)
 	ThemeManager.apply_to_scene(self)
-	call_deferred("_refresh_title_pivots")
+	_layout_menu()
+	call_deferred("_layout_menu")
 	title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
 	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
@@ -49,7 +56,55 @@ func _process(delta: float) -> void:
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_main_menu(self)
+		_layout_menu()
 		_refresh_title_pivots()
+
+func _layout_menu() -> void:
+	if panel == null or menu_box == null:
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	# Keep menu panel centered in viewport coordinates for stable desktop/mobile alignment.
+	var panel_size: Vector2 = Vector2(
+		clamp(viewport_size.x * 0.76, 520.0, viewport_size.x - 34.0),
+		clamp(viewport_size.y * 0.60, 520.0, viewport_size.y - 140.0)
+	)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = (viewport_size - panel_size) * 0.5
+	panel.size = panel_size
+
+	var margin_x: float = panel_size.x * 0.05
+	var margin_y: float = panel_size.y * 0.05
+	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
+	var carousel_sep: int = track_carousel.get_theme_constant("separation")
+	var side_buttons_width: float = track_prev.get_combined_minimum_size().x + track_next.get_combined_minimum_size().x + float(carousel_sep * 2)
+	track_name_host.custom_minimum_size.x = max(120.0, content_size.x - side_buttons_width)
+
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	track_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	track_carousel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_fit_label_font_to_width(title_label, content_size.x, 34)
+
+	menu_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	menu_box.position = panel.position + Vector2((panel_size.x - content_size.x) * 0.5, (panel_size.y - content_size.y) * 0.5)
+	menu_box.size = content_size
+
+	_refresh_title_pivots()
+
+func _fit_label_font_to_width(label: Label, target_width: float, min_size: int) -> void:
+	if label == null:
+		return
+	var theme_font: Font = label.get_theme_font("font")
+	if theme_font == null:
+		return
+	var font_size: int = label.get_theme_font_size("font_size")
+	var clamped_width: float = max(40.0, target_width)
+	while font_size > min_size and theme_font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > clamped_width:
+		font_size -= 1
+	label.add_theme_font_size_override("font_size", font_size)
 
 func _refresh_title_pivots() -> void:
 	if title_label == null:

@@ -21,6 +21,8 @@ func _ready() -> void:
 	flat = false
 	clip_contents = true
 	focus_mode = Control.FOCUS_NONE
+	_refresh_center_pivot()
+	call_deferred("_refresh_center_pivot")
 	_base_scale = scale
 	_apply_style_overrides()
 	_ensure_glass_layer()
@@ -37,6 +39,15 @@ func _process(_delta: float) -> void:
 	if _last_disabled != disabled:
 		_last_disabled = disabled
 		_sync_glass_state()
+
+func _notification(what: int) -> void:
+	if what == Control.NOTIFICATION_RESIZED:
+		_refresh_center_pivot()
+
+func _refresh_center_pivot() -> void:
+	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	pivot_offset = size * 0.5
 
 func _apply_style_overrides() -> void:
 	var normal := StyleBoxFlat.new()

@@ -26,10 +26,10 @@ var _undo_stack: Array[Dictionary] = []
 var _pending_powerup_refill_type: String = ""
 var _powerup_coin_costs := {"undo": 120, "prism": 180, "shuffle": 140}
 
-const ICON_UNDO := "Undo"
-const ICON_PRISM := "Prism"
-const ICON_SHUFFLE := "Shuffle"
-const ICON_LOADING := "Loading"
+const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
+const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
+const ICON_SHUFFLE: Texture2D = preload("res://assets/ui/icons/atlas/powerup_shuffle.tres")
+const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loading.tres")
 
 func _ready() -> void:
 	var stale_overlay: Node = get_node_or_null("RunEndOverlay")
@@ -75,6 +75,12 @@ func _ready() -> void:
 		badge.add_theme_color_override("font_color", Color(0.98, 0.99, 1.0, 1.0))
 		badge.add_theme_color_override("font_outline_color", Color(0.1, 0.18, 0.36, 0.95))
 		badge.add_theme_constant_override("outline_size", 3)
+	undo_button.tooltip_text = "Undo"
+	remove_color_button.tooltip_text = "Prism"
+	shuffle_button.tooltip_text = "Shuffle"
+	for button in [undo_button, remove_color_button, shuffle_button]:
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.expand_icon = true
 	powerup_flash.visible = false
 	_update_score()
 	_update_powerup_buttons()
@@ -202,9 +208,9 @@ func _update_gameplay_mood_from_matches(fade_seconds: float = -1.0) -> void:
 	BackgroundMood.set_mood_mix(calm_weight, fade)
 
 func _update_powerup_buttons() -> void:
-	undo_button.text = _powerup_button_icon(ICON_UNDO, _undo_charges, "undo")
-	remove_color_button.text = _powerup_button_icon(ICON_PRISM, _remove_color_charges, "prism")
-	shuffle_button.text = _powerup_button_icon(ICON_SHUFFLE, _shuffle_charges, "shuffle")
+	undo_button.icon = _powerup_button_icon(ICON_UNDO, "undo")
+	remove_color_button.icon = _powerup_button_icon(ICON_PRISM, "prism")
+	shuffle_button.icon = _powerup_button_icon(ICON_SHUFFLE, "shuffle")
 	_update_badge(undo_badge, _undo_charges, _pending_powerup_refill_type == "undo")
 	_update_badge(prism_badge, _remove_color_charges, _pending_powerup_refill_type == "prism")
 	_update_badge(shuffle_badge, _shuffle_charges, _pending_powerup_refill_type == "shuffle")
@@ -303,7 +309,7 @@ func _try_purchase_powerup_with_coins(powerup_type: String) -> bool:
 func _consume_powerup_server(powerup_type: String) -> void:
 	await NakamaService.consume_powerup(powerup_type, 1)
 
-func _powerup_button_icon(base_icon: String, charges: int, powerup_type: String) -> String:
+func _powerup_button_icon(base_icon: Texture2D, powerup_type: String) -> Texture2D:
 	if _pending_powerup_refill_type == powerup_type:
 		return ICON_LOADING
 	return base_icon

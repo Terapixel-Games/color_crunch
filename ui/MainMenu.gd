@@ -60,6 +60,8 @@ func _all_buttons() -> Array:
 
 func _capture_layout_bases() -> void:
 	_track_info_base_position = track_info.position
+	center_panel.pivot_offset = center_panel.size * 0.5
+	track_info.pivot_offset = track_info.size * 0.5
 	for button_variant in _all_buttons():
 		var button: Button = button_variant as Button
 		if button == null:

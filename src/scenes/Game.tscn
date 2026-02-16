@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://drwtb62moeens"]
+[gd_scene load_steps=11 format=3 uid="uid://drwtb62moeens"]
 
 [ext_resource type="Script" uid="uid://1y8jncy7k6rg" path="res://src/scenes/Game.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id="2"]
@@ -6,6 +6,10 @@
 [ext_resource type="Theme" uid="uid://c7md3l4sokudj" path="res://src/ui/UiTheme.tres" id="4"]
 [ext_resource type="Script" uid="uid://cm18fs18ym62x" path="res://src/ui/LiquidGlassButton.gd" id="5"]
 [ext_resource type="Script" uid="uid://ddwjca2l8jso8" path="res://src/ui/GlassPanel.gd" id="6"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/pause.tres" id="7"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_undo.tres" id="8"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_prism.tres" id="9"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_shuffle.tres" id="10"]
 
 [node name="Game" type="Control"]
 layout_mode = 3
@@ -86,7 +90,10 @@ custom_minimum_size = Vector2(96, 96)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_font_sizes/font_size = 60
-text = "II"
+text = ""
+icon = ExtResource("7")
+icon_alignment = 1
+expand_icon = true
 script = ExtResource("5")
 corner_radius = 0.5
 
@@ -103,7 +110,10 @@ alignment = 1
 custom_minimum_size = Vector2(0, 118)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "↶ Undo"
+text = ""
+icon = ExtResource("8")
+icon_alignment = 1
+expand_icon = true
 script = ExtResource("5")
 
 [node name="Badge" type="Label" parent="UI/Powerups/Undo"]
@@ -122,7 +132,10 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(0, 118)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "◈ Prism"
+text = ""
+icon = ExtResource("9")
+icon_alignment = 1
+expand_icon = true
 script = ExtResource("5")
 
 [node name="Badge" type="Label" parent="UI/Powerups/RemoveColor"]
@@ -141,7 +154,10 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(0, 118)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "⤮ Shuffle"
+text = ""
+icon = ExtResource("10")
+icon_alignment = 1
+expand_icon = true
 script = ExtResource("5")
 
 [node name="Badge" type="Label" parent="UI/Powerups/Shuffle"]
