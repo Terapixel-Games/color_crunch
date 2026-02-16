@@ -1,0 +1,70 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/scenes/AccountModal.gd" id=1]
+[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id=2]
+[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=3]
+
+[node name="AccountModal" type="Control"]
+theme = ExtResource( 2 )
+script = ExtResource( 1 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.45)
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchor_left = 0.08
+anchor_top = 0.18
+anchor_right = 0.92
+anchor_bottom = 0.82
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+theme_override_constants/separation = 10
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+text = "Account"
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Panel/VBox"]
+text = "Link account with magic link"
+horizontal_alignment = 1
+
+[node name="Email" type="LineEdit" parent="Panel/VBox"]
+placeholder_text = "email@example.com"
+
+[node name="SendMagicLink" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Send Magic Link"
+
+[node name="Username" type="LineEdit" parent="Panel/VBox"]
+placeholder_text = "username (3-20 chars)"
+
+[node name="UpdateUsername" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Set Username (Free)"
+
+[node name="MergeCode" type="LineEdit" parent="Panel/VBox"]
+placeholder_text = "merge code"
+
+[node name="CreateMergeCode" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Create Merge Code"
+
+[node name="RedeemMergeCode" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Redeem Merge Code"
+
+[node name="Close" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Close"
+
+[connection signal="pressed" from="Panel/VBox/SendMagicLink" to="." method="_on_send_magic_link_pressed"]
+[connection signal="pressed" from="Panel/VBox/UpdateUsername" to="." method="_on_update_username_pressed"]
+[connection signal="pressed" from="Panel/VBox/CreateMergeCode" to="." method="_on_create_merge_code_pressed"]
+[connection signal="pressed" from="Panel/VBox/RedeemMergeCode" to="." method="_on_redeem_merge_code_pressed"]
+[connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]

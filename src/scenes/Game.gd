@@ -24,6 +24,7 @@ var _remove_color_charges: int = 0
 var _shuffle_charges: int = 0
 var _undo_stack: Array[Dictionary] = []
 var _pending_powerup_refill_type: String = ""
+var _powerup_coin_costs := {"undo": 120, "prism": 180, "shuffle": 140}
 
 const ICON_UNDO := "Undo"
 const ICON_PRISM := "Prism"
@@ -41,6 +42,7 @@ func _ready() -> void:
 	$BoardView.modulate = Color(1, 1, 1, 1)
 	$UI.modulate = Color(1, 1, 1, 1)
 	Typography.style_game(self)
+	ThemeManager.apply_to_scene(self)
 	BackgroundMood.register_controller($BackgroundController)
 	_update_gameplay_mood_from_matches(0.0)
 	BackgroundMood.reset_starfield_emission_taper()
@@ -56,6 +58,15 @@ func _ready() -> void:
 	_undo_charges = FeatureFlags.powerup_undo_charges()
 	_remove_color_charges = FeatureFlags.powerup_remove_color_charges()
 	_shuffle_charges = FeatureFlags.powerup_shuffle_charges()
+	await NakamaService.refresh_wallet(false)
+	var wallet_shop: Dictionary = NakamaService.get_shop_state()
+	if not wallet_shop.is_empty():
+		ThemeManager.apply_from_shop_state(wallet_shop)
+		ThemeManager.apply_to_scene(self)
+	var stored_powerups: Dictionary = wallet_shop.get("powerups", {})
+	_undo_charges += int(stored_powerups.get("undo", 0))
+	_remove_color_charges += int(stored_powerups.get("prism", 0))
+	_shuffle_charges += int(stored_powerups.get("shuffle", 0))
 	if board_frame:
 		board_frame.visible = false
 	if board_glow:
@@ -108,12 +119,14 @@ func _on_resume() -> void:
 
 func _on_quit() -> void:
 	get_tree().paused = false
-	_finish_run()
+	_finish_run(false)
 
 func _on_undo_pressed() -> void:
 	if _undo_charges <= 0:
-		_request_powerup_refill("undo")
-		return
+		var purchased := await _try_purchase_powerup_with_coins("undo")
+		if not purchased:
+			_request_powerup_refill("undo")
+			return
 	if _undo_stack.is_empty():
 		return
 	if _ending_transition_started:
@@ -123,6 +136,7 @@ func _on_undo_pressed() -> void:
 	score = int(state["score"])
 	combo = int(state["combo"])
 	_undo_charges -= 1
+	call_deferred("_consume_powerup_server", "undo")
 	_update_score()
 	_update_gameplay_mood_from_matches(0.3)
 	_update_powerup_buttons()
@@ -130,8 +144,10 @@ func _on_undo_pressed() -> void:
 
 func _on_remove_color_pressed() -> void:
 	if _remove_color_charges <= 0:
-		_request_powerup_refill("prism")
-		return
+		var purchased := await _try_purchase_powerup_with_coins("prism")
+		if not purchased:
+			_request_powerup_refill("prism")
+			return
 	if _ending_transition_started:
 		return
 	var snapshot: Array = board.capture_snapshot()
@@ -143,6 +159,7 @@ func _on_remove_color_pressed() -> void:
 		return
 	_push_undo(snapshot, score_before, combo_before)
 	_remove_color_charges -= 1
+	call_deferred("_consume_powerup_server", "prism")
 	combo += 1
 	score += removed * 12
 	_update_score()
@@ -153,8 +170,10 @@ func _on_remove_color_pressed() -> void:
 
 func _on_shuffle_pressed() -> void:
 	if _shuffle_charges <= 0:
-		_request_powerup_refill("shuffle")
-		return
+		var purchased := await _try_purchase_powerup_with_coins("shuffle")
+		if not purchased:
+			_request_powerup_refill("shuffle")
+			return
 	if _ending_transition_started:
 		return
 	var snapshot: Array = board.capture_snapshot()
@@ -165,6 +184,7 @@ func _on_shuffle_pressed() -> void:
 		return
 	_push_undo(snapshot, score_before, combo_before)
 	_shuffle_charges -= 1
+	call_deferred("_consume_powerup_server", "shuffle")
 	score += 80
 	combo = max(0, combo - 1)
 	_update_score()
@@ -262,6 +282,27 @@ func _request_powerup_refill(powerup_type: String) -> void:
 		_pending_powerup_refill_type = ""
 		_update_powerup_buttons()
 
+func _try_purchase_powerup_with_coins(powerup_type: String) -> bool:
+	var cost: int = int(_powerup_coin_costs.get(powerup_type, 0))
+	if cost <= 0:
+		return false
+	var purchase_id := "%s_%d" % [powerup_type, Time.get_unix_time_from_system()]
+	var result: Dictionary = await NakamaService.purchase_powerup(powerup_type, 1, cost, purchase_id)
+	if not result.get("ok", false):
+		return false
+	match powerup_type:
+		"undo":
+			_undo_charges += 1
+		"prism":
+			_remove_color_charges += 1
+		"shuffle":
+			_shuffle_charges += 1
+	_update_powerup_buttons()
+	return true
+
+func _consume_powerup_server(powerup_type: String) -> void:
+	await NakamaService.consume_powerup(powerup_type, 1)
+
 func _powerup_button_icon(base_icon: String, charges: int, powerup_type: String) -> String:
 	if _pending_powerup_refill_type == powerup_type:
 		return ICON_LOADING
@@ -308,9 +349,9 @@ func _is_other_refill_pending(powerup_type: String) -> bool:
 	return not _pending_powerup_refill_type.is_empty() and _pending_powerup_refill_type != powerup_type
 
 func _on_no_moves() -> void:
-	_finish_run()
+	_finish_run(true)
 
-func _finish_run() -> void:
+func _finish_run(completed_by_gameplay: bool) -> void:
 	if _run_finished:
 		return
 	if _ending_transition_started:
@@ -319,7 +360,7 @@ func _finish_run() -> void:
 	_ending_transition_started = true
 	await _play_end_transition()
 	_run_finished = true
-	RunManager.end_game(score)
+	RunManager.end_game(score, completed_by_gameplay)
 
 func _play_end_transition() -> void:
 	set_process_input(false)

@@ -2,6 +2,7 @@ extends Node
 
 const EXPLOSION_SCENE := preload("res://src/vfx/PixelExplosion.tscn")
 var _burst_texture: Texture2D
+var _theme_palette: Array = []
 
 func play_pixel_explosion(group: Array, tile_size: float, board_origin: Vector2, colors: Array) -> void:
 	if group.is_empty():
@@ -53,8 +54,11 @@ func play_prism_clear(group: Array, tile_size: float, board_origin: Vector2, col
 	_spawn_pop_burst(parent, center + Vector2(14, -10), Color(1.0, 1.0, 1.0, 0.9))
 	_spawn_pop_burst(parent, center + Vector2(-12, 10), tint.lightened(0.2))
 
+func set_theme_palette(palette: Array) -> void:
+	_theme_palette = palette.duplicate(true)
+
 func _color_from_index(idx: int) -> Color:
-	var palette := [
+	var palette := _theme_palette if _theme_palette.size() >= 3 else [
 		Color(0.42, 0.8, 1.0, 0.9),
 		Color(0.96, 0.62, 0.9, 0.9),
 		Color(0.6, 0.95, 0.7, 0.9),

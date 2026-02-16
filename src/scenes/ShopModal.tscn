@@ -1,0 +1,127 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/scenes/ShopModal.gd" id=1]
+[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id=2]
+[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=3]
+
+[node name="ShopModal" type="Control"]
+theme = ExtResource( 2 )
+script = ExtResource( 1 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.45)
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchor_left = 0.05
+anchor_top = 0.08
+anchor_right = 0.95
+anchor_bottom = 0.92
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+text = "Shop"
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Panel/VBox"]
+text = "Buy themes, powerups, and coins"
+horizontal_alignment = 1
+
+[node name="Coins" type="Label" parent="Panel/VBox"]
+text = "Coins: 0"
+horizontal_alignment = 1
+
+[node name="CoinPacksLabel" type="Label" parent="Panel/VBox"]
+text = "Coin Packs"
+
+[node name="CoinPacks" type="VBoxContainer" parent="Panel/VBox"]
+theme_override_constants/separation = 6
+
+[node name="Pack0" type="Button" parent="Panel/VBox/CoinPacks"]
+script = ExtResource( 3 )
+text = "Pack0"
+
+[node name="Pack1" type="Button" parent="Panel/VBox/CoinPacks"]
+script = ExtResource( 3 )
+text = "Pack1"
+
+[node name="Pack2" type="Button" parent="Panel/VBox/CoinPacks"]
+script = ExtResource( 3 )
+text = "Pack2"
+
+[node name="Pack3" type="Button" parent="Panel/VBox/CoinPacks"]
+script = ExtResource( 3 )
+text = "Pack3"
+
+[node name="Pack4" type="Button" parent="Panel/VBox/CoinPacks"]
+script = ExtResource( 3 )
+text = "Pack4"
+
+[node name="RefreshWallet" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Refresh Wallet"
+
+[node name="Themes" type="VBoxContainer" parent="Panel/VBox"]
+
+[node name="Owned" type="Label" parent="Panel/VBox/Themes"]
+text = "Owned themes: default"
+
+[node name="BuyNeon" type="Button" parent="Panel/VBox/Themes"]
+script = ExtResource( 3 )
+text = "Buy Neon (1500)"
+
+[node name="PreviewNeon" type="Button" parent="Panel/VBox/Themes"]
+script = ExtResource( 3 )
+text = "Preview Neon"
+
+[node name="EquipDefault" type="Button" parent="Panel/VBox/Themes"]
+script = ExtResource( 3 )
+text = "Equip Default"
+
+[node name="EquipNeon" type="Button" parent="Panel/VBox/Themes"]
+script = ExtResource( 3 )
+text = "Equip Neon"
+
+[node name="UnlockNeonAd" type="Button" parent="Panel/VBox/Themes"]
+script = ExtResource( 3 )
+text = "Ad Unlock Neon (24h)"
+
+[node name="PowerupsLabel" type="Label" parent="Panel/VBox"]
+text = "Powerups"
+
+[node name="Powerups" type="HBoxContainer" parent="Panel/VBox"]
+theme_override_constants/separation = 8
+
+[node name="BuyUndo" type="Button" parent="Panel/VBox/Powerups"]
+script = ExtResource( 3 )
+text = "Undo (120)"
+
+[node name="BuyPrism" type="Button" parent="Panel/VBox/Powerups"]
+script = ExtResource( 3 )
+text = "Prism (180)"
+
+[node name="BuyShuffle" type="Button" parent="Panel/VBox/Powerups"]
+script = ExtResource( 3 )
+text = "Shuffle (140)"
+
+[node name="Close" type="Button" parent="Panel/VBox"]
+script = ExtResource( 3 )
+text = "Close"
+
+[connection signal="pressed" from="Panel/VBox/Themes/BuyNeon" to="." method="_on_buy_neon_pressed"]
+[connection signal="pressed" from="Panel/VBox/Themes/PreviewNeon" to="." method="_on_preview_neon_pressed"]
+[connection signal="pressed" from="Panel/VBox/Themes/EquipDefault" to="." method="_on_equip_default_pressed"]
+[connection signal="pressed" from="Panel/VBox/Themes/EquipNeon" to="." method="_on_equip_neon_pressed"]
+[connection signal="pressed" from="Panel/VBox/Themes/UnlockNeonAd" to="." method="_on_unlock_neon_ad_pressed"]
+[connection signal="pressed" from="Panel/VBox/Powerups/BuyUndo" to="." method="_on_buy_undo_pressed"]
+[connection signal="pressed" from="Panel/VBox/Powerups/BuyPrism" to="." method="_on_buy_prism_pressed"]
+[connection signal="pressed" from="Panel/VBox/Powerups/BuyShuffle" to="." method="_on_buy_shuffle_pressed"]
+[connection signal="pressed" from="Panel/VBox/RefreshWallet" to="." method="_on_refresh_wallet_pressed"]
+[connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]

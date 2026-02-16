@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/scenes/Results.gd" id=1]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id=2]
@@ -20,41 +20,28 @@ anchor_bottom = 1.0
 
 [node name="Panel" type="ColorRect" parent="UI"]
 script = ExtResource( 3 )
-anchor_left = 0.1
+anchor_left = 0.12
 anchor_top = 0.2
-anchor_right = 0.9
+anchor_right = 0.88
 anchor_bottom = 0.8
-blur_radius = 5.6
-tint = Color(0.08, 0.14, 0.27, 0.38)
-edge = Color(0.93, 0.97, 1, 0.26)
+blur_radius = 5.2
+tint = Color(0.12, 0.18, 0.32, 0.22)
+edge = Color(0.9, 0.96, 1, 0.2)
 corner_radius = 0.11
-edge_width = 1.05
-warp_intensity = 0.1
-chromatic_strength = 0.2
-color = Color(0.08, 0.14, 0.27, 0.38)
-
-[node name="PanelBloom" type="ColorRect" parent="UI"]
-script = ExtResource( 3 )
-anchor_left = 0.08
-anchor_top = 0.18
-anchor_right = 0.92
-anchor_bottom = 0.82
-blur_radius = 7.0
-tint = Color(0.64, 0.78, 1, 0.1)
-edge = Color(0.8, 0.9, 1, 0.1)
-corner_radius = 0.13
-edge_width = 1.0
-warp_intensity = 0.06
-chromatic_strength = 0.04
-color = Color(0.64, 0.78, 1, 0.1)
+edge_width = 1.1
+warp_intensity = 0.12
+strength_x = 8.0
+strength_y = 8.0
+chromatic_strength = 0.18
+color = Color(0.12, 0.18, 0.32, 0.22)
 
 [node name="VBox" type="VBoxContainer" parent="UI"]
-anchor_left = 0.14
-anchor_top = 0.25
-anchor_right = 0.86
-anchor_bottom = 0.75
+anchor_left = 0.15
+anchor_top = 0.21
+anchor_right = 0.85
+anchor_bottom = 0.79
 alignment = 1
-theme_override_constants/separation = 20
+theme_override_constants/separation = 24
 
 [node name="Title" type="Label" parent="UI/VBox"]
 text = "Color Crunch"
@@ -76,19 +63,48 @@ text = "Streak: 0"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 30
 
+[node name="OnlineStatus" type="Label" parent="UI/VBox"]
+text = "Online: connecting..."
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="Leaderboard" type="Label" parent="UI/VBox"]
+text = "Leaderboard loading..."
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 2
+
+[node name="CoinsEarned" type="Label" parent="UI/VBox"]
+text = "Coins earned: 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="CoinBalance" type="Label" parent="UI/VBox"]
+text = "Coins balance: 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+
+[node name="DoubleReward" type="Button" parent="UI/VBox"]
+script = ExtResource( 5 )
+text = "Watch Ad: Double Coins"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 88)
+
+[node name="Spacer" type="Control" parent="UI/VBox"]
+size_flags_vertical = 3
+
 [node name="PlayAgain" type="Button" parent="UI/VBox"]
 script = ExtResource( 5 )
 text = "Play Again"
-custom_minimum_size = Vector2(0, 124)
-tint = Color(0.72, 0.84, 1, 0.34)
-edge_highlight = Color(0.96, 0.99, 1, 0.72)
-blur = 3.3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 118)
 
 [node name="Menu" type="Button" parent="UI/VBox"]
 script = ExtResource( 5 )
 text = "Main Menu"
-custom_minimum_size = Vector2(0, 106)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 118)
 
 [connection signal="pressed" from="UI/VBox/PlayAgain" to="." method="_on_play_again_pressed"]
 [connection signal="pressed" from="UI/VBox/Menu" to="." method="_on_menu_pressed"]
-
+[connection signal="pressed" from="UI/VBox/DoubleReward" to="." method="_on_double_reward_pressed"]

@@ -87,6 +87,7 @@ var _touch_start: Vector2 = Vector2.ZERO
 
 var _last_move_score: int = 0
 var _last_merge_count: int = 0
+var _theme_tile_palette: Array = []
 
 func _ready() -> void:
 	_tile_gap_px = _gap_for_tile_size(tile_size)
@@ -108,6 +109,13 @@ func set_tile_size(new_size: float) -> void:
 	if board == null:
 		return
 	_rebuild_tiles_from_grid()
+
+func set_theme_palette(theme_palette: Array) -> void:
+	_theme_tile_palette = theme_palette.duplicate(true)
+	if board == null:
+		return
+	_refresh_tiles()
+	queue_redraw()
 
 func _gap_for_tile_size(size: float) -> float:
 	return clamp(size * 0.08, 7.0, 12.0)
@@ -508,6 +516,8 @@ func _palette_size() -> int:
 	return _tile_palette().size()
 
 func _tile_palette() -> Array:
+	if _theme_tile_palette.size() >= 3:
+		return _theme_tile_palette
 	return TILE_PALETTE_LEGACY if FeatureFlags.tile_design_mode() == FeatureFlags.TileDesignMode.LEGACY else TILE_PALETTE_MODERN
 
 func _apply_tile_design_shader_profile(mat: ShaderMaterial) -> void:

@@ -4,6 +4,9 @@ extends Control
 @onready var track_next: Button = $UI/VBox/TrackCarousel/TrackNext
 @onready var track_name: Label = $UI/VBox/TrackCarousel/TrackNameHost/TrackName
 @onready var title_label: Label = $UI/VBox/Title
+@onready var account_button: Button = $UI/Account
+@onready var shop_button: Button = $UI/Shop
+@onready var coin_badge: Label = $UI/Shop/CoinBadge
 
 var _title_t: float = 0.0
 var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
@@ -25,9 +28,14 @@ func _ready() -> void:
 		$BackgroundController.call("set_menu_emission_persistent", true)
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_main_menu(self)
-	call_deferred("_refresh_title_pivot")
+	ThemeManager.apply_to_scene(self)
+	call_deferred("_refresh_title_pivots")
 	title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
+	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
+		NakamaService.wallet_updated.connect(_on_wallet_updated)
+	await NakamaService.refresh_wallet(false)
+	_apply_wallet_to_ui(NakamaService.get_wallet())
 
 func _process(delta: float) -> void:
 	if FeatureFlags.is_visual_test_mode():
@@ -41,15 +49,36 @@ func _process(delta: float) -> void:
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_main_menu(self)
-		_refresh_title_pivot()
+		_refresh_title_pivots()
 
-func _refresh_title_pivot() -> void:
+func _refresh_title_pivots() -> void:
 	if title_label == null:
 		return
 	title_label.pivot_offset = title_label.size * 0.5
+	if track_name:
+		track_name.pivot_offset = track_name.size * 0.5
 
 func _on_start_pressed() -> void:
 	RunManager.start_game()
+
+func _on_account_pressed() -> void:
+	var modal := preload("res://src/scenes/AccountModal.tscn").instantiate()
+	add_child(modal)
+
+func _on_shop_pressed() -> void:
+	var modal := preload("res://src/scenes/ShopModal.tscn").instantiate()
+	add_child(modal)
+
+func _on_wallet_updated(wallet: Dictionary) -> void:
+	_apply_wallet_to_ui(wallet)
+
+func _apply_wallet_to_ui(wallet: Dictionary) -> void:
+	var balance: int = int(wallet.get("coin_balance", 0))
+	coin_badge.text = str(max(0, balance))
+	var shop_state: Variant = wallet.get("shop", {})
+	if typeof(shop_state) == TYPE_DICTIONARY:
+		ThemeManager.apply_from_shop_state(shop_state as Dictionary)
+		ThemeManager.apply_to_scene(self)
 
 func _populate_track_options() -> void:
 	_tracks = MusicManager.get_available_tracks()
@@ -84,6 +113,8 @@ func _refresh_track_name(animated: bool, direction: int = 1) -> void:
 		track_name.text = ""
 		return
 	track_name.text = str(_tracks[_track_index].get("name", "Track"))
+	if track_name:
+		track_name.pivot_offset = track_name.size * 0.5
 	if not animated:
 		track_name.modulate = Color(1, 1, 1, 1)
 		track_name.scale = Vector2.ONE

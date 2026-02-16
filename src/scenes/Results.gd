@@ -3,6 +3,15 @@ extends Control
 @onready var score_label: Label = $UI/VBox/Score
 @onready var best_label: Label = $UI/VBox/Best
 @onready var streak_label: Label = $UI/VBox/Streak
+@onready var online_status_label: Label = $UI/VBox/OnlineStatus
+@onready var leaderboard_label: Label = $UI/VBox/Leaderboard
+@onready var coins_earned_label: Label = $UI/VBox/CoinsEarned
+@onready var coin_balance_label: Label = $UI/VBox/CoinBalance
+@onready var double_reward_button: Button = $UI/VBox/DoubleReward
+
+var _base_reward_claimed: bool = false
+var _double_reward_pending: bool = false
+var _base_reward_amount: int = 0
 
 func _ready() -> void:
 	BackgroundMood.register_controller($BackgroundController)
@@ -10,16 +19,38 @@ func _ready() -> void:
 	MusicManager.fade_to_calm(0.6)
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_results(self)
+	ThemeManager.apply_to_scene(self)
+	_refresh_intro_pivots()
 	_update_labels()
+	_bind_online_signals()
+	_sync_online_results()
+	_sync_wallet_rewards()
 	_play_intro()
 	if StreakManager.is_streak_at_risk():
 		var modal := preload("res://src/scenes/SaveStreakModal.tscn").instantiate()
 		add_child(modal)
+	if not AdManager.is_connected("rewarded_powerup_earned", Callable(self, "_on_double_reward_ad_earned")):
+		AdManager.connect("rewarded_powerup_earned", Callable(self, "_on_double_reward_ad_earned"))
 
 func _update_labels() -> void:
 	score_label.text = "%d" % RunManager.last_score
-	best_label.text = "Best: %d" % int(SaveStore.data["high_score"])
+	var local_best: int = int(SaveStore.data["high_score"])
+	var online_record: Dictionary = NakamaService.get_my_high_score()
+	var online_best: int = int(online_record.get("score", 0))
+	var online_rank: int = int(online_record.get("rank", 0))
+	var best_value: int = max(local_best, online_best)
+	if online_best > 0 and online_rank > 0:
+		best_label.text = "Best: %d (Global #%d)" % [best_value, online_rank]
+	else:
+		best_label.text = "Best: %d" % best_value
 	streak_label.text = "Streak: %d" % StreakManager.get_streak_days()
+	online_status_label.text = "Online: %s" % NakamaService.get_online_status()
+	leaderboard_label.text = _format_leaderboard(NakamaService.get_leaderboard_records())
+	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
+	if _base_reward_claimed:
+		coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
+	else:
+		coins_earned_label.text = "Coins earned: pending"
 
 func _on_play_again_pressed() -> void:
 	AdManager.maybe_show_interstitial()
@@ -30,25 +61,123 @@ func _on_menu_pressed() -> void:
 
 func _play_intro() -> void:
 	var ui: CanvasItem = $UI
-	var bloom: CanvasItem = $UI/PanelBloom
 	var panel: CanvasItem = $UI/Panel
 	var box: CanvasItem = $UI/VBox
 	var play_again: CanvasItem = $UI/VBox/PlayAgain
 	var menu: CanvasItem = $UI/VBox/Menu
 	ui.modulate.a = 0.0
-	bloom.modulate.a = 0.0
 	panel.scale = Vector2(0.9, 0.9)
 	box.scale = Vector2(0.95, 0.95)
 	play_again.modulate.a = 0.0
 	menu.modulate.a = 0.0
 	var t := create_tween()
 	t.tween_property(ui, "modulate:a", 1.0, 0.28)
-	t.parallel().tween_property(bloom, "modulate:a", 1.0, 0.46)
 	t.parallel().tween_property(panel, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.parallel().tween_property(box, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(play_again, "modulate:a", 1.0, 0.16)
 	t.tween_property(menu, "modulate:a", 1.0, 0.16)
 
+func _refresh_intro_pivots() -> void:
+	var panel: Control = $UI/Panel
+	var box: Control = $UI/VBox
+	if panel:
+		panel.pivot_offset = panel.size * 0.5
+	if box:
+		box.pivot_offset = box.size * 0.5
+
+func _bind_online_signals() -> void:
+	if not NakamaService.online_state_changed.is_connected(_on_online_state_changed):
+		NakamaService.online_state_changed.connect(_on_online_state_changed)
+	if not NakamaService.high_score_updated.is_connected(_on_high_score_updated):
+		NakamaService.high_score_updated.connect(_on_high_score_updated)
+	if not NakamaService.leaderboard_updated.is_connected(_on_leaderboard_updated):
+		NakamaService.leaderboard_updated.connect(_on_leaderboard_updated)
+
+func _on_online_state_changed(status: String) -> void:
+	online_status_label.text = "Online: %s" % status
+
+func _on_high_score_updated(_record: Dictionary) -> void:
+	_update_labels()
+
+func _on_leaderboard_updated(records: Array) -> void:
+	leaderboard_label.text = _format_leaderboard(records)
+
+func _sync_online_results() -> void:
+	await NakamaService.submit_score(RunManager.last_score, {
+		"source": "results_ready",
+	})
+	await NakamaService.refresh_my_high_score()
+	await NakamaService.refresh_leaderboard(5)
+
+func _sync_wallet_rewards() -> void:
+	await NakamaService.refresh_wallet(false)
+	var run_id: String = RunManager.last_run_id
+	if run_id.is_empty():
+		run_id = "cc-run-fallback-%d" % Time.get_unix_time_from_system()
+	var claim: Dictionary = await NakamaService.claim_run_reward(
+		RunManager.last_score,
+		StreakManager.get_streak_days(),
+		RunManager.last_run_completed_by_gameplay,
+		false,
+		run_id
+	)
+	if claim.get("ok", false):
+		var data: Dictionary = claim.get("data", {})
+		_base_reward_claimed = bool(data.get("granted", false))
+		_base_reward_amount = int(data.get("rewardCoins", 0))
+	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
+	coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
+	double_reward_button.disabled = not RunManager.last_run_completed_by_gameplay
+
+func _on_double_reward_pressed() -> void:
+	if not RunManager.last_run_completed_by_gameplay:
+		return
+	if _base_reward_amount <= 0:
+		return
+	_double_reward_pending = true
+	double_reward_button.disabled = true
+	double_reward_button.text = "Loading ad..."
+	if not AdManager.show_rewarded_for_powerup():
+		_double_reward_pending = false
+		double_reward_button.disabled = false
+		double_reward_button.text = "Watch Ad: Double Coins"
+
+func _on_double_reward_ad_earned() -> void:
+	if not _double_reward_pending:
+		return
+	_double_reward_pending = false
+	var claim: Dictionary = await NakamaService.claim_run_reward(
+		RunManager.last_score,
+		StreakManager.get_streak_days(),
+		RunManager.last_run_completed_by_gameplay,
+		false,
+		RunManager.last_run_id + ":double"
+	)
+	if claim.get("ok", false):
+		var data: Dictionary = claim.get("data", {})
+		var extra: int = int(data.get("rewardCoins", 0))
+		_base_reward_amount += extra
+	coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
+	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
+	double_reward_button.text = "Coins Doubled"
+
+func _format_leaderboard(records: Array) -> String:
+	if records.is_empty():
+		return "Leaderboard: no online records yet"
+	var lines: Array[String] = []
+	var count: int = min(records.size(), 3)
+	for i in range(count):
+		var item: Variant = records[i]
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = item
+		var rank: int = int(row.get("rank", i + 1))
+		var username: String = str(row.get("username", "Player"))
+		var score: int = int(row.get("score", 0))
+		lines.append("%d. %s - %d" % [rank, username, score])
+	return "Leaderboard\n%s" % "\n".join(lines)
+
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_results(self)
+		_refresh_intro_pivots()

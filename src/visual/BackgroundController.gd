@@ -129,6 +129,16 @@ func set_mood_mix(calm_weight: float, fade_seconds: float = 0.8) -> void:
 	var to_b: Color = _hype_b.lerp(_calm_b, mix_t)
 	_apply_mood_targets(to_a, to_b, mix_t, fade_seconds)
 
+func set_theme_palette(calm_a: Color, calm_b: Color, hype_a: Color, hype_b: Color) -> void:
+	_calm_a = calm_a
+	_calm_b = calm_b
+	_hype_a = hype_a
+	_hype_b = hype_b
+	if bg_rect and bg_rect.material:
+		bg_rect.material.set_shader_parameter("color_a", _calm_a)
+		bg_rect.material.set_shader_parameter("color_b", _calm_b)
+	set_mood(BackgroundMood.get_mood(), 0.2)
+
 func _apply_mood_targets(to_a: Color, to_b: Color, calm_weight: float, fade_seconds: float) -> void:
 	if is_instance_valid(_mood_tween):
 		_mood_tween.kill()

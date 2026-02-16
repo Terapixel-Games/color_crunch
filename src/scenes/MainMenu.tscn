@@ -92,8 +92,50 @@ text = "Start"
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 118)
 
+[node name="Account" type="Button" parent="UI"]
+script = ExtResource( 5 )
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -250.0
+offset_top = 44.0
+offset_right = -24.0
+offset_bottom = 126.0
+text = "Account"
+corner_radius = 0.38
+
+[node name="Shop" type="Button" parent="UI"]
+script = ExtResource( 5 )
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -264.0
+offset_top = -150.0
+offset_right = -24.0
+offset_bottom = -44.0
+text = "Shop"
+corner_radius = 0.38
+
+[node name="CoinBadge" type="Label" parent="UI/Shop"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 64.0
+offset_top = -42.0
+offset_right = 146.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [connection signal="pressed" from="UI/VBox/TrackCarousel/TrackPrev" to="." method="_on_track_prev_pressed"]
 [connection signal="pressed" from="UI/VBox/TrackCarousel/TrackNext" to="." method="_on_track_next_pressed"]
 [connection signal="pressed" from="UI/VBox/Start" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="UI/Account" to="." method="_on_account_pressed"]
+[connection signal="pressed" from="UI/Shop" to="." method="_on_shop_pressed"]
 
 
