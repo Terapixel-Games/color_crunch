@@ -26,6 +26,7 @@ VFXManager="*res://src/vfx/VFXManager.gd"
 RunManager="*res://src/core/RunManager.gd"
 SafeArea="*res://src/core/SafeArea.gd"
 Typography="*res://src/ui/Typography.gd"
+NakamaService="*res://src/network/NakamaService.gd"
 
 [debug]
 
@@ -36,7 +37,7 @@ window/handheld/orientation="portrait"
 
 window/size/viewport_width=1170
 window/size/viewport_height=2532
-window/size/mode=4
+window/size/mode=3
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
@@ -44,6 +45,17 @@ window/handheld/orientation=1
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/AdmobPlugin/plugin.cfg", "res://addons/gdUnit4/plugin.cfg")
+
+[color_crunch]
+
+nakama_enable_client=false
+nakama_base_url="http://127.0.0.1:7350"
+nakama_server_key="colorcrunch-dev-key"
+nakama_leaderboard_limit=10
+platform="terapixel"
+export_target="web"
+terapixel_user_id=""
+terapixel_display_name=""
 
 [rendering]
 

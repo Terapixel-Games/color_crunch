@@ -1,0 +1,88 @@
+#!/bin/sh
+set -eu
+
+if [ -z "${DB_USER:-}" ] || [ -z "${DB_PASSWORD:-}" ] || [ -z "${DB_HOST:-}" ] || [ -z "${DB_PORT:-}" ] || [ -z "${DB_NAME:-}" ]; then
+  echo "Missing one or more database env vars: DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME"
+  exit 1
+fi
+
+if [ -z "${PORT:-}" ]; then
+  PORT=7350
+fi
+
+if [ -z "${NAKAMA_SERVER_KEY:-}" ]; then
+  echo "Missing NAKAMA_SERVER_KEY"
+  exit 1
+fi
+
+if [ -z "${NAKAMA_SESSION_ENCRYPTION_KEY:-}" ]; then
+  echo "Missing NAKAMA_SESSION_ENCRYPTION_KEY"
+  exit 1
+fi
+
+if [ -z "${NAKAMA_SESSION_REFRESH_ENCRYPTION_KEY:-}" ]; then
+  echo "Missing NAKAMA_SESSION_REFRESH_ENCRYPTION_KEY"
+  exit 1
+fi
+
+if [ -z "${NAKAMA_RUNTIME_HTTP_KEY:-}" ]; then
+  echo "Missing NAKAMA_RUNTIME_HTTP_KEY"
+  exit 1
+fi
+
+DB_ADDRESS="${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+RUNTIME_ENV_TPX_AUTH="${TPX_PLATFORM_AUTH_URL:-}"
+RUNTIME_ENV_TPX_EVENT="${TPX_PLATFORM_EVENT_URL:-}"
+RUNTIME_ENV_TPX_API_KEY="${TPX_PLATFORM_API_KEY:-}"
+RUNTIME_ENV_TPX_TIMEOUT="${TPX_HTTP_TIMEOUT_MS:-5000}"
+RUNTIME_ENV_LEADERBOARD_ID="${COLOR_CRUNCH_LEADERBOARD_ID:-colorcrunch_high_scores}"
+NAKAMA_SOCKET_PORT="${NAKAMA_SOCKET_PORT:-7354}"
+NAKAMA_CONSOLE_PORT="${NAKAMA_CONSOLE_PORT:-7355}"
+
+cat > /tmp/render-local.yml <<EOF
+name: "colorcrunch-nakama"
+logger:
+  level: "INFO"
+session:
+  encryption_key: "${NAKAMA_SESSION_ENCRYPTION_KEY}"
+  refresh_encryption_key: "${NAKAMA_SESSION_REFRESH_ENCRYPTION_KEY}"
+  token_expiry_sec: 7200
+  refresh_token_expiry_sec: 604800
+socket:
+  server_key: "${NAKAMA_SERVER_KEY}"
+  port: ${NAKAMA_SOCKET_PORT}
+console:
+  port: ${NAKAMA_CONSOLE_PORT}
+  username: "${NAKAMA_CONSOLE_USERNAME:-admin}"
+  password: "${NAKAMA_CONSOLE_PASSWORD:-adminpassword}"
+runtime:
+  path: "/nakama/data/modules"
+  js_entrypoint: "colorcrunch.js"
+  http_key: "${NAKAMA_RUNTIME_HTTP_KEY}"
+  env:
+    - "TPX_PLATFORM_AUTH_URL=${RUNTIME_ENV_TPX_AUTH}"
+    - "TPX_PLATFORM_EVENT_URL=${RUNTIME_ENV_TPX_EVENT}"
+    - "TPX_PLATFORM_API_KEY=${RUNTIME_ENV_TPX_API_KEY}"
+    - "TPX_HTTP_TIMEOUT_MS=${RUNTIME_ENV_TPX_TIMEOUT}"
+    - "COLOR_CRUNCH_LEADERBOARD_ID=${RUNTIME_ENV_LEADERBOARD_ID}"
+EOF
+
+echo "Running Nakama migrations..."
+/nakama/nakama migrate up --database.address "${DB_ADDRESS}"
+
+echo "Starting Nakama on internal ports (socket=${NAKAMA_SOCKET_PORT}, console=${NAKAMA_CONSOLE_PORT})..."
+/nakama/nakama \
+  --config /tmp/render-local.yml \
+  --database.address "${DB_ADDRESS}" \
+  --socket.port "${NAKAMA_SOCKET_PORT}" \
+  --console.port "${NAKAMA_CONSOLE_PORT}" &
+
+echo "Rendering nginx config for public port ${PORT}..."
+export PORT
+export NAKAMA_SOCKET_PORT
+export NAKAMA_CONSOLE_PORT
+envsubst '${PORT} ${NAKAMA_SOCKET_PORT} ${NAKAMA_CONSOLE_PORT}' \
+  < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
+echo "Starting nginx reverse proxy..."
+exec nginx -g "daemon off;"

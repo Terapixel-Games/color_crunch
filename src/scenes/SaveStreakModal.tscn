@@ -6,51 +6,89 @@
 [ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=4]
 
 [node name="SaveStreakModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
 script = ExtResource( 1 )
 theme = ExtResource( 3 )
 
 [node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
 color = Color(0, 0, 0, 0.4)
 
-[node name="Panel" type="ColorRect" parent="."]
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="ColorRect" parent="Center"]
 script = ExtResource( 2 )
-anchor_left = 0.1
-anchor_top = 0.28
-anchor_right = 0.9
-anchor_bottom = 0.72
+custom_minimum_size = Vector2(620, 760)
+layout_mode = 2
+mouse_filter = 2
 color = Color(0.03, 0.07, 0.15, 0.68)
 
-[node name="VBox" type="VBoxContainer" parent="Panel"]
-anchor_left = 0.1
-anchor_top = 0.1
-anchor_right = 0.9
-anchor_bottom = 0.9
+[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 52.0
+offset_right = -48.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 alignment = 1
 theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="Panel/VBox"]
+[node name="Title" type="Label" parent="Center/Panel/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Save Your Streak"
 horizontal_alignment = 1
+autowrap_mode = 3
 theme_override_font_sizes/font_size = 46
 
-[node name="Status" type="Label" parent="Panel/VBox"]
+[node name="Status" type="Label" parent="Center/Panel/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Watch a short ad to save"
 horizontal_alignment = 1
+autowrap_mode = 3
 theme_override_font_sizes/font_size = 28
 
-[node name="SaveButton" type="Button" parent="Panel/VBox"]
+[node name="SaveButton" type="Button" parent="Center/Panel/VBox"]
 script = ExtResource( 4 )
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
 text = "Watch Ad"
 custom_minimum_size = Vector2(0, 102)
 
-[node name="Close" type="Button" parent="Panel/VBox"]
+[node name="Close" type="Button" parent="Center/Panel/VBox"]
 script = ExtResource( 4 )
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
 text = "Not Now"
 custom_minimum_size = Vector2(0, 102)
 
-[connection signal="pressed" from="Panel/VBox/SaveButton" to="." method="_on_save_pressed"]
-[connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]
+[connection signal="pressed" from="Center/Panel/VBox/SaveButton" to="." method="_on_save_pressed"]
+[connection signal="pressed" from="Center/Panel/VBox/Close" to="." method="_on_close_pressed"]
+[connection signal="gui_input" from="Dim" to="." method="_on_dim_gui_input"]

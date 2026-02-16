@@ -1,0 +1,97 @@
+databases:
+  - name: colorcrunch-nakama-db
+    databaseName: colorcrunch
+    user: colorcrunch
+    plan: free
+
+services:
+  - type: web
+    name: colorcrunch-nakama
+    runtime: docker
+    plan: starter
+    dockerContext: ./backend/nakama
+    dockerfilePath: ./backend/nakama/Dockerfile.render
+    healthCheckPath: /healthcheck
+    envVars:
+      - key: PORT
+        value: "7350"
+      - key: DB_HOST
+        fromDatabase:
+          name: colorcrunch-nakama-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: colorcrunch-nakama-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: colorcrunch-nakama-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: colorcrunch-nakama-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: colorcrunch-nakama-db
+          property: password
+      - key: TPX_PLATFORM_AUTH_URL
+        sync: false
+      - key: TPX_PLATFORM_EVENT_URL
+        sync: false
+      - key: TPX_PLATFORM_API_KEY
+        sync: false
+      - key: TPX_PLATFORM_IAP_START_URL
+        sync: false
+      - key: TPX_PLATFORM_IAP_ENTITLEMENTS_URL
+        sync: false
+      - key: TPX_PLATFORM_IAP_VERIFY_URL
+        sync: false
+      - key: TPX_PLATFORM_IAP_COINS_ADJUST_URL
+        sync: false
+      - key: TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL
+        sync: false
+      - key: TPX_PLATFORM_ACCOUNT_MERGE_CODE_URL
+        sync: false
+      - key: TPX_PLATFORM_ACCOUNT_MERGE_REDEEM_URL
+        sync: false
+      - key: TPX_PLATFORM_MAGIC_LINK_START_URL
+        sync: false
+      - key: TPX_PLATFORM_MAGIC_LINK_COMPLETE_URL
+        sync: false
+      - key: TPX_PLATFORM_USERNAME_VALIDATE_URL
+        sync: false
+      - key: TPX_PLATFORM_INTERNAL_KEY
+        sync: false
+      - key: TPX_MAGIC_LINK_NOTIFY_SECRET
+        sync: false
+      - key: TPX_PLATFORM_IAP_ADMIN_KEY
+        sync: false
+      - key: TPX_GAME_ID
+        value: "color_crunch"
+      - key: TPX_HTTP_TIMEOUT_MS
+        value: "5000"
+      - key: TPX_USERNAME_CHANGE_COST_COINS
+        value: "300"
+      - key: TPX_USERNAME_BLOCKLIST
+        sync: false
+      - key: TPX_USERNAME_MODERATION_FAIL_OPEN
+        value: "false"
+      - key: TPX_USERNAME_CHANGE_COOLDOWN_SECONDS
+        value: "300"
+      - key: TPX_USERNAME_CHANGE_MAX_PER_DAY
+        value: "3"
+      - key: COLOR_CRUNCH_LEADERBOARD_ID
+        value: "colorcrunch_high_scores"
+      - key: NAKAMA_SERVER_KEY
+        generateValue: true
+      - key: NAKAMA_SESSION_ENCRYPTION_KEY
+        generateValue: true
+      - key: NAKAMA_SESSION_REFRESH_ENCRYPTION_KEY
+        generateValue: true
+      - key: NAKAMA_RUNTIME_HTTP_KEY
+        generateValue: true
+      - key: NAKAMA_CONSOLE_USERNAME
+        value: admin
+      - key: NAKAMA_CONSOLE_PASSWORD
+        sync: false

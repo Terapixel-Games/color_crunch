@@ -1,0 +1,15 @@
+FROM heroiclabs/nakama:3.20.0
+
+# Install nginx + envsubst for runtime templating.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends nginx gettext-base ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY local.yml /nakama/data/local.yml
+COPY modules /nakama/data/modules
+COPY render/start.sh /nakama/data/start.sh
+COPY render/nginx.conf.template /etc/nginx/nginx.conf.template
+
+RUN chmod +x /nakama/data/start.sh
+
+ENTRYPOINT ["/nakama/data/start.sh"]

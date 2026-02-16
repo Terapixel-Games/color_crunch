@@ -110,7 +110,7 @@ func style_pause_overlay(scene: Control) -> void:
 	style_button(scene.get_node_or_null("VBox/Quit"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
 
 func style_save_streak(scene: Control) -> void:
-	style_label(scene.get_node_or_null("Panel/VBox/Title"), 56.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("Panel/VBox/Status"), 30.0, WEIGHT_REGULAR, true)
-	style_button(scene.get_node_or_null("Panel/VBox/SaveButton"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
-	style_button(scene.get_node_or_null("Panel/VBox/Close"), SIZE_BUTTON, WEIGHT_MEDIUM)
+	style_label(scene.get_node_or_null("Center/Panel/VBox/Title"), 44.0, WEIGHT_BOLD)
+	style_label(scene.get_node_or_null("Center/Panel/VBox/Status"), 24.0, WEIGHT_REGULAR, true)
+	style_button(scene.get_node_or_null("Center/Panel/VBox/SaveButton"), 26.0, WEIGHT_SEMIBOLD)
+	style_button(scene.get_node_or_null("Center/Panel/VBox/Close"), 24.0, WEIGHT_MEDIUM)
