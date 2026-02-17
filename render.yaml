@@ -2,7 +2,7 @@ databases:
   - name: colorcrunch-nakama-db
     databaseName: colorcrunch
     user: colorcrunch
-    plan: starter
+    plan: basic-256mb
 
 services:
   - type: web
