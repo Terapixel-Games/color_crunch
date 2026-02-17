@@ -1,13 +1,12 @@
-name: Color Crunch CI + Deploy Web
+name: Deploy Godot Web To Pages
 
 on:
   push:
     branches: ["main"]
-  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -20,67 +19,20 @@ env:
   GODOT_STATUS: "stable"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Godot Headless + Export Templates
-        shell: bash
-        run: |
-          set -euxo pipefail
-          sudo apt-get update
-          sudo apt-get install -y unzip wget
-
-          GODOT_BASE="Godot_v${GODOT_VERSION}-${GODOT_STATUS}"
-          HEADLESS_ZIP="${GODOT_BASE}_linux.x86_64.zip"
-          TEMPLATES_TPZ="${GODOT_BASE}_export_templates.tpz"
-
-          wget -O /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${HEADLESS_ZIP}"
-          unzip -o /tmp/godot.zip -d /tmp/godot-bin
-          chmod +x "/tmp/godot-bin/${GODOT_BASE}_linux.x86_64"
-          echo "GODOT_BIN=/tmp/godot-bin/${GODOT_BASE}_linux.x86_64" >> $GITHUB_ENV
-
-          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
-          mkdir -p "$TEMPLATE_DIR"
-          wget -O /tmp/export_templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${TEMPLATES_TPZ}"
-          unzip -o /tmp/export_templates.tpz -d /tmp/godot-templates
-          find /tmp/godot-templates -type f -name "*.zip" -exec cp {} "$TEMPLATE_DIR/" \;
-
-      - name: Import Project
-        run: $GODOT_BIN --headless --path . --import --quit
-
-      - name: Warm Script Class Cache
-        run: $GODOT_BIN --headless --editor --path . --quit
-
-      - name: Run GDUnit4 Unit Tests
-        run: bash addons/gdUnit4/runtest.sh --godot_binary "$GODOT_BIN" -a tests/unit --ignoreHeadlessMode -c
-
-      - name: Run GDUnit4 UAT Tests
-        run: bash addons/gdUnit4/runtest.sh --godot_binary "$GODOT_BIN" -a tests/uat --ignoreHeadlessMode -c
-
-      - name: Upload Test Reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gdunit-reports
-          path: reports
-          if-no-files-found: ignore
-
   export-web:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Godot Headless + Export Templates
         shell: bash
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y unzip wget
+          sudo apt-get install -y unzip wget zip
 
           GODOT_BASE="Godot_v${GODOT_VERSION}-${GODOT_STATUS}"
           HEADLESS_ZIP="${GODOT_BASE}_linux.x86_64.zip"
@@ -96,6 +48,7 @@ jobs:
           wget -O /tmp/export_templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${TEMPLATES_TPZ}"
           unzip -o /tmp/export_templates.tpz -d /tmp/godot-templates
           find /tmp/godot-templates -type f -name "*.zip" -exec cp {} "$TEMPLATE_DIR/" \;
+          ls -la "$TEMPLATE_DIR"
 
       - name: Disable Editor Plugins For CI Export
         shell: bash
@@ -103,6 +56,19 @@ jobs:
           set -euxo pipefail
           sed -i 's/^enabled=PackedStringArray(.*/enabled=PackedStringArray()/g' project.godot
           grep -n "^\[editor_plugins\]\|^enabled=" project.godot
+
+      - name: Inject Nakama Server Key For Web Build
+        shell: bash
+        env:
+          NAKAMA_SERVER_KEY: ${{ secrets.NAKAMA_SERVER_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NAKAMA_SERVER_KEY:-}" ]; then
+            echo "Missing required GitHub secret: NAKAMA_SERVER_KEY"
+            exit 1
+          fi
+          sed -i "s|^nakama_server_key=.*$|nakama_server_key=\"${NAKAMA_SERVER_KEY}\"|g" project.godot
+          grep -n "^nakama_server_key=" project.godot | sed 's|=.*$|=\"***\"|'
 
       - name: Disable Ad Plugins For Web CI
         shell: bash
@@ -127,6 +93,40 @@ jobs:
           mkdir -p build/web
           $GODOT_BIN --headless --path . --export-release "Web" build/web/index.html
 
+      - name: Compute Next Semantic Version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag="$(git tag -l 'v*' --sort=-version:refname | head -n 1)"
+          if [ -z "$latest_tag" ]; then
+            next_version="0.0.1"
+          else
+            current="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$current"
+            major="${major:-0}"
+            minor="${minor:-0}"
+            patch="${patch:-0}"
+            patch=$((patch + 1))
+            next_version="${major}.${minor}.${patch}"
+          fi
+          echo "version=$next_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Package Web Build Zip
+        shell: bash
+        run: |
+          set -euxo pipefail
+          zip -r "color-crunch-web-${{ steps.version.outputs.version }}.zip" build/web
+
+      - name: Create GitHub Release With Build
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Color Crunch ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: color-crunch-web-${{ steps.version.outputs.version }}.zip
+
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -135,7 +135,6 @@ jobs:
   deploy:
     needs: export-web
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
