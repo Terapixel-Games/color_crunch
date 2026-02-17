@@ -2,6 +2,7 @@ extends Control
 
 @onready var status_label: Label = $Panel/VBox/Status
 @onready var email_input: LineEdit = $Panel/VBox/Email
+@onready var send_magic_link_button: Button = $Panel/VBox/SendMagicLink
 @onready var merge_code_input: LineEdit = $Panel/VBox/MergeCode
 @onready var username_input: LineEdit = $Panel/VBox/Username
 @onready var username_button: Button = $Panel/VBox/UpdateUsername
@@ -15,9 +16,30 @@ func _ready() -> void:
 	Typography.style_save_streak(self)
 	ThemeManager.apply_to_scene(get_tree().current_scene)
 	username_input.text = NakamaService.get_username()
+	_refresh_account_controls()
+	if not NakamaService.auth_state_changed.is_connected(_on_auth_state_changed):
+		NakamaService.auth_state_changed.connect(_on_auth_state_changed)
 	_refresh_username_policy()
 
 func _on_send_magic_link_pressed() -> void:
+	if NakamaService.is_linked_account():
+		status_label.text = "Logging out..."
+		NakamaService.track_client_event("account.logout_clicked", {}, true)
+		var logout_result: Dictionary = await NakamaService.logout()
+		if not logout_result.get("ok", false):
+			status_label.text = "Logout failed. Please try again."
+			NakamaService.track_client_event("account.logout_failed_ui", {
+				"error": _extract_error_message(logout_result, "unknown"),
+			}, true)
+			return
+		_polling_magic_link = false
+		_magic_link_token = ""
+		email_input.text = ""
+		status_label.text = "Logged out. You are on a guest profile."
+		NakamaService.track_client_event("account.logout_completed_ui", {}, true)
+		_refresh_account_controls()
+		return
+
 	var email := email_input.text.strip_edges().to_lower()
 	if email.is_empty():
 		status_label.text = "Enter an email address."
@@ -118,6 +140,7 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 						"attempts": attempts,
 					}, true)
 					_polling_magic_link = false
+					_refresh_account_controls()
 					return
 		var result: Dictionary = await NakamaService.get_magic_link_status(true)
 		if result.get("ok", false):
@@ -131,6 +154,7 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 					"attempts": attempts,
 				}, true)
 				_polling_magic_link = false
+				_refresh_account_controls()
 				return
 		await get_tree().create_timer(3.0).timeout
 	if _polling_magic_link:
@@ -140,6 +164,27 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 			"had_token": not ml_token.is_empty(),
 		}, true)
 	_polling_magic_link = false
+
+func _refresh_account_controls() -> void:
+	var linked := NakamaService.is_linked_account()
+	if linked:
+		var linked_email := NakamaService.get_linked_email()
+		if linked_email.is_empty():
+			linked_email = email_input.text.strip_edges().to_lower()
+			if not linked_email.is_empty():
+				NakamaService.set_linked_email(linked_email)
+		if not linked_email.is_empty():
+			email_input.text = linked_email
+		email_input.editable = false
+		send_magic_link_button.text = "Logout"
+	else:
+		email_input.editable = true
+		send_magic_link_button.text = "Send Magic Link"
+
+func _on_auth_state_changed(_is_authenticated: bool, _user_id: String) -> void:
+	if not is_inside_tree():
+		return
+	_refresh_account_controls()
 
 func _refresh_username_policy() -> void:
 	var result: Dictionary = await NakamaService.get_username_status()

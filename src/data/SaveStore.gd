@@ -14,6 +14,7 @@ var data := {
 	"nakama_user_id": "",
 	"terapixel_user_id": "",
 	"terapixel_display_name": "",
+	"terapixel_email": "",
 	"coins": 0,
 	"owned_themes": ["default"],
 	"equipped_theme": "default",
@@ -130,10 +131,12 @@ func set_nakama_user_id(user_id: String) -> void:
 	data["nakama_user_id"] = user_id
 	save()
 
-func set_terapixel_identity(user_id: String, display_name: String = "") -> void:
-	data["terapixel_user_id"] = user_id
+func set_terapixel_identity(user_id: String, display_name: String = "", email: String = "") -> void:
+	data["terapixel_user_id"] = user_id.strip_edges()
 	if not display_name.is_empty():
 		data["terapixel_display_name"] = display_name
+	if not email.is_empty():
+		data["terapixel_email"] = email.strip_edges().to_lower()
 	save()
 
 func get_terapixel_user_id() -> String:
@@ -141,6 +144,19 @@ func get_terapixel_user_id() -> String:
 
 func get_terapixel_display_name() -> String:
 	return str(data.get("terapixel_display_name", ""))
+
+func set_terapixel_email(email: String) -> void:
+	data["terapixel_email"] = email.strip_edges().to_lower()
+	save()
+
+func get_terapixel_email() -> String:
+	return str(data.get("terapixel_email", ""))
+
+func clear_terapixel_identity() -> void:
+	data["terapixel_user_id"] = ""
+	data["terapixel_display_name"] = ""
+	data["terapixel_email"] = ""
+	save()
 
 func set_coins(value: int) -> void:
 	data["coins"] = max(0, value)
