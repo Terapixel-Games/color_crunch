@@ -809,23 +809,34 @@ function rpcAccountMagicLinkStatus(ctx, logger, nk, payload) {
 
 function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
   var data = parsePayload(payload);
+  logger.info("magic_link_notify received: %s", summarizeMagicLinkNotifyPayload(data));
   if (!MODULE_CONFIG.magicLinkNotifySecret) {
+    logger.error("magic_link_notify rejected: notify secret is not configured");
     throw new Error("magic link notify secret is not configured");
   }
   var providedSecret = String(data.secret || "").trim();
   if (!providedSecret || providedSecret !== MODULE_CONFIG.magicLinkNotifySecret) {
+    logger.warn("magic_link_notify rejected: invalid secret. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("invalid notify secret");
   }
   var userId = resolveMagicLinkNotifyUserId(data);
   if (!userId) {
+    logger.warn("magic_link_notify rejected: could not resolve user id. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("nakama_user_id is required");
   }
   var incomingGameId = String(data.game_id || data.gameId || "").trim().toLowerCase();
   if (incomingGameId && incomingGameId !== String(MODULE_CONFIG.gameId || "").trim().toLowerCase()) {
+    logger.warn(
+      "magic_link_notify rejected: game_id mismatch. incoming=%s expected=%s payload=%s",
+      incomingGameId,
+      String(MODULE_CONFIG.gameId || "").trim().toLowerCase(),
+      summarizeMagicLinkNotifyPayload(data)
+    );
     throw new Error("game_id mismatch");
   }
   var status = String(data.status || data.link_status || "").trim().toLowerCase();
   if (!status) {
+    logger.warn("magic_link_notify rejected: missing status. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("status is required");
   }
   var row = {
@@ -837,6 +848,14 @@ function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
     receivedAt: Math.floor(Date.now() / 1000),
   };
   writeMagicLinkStatus(nk, userId, row);
+  logger.info(
+    "magic_link_notify stored status for userId=%s status=%s gameId=%s primaryProfileId=%s secondaryProfileId=%s",
+    userId,
+    row.status,
+    incomingGameId || String(MODULE_CONFIG.gameId || ""),
+    row.primaryProfileId || "",
+    row.secondaryProfileId || ""
+  );
   return JSON.stringify({
     ok: true,
     userId: userId,
@@ -1264,6 +1283,21 @@ function resolveMagicLinkNotifyUserId(data) {
 function isLikelyNakamaUserId(value) {
   var text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text);
+}
+
+function summarizeMagicLinkNotifyPayload(data) {
+  var keys = Object.keys(normalizeObject(data)).sort();
+  return JSON.stringify({
+    keys: keys,
+    gameId: String(data.game_id || data.gameId || "").trim(),
+    nakamaUserId: String(data.nakama_user_id || data.nakamaUserId || "").trim(),
+    profileId: String(data.profile_id || data.profileId || "").trim(),
+    primaryProfileId: String(data.primary_profile_id || data.primaryProfileId || "").trim(),
+    secondaryProfileId: String(data.secondary_profile_id || data.secondaryProfileId || "").trim(),
+    status: String(data.status || data.link_status || "").trim(),
+    hasSecret: String(data.secret || "").trim() ? true : false,
+    hasEmail: String(data.email || "").trim() ? true : false,
+  });
 }
 
 function asArray(value) {
