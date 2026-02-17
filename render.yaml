@@ -46,11 +46,11 @@ services:
       - key: TPX_PLATFORM_IAP_START_URL
         sync: false
       - key: TPX_PLATFORM_IAP_ENTITLEMENTS_URL
-        sync: false
+        value: "https://terapixel.games/api/v1/iap/entitlements"
       - key: TPX_PLATFORM_IAP_VERIFY_URL
-        sync: false
+        value: "https://terapixel.games/api/v1/iap/verify"
       - key: TPX_PLATFORM_IAP_COINS_ADJUST_URL
-        sync: false
+        value: "https://terapixel.games/api/v1/iap/coins/adjust"
       - key: TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL
         sync: false
       - key: TPX_PLATFORM_ACCOUNT_MERGE_CODE_URL

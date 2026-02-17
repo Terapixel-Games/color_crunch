@@ -41,6 +41,8 @@ terapixel_user_id=""
 terapixel_display_name=""
 client_events_enabled=true
 client_event_sample_rate=1.0
+paypal_client_id="AbG4sfI0nBa9q1mz57fXTn2MCI9EGhNmc1y71c5Ba-ruYaZztTqhqfjmH2C8i7xSrRThBMpWV7yksija"
+paypal_currency="USD"
 
 [debug]
 
