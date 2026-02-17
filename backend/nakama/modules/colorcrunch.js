@@ -9,6 +9,7 @@ var ACCOUNT_COLLECTION = "colorcrunch_player_account";
 var MAGIC_LINK_STATUS_KEY = "magic_link_status";
 var MAGIC_LINK_PENDING_KEY = "magic_link_pending";
 var MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX = "magic_link_email_lookup_";
+var MAGIC_LINK_PROFILE_LOOKUP_KEY_PREFIX = "magic_link_profile_lookup_";
 var SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 var USERNAME_STATE_KEY = "username_state";
 var USERNAME_AUDIT_KEY = "username_audit";
@@ -1292,6 +1293,10 @@ function exchangePlatformSession(ctx, nk) {
   if (!parsed.session_token) {
     throw new Error("identity exchange missing session token");
   }
+  var platformProfileId = String(parsed.player_id || parsed.playerId || "").trim();
+  if (platformProfileId && ctx && ctx.userId) {
+    writeMagicLinkLookupByProfile(nk, platformProfileId, ctx.userId);
+  }
   return String(parsed.session_token);
 }
 
@@ -1415,20 +1420,30 @@ function resolveMagicLinkNotifyTarget(nk, data, incomingEmail) {
   if (explicit && isExistingNakamaUserId(nk, explicit)) {
     return { userId: explicit, source: "explicit_nakama_user_id" };
   }
-  var profileCandidate = resolveMagicLinkNotifyUserId(data);
-  if (profileCandidate && isExistingNakamaUserId(nk, profileCandidate)) {
-    return { userId: profileCandidate, source: "profile_field" };
+  var profileCandidates = resolveMagicLinkNotifyProfileCandidates(data);
+  for (var i = 0; i < profileCandidates.length; i++) {
+    var byProfile = readMagicLinkLookupByProfile(nk, profileCandidates[i]);
+    var resolvedByProfile = resolveStoredNakamaUserId(nk, byProfile);
+    if (resolvedByProfile) {
+      return { userId: resolvedByProfile, source: "profile_lookup" };
+    }
+  }
+  for (var j = 0; j < profileCandidates.length; j++) {
+    if (isExistingNakamaUserId(nk, profileCandidates[j])) {
+      return { userId: profileCandidates[j], source: "profile_field" };
+    }
   }
   if (incomingEmail) {
     var byEmail = readMagicLinkLookupByEmail(nk, incomingEmail);
-    if (byEmail && isExistingNakamaUserId(nk, byEmail)) {
-      return { userId: byEmail, source: "email_lookup" };
+    var resolvedByEmail = resolveStoredNakamaUserId(nk, byEmail);
+    if (resolvedByEmail) {
+      return { userId: resolvedByEmail, source: "email_lookup" };
     }
   }
   return { userId: "", source: "unresolved" };
 }
 
-function resolveMagicLinkNotifyUserId(data) {
+function resolveMagicLinkNotifyProfileCandidates(data) {
   var candidates = [
     data.profile_id,
     data.profileId,
@@ -1437,11 +1452,33 @@ function resolveMagicLinkNotifyUserId(data) {
     data.primary_profile_id,
     data.primaryProfileId,
   ];
+  var out = [];
+  var seen = {};
   for (var i = 0; i < candidates.length; i++) {
     var candidate = String(candidates[i] || "").trim();
-    if (isLikelyNakamaUserId(candidate)) {
-      return candidate;
+    if (!candidate) {
+      continue;
     }
+    var key = candidate.toLowerCase();
+    if (seen[key]) {
+      continue;
+    }
+    seen[key] = true;
+    out.push(candidate);
+  }
+  return out;
+}
+
+function resolveStoredNakamaUserId(nk, userId) {
+  var candidate = String(userId || "").trim();
+  if (!candidate) {
+    return "";
+  }
+  if (isExistingNakamaUserId(nk, candidate)) {
+    return candidate;
+  }
+  if (isLikelyNakamaUserId(candidate)) {
+    return candidate;
   }
   return "";
 }
@@ -1593,6 +1630,21 @@ function magicLinkLookupKeyByEmail(email) {
   return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + safe;
 }
 
+function magicLinkLookupKeyByProfile(profileId) {
+  var normalized = String(profileId || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  var safe = normalized.replace(/[^a-z0-9_-]/g, "_");
+  if (!safe) {
+    return "";
+  }
+  if (safe.length > 96) {
+    safe = safe.substring(0, 96);
+  }
+  return MAGIC_LINK_PROFILE_LOOKUP_KEY_PREFIX + safe;
+}
+
 function writeMagicLinkLookupByEmail(nk, email, userId) {
   var key = magicLinkLookupKeyByEmail(email);
   if (!key) {
@@ -1614,8 +1666,47 @@ function writeMagicLinkLookupByEmail(nk, email, userId) {
   ]);
 }
 
+function writeMagicLinkLookupByProfile(nk, profileId, userId) {
+  var key = magicLinkLookupKeyByProfile(profileId);
+  if (!key) {
+    return;
+  }
+  nk.storageWrite([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+      userId: SYSTEM_USER_ID,
+      value: {
+        profileId: String(profileId || "").trim().toLowerCase(),
+        userId: String(userId || "").trim(),
+        updatedAt: Math.floor(Date.now() / 1000),
+      },
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+}
+
 function readMagicLinkLookupByEmail(nk, email) {
   var key = magicLinkLookupKeyByEmail(email);
+  if (!key) {
+    return "";
+  }
+  var storage = nk.storageRead([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+      userId: SYSTEM_USER_ID,
+    },
+  ]);
+  if (storage && storage.length > 0 && storage[0].value) {
+    return String(storage[0].value.userId || "").trim();
+  }
+  return "";
+}
+
+function readMagicLinkLookupByProfile(nk, profileId) {
+  var key = magicLinkLookupKeyByProfile(profileId);
   if (!key) {
     return "";
   }
