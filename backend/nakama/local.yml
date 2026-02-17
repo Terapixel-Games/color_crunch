@@ -1,4 +1,4 @@
-name: "colorcrunch-nakama"
+name: "colorcrunch"
 logger:
   level: "INFO"
 

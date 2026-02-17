@@ -58,7 +58,7 @@ NAKAMA_SOCKET_PORT="${NAKAMA_SOCKET_PORT:-7354}"
 NAKAMA_CONSOLE_PORT="${NAKAMA_CONSOLE_PORT:-7355}"
 
 cat > /tmp/render-local.yml <<EOF
-name: "colorcrunch-nakama"
+name: "colorcrunch"
 logger:
   level: "INFO"
 session:
