@@ -1,0 +1,94 @@
+name: Notify terapixel.games
+
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Deploy Godot Web To Pages"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Color Crunch release tag to sync (for example: v1.2.3)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch update event
+        shell: bash
+        env:
+          DISPATCH_TOKEN: ${{ secrets.TERAPIXEL_GAMES_DISPATCH_TOKEN }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG_FROM_EVENT: ${{ github.event.release.tag_name }}
+          RELEASE_TARGET_SHA: ${{ github.event.release.target_commitish }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$DISPATCH_TOKEN" ]; then
+            echo "Missing required secret: TERAPIXEL_GAMES_DISPATCH_TOKEN"
+            exit 1
+          fi
+
+          RELEASE_TAG="$INPUT_RELEASE_TAG"
+          if [ -z "$RELEASE_TAG" ]; then
+            RELEASE_TAG="$RELEASE_TAG_FROM_EVENT"
+          fi
+          if [ -z "$RELEASE_TAG" ]; then
+            LATEST_JSON=$(curl -sS \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $DISPATCH_TOKEN" \
+              https://api.github.com/repos/TeraPixelGames/color_crunch/releases/latest)
+            RELEASE_TAG=$(LATEST_JSON="$LATEST_JSON" python -c "import json,os; print(json.loads(os.environ.get('LATEST_JSON','{}')).get('tag_name',''))")
+          fi
+
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "Unable to resolve release tag"
+            exit 1
+          fi
+
+          VERSION="${RELEASE_TAG#v}"
+          RELEASE_ASSET="color-crunch-web-${VERSION}.zip"
+          SOURCE_SHA="$RELEASE_TARGET_SHA"
+          if [ -z "$SOURCE_SHA" ]; then
+            SOURCE_SHA="$WORKFLOW_RUN_HEAD_SHA"
+          fi
+          if [ -z "$SOURCE_SHA" ]; then
+            SOURCE_SHA="$SHA"
+          fi
+
+          PAYLOAD=$(cat <<JSON
+          {
+            "event_type": "color_crunch_main_updated",
+            "client_payload": {
+              "release_tag": "$RELEASE_TAG",
+              "release_asset": "$RELEASE_ASSET",
+              "source_repo": "TeraPixelGames/color_crunch",
+              "source_sha": "$SOURCE_SHA"
+            }
+          }
+          JSON
+          )
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $DISPATCH_TOKEN" \
+            https://api.github.com/repos/TeraPixelGames/terapixel.games/dispatches \
+            -d "$PAYLOAD")
+
+          echo "Dispatch HTTP status: $HTTP_CODE"
+          cat response.json || true
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "repository_dispatch failed"
+            exit 1
+          fi
+
+          echo "repository_dispatch sent to TeraPixel/terapixel.games"
