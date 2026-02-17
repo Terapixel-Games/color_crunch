@@ -8,6 +8,7 @@ extends Control
 
 var _polling_magic_link := false
 var _username_cost := 0
+var _magic_link_token := ""
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -26,10 +27,11 @@ func _on_send_magic_link_pressed() -> void:
 	if not result.get("ok", false):
 		status_label.text = _format_magic_link_error(result)
 		return
+	_magic_link_token = _extract_magic_link_token(result)
 	status_label.text = "Magic link sent. Check your email."
 	if not _polling_magic_link:
 		_polling_magic_link = true
-		_poll_magic_link_completion()
+		_poll_magic_link_completion(_magic_link_token)
 
 func _on_create_merge_code_pressed() -> void:
 	status_label.text = "Creating merge code..."
@@ -82,10 +84,22 @@ func _on_update_username_pressed() -> void:
 		status_label.text = "Username unchanged."
 	_refresh_username_policy()
 
-func _poll_magic_link_completion() -> void:
+func _poll_magic_link_completion(ml_token: String = "") -> void:
 	var attempts := 0
 	while is_inside_tree() and _polling_magic_link and attempts < 20:
 		attempts += 1
+		if not ml_token.is_empty():
+			var complete_result: Dictionary = await NakamaService.complete_magic_link(ml_token)
+			if complete_result.get("ok", false):
+				var complete_data: Dictionary = complete_result.get("data", {})
+				var complete_status := str(complete_data.get("status", complete_data.get("link_status", ""))).strip_edges().to_lower()
+				var completed := bool(complete_data.get("completed", false)) or (not complete_status.is_empty() and complete_status != "pending")
+				if completed:
+					if complete_status.is_empty():
+						complete_status = "ok"
+					status_label.text = "Magic link completed: %s" % complete_status
+					_polling_magic_link = false
+					return
 		var result: Dictionary = await NakamaService.get_magic_link_status(true)
 		if result.get("ok", false):
 			var data: Dictionary = result.get("data", {})
@@ -144,3 +158,11 @@ func _format_magic_link_error(result: Dictionary) -> String:
 	if normalized.find("rate limit exceeded") != -1:
 		return "Too many attempts. Please wait and try again."
 	return message
+
+func _extract_magic_link_token(result: Dictionary) -> String:
+	var data_var: Variant = result.get("data", {})
+	if typeof(data_var) != TYPE_DICTIONARY:
+		return ""
+	var data: Dictionary = data_var
+	var token := str(data.get("ml_token", data.get("magic_link_token", data.get("token", "")))).strip_edges()
+	return token

@@ -816,24 +816,24 @@ function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
   if (!providedSecret || providedSecret !== MODULE_CONFIG.magicLinkNotifySecret) {
     throw new Error("invalid notify secret");
   }
-  var userId = String(data.nakama_user_id || data.profile_id || "").trim();
+  var userId = resolveMagicLinkNotifyUserId(data);
   if (!userId) {
-    throw new Error("profile_id is required");
+    throw new Error("nakama_user_id is required");
   }
-  var incomingGameId = String(data.game_id || "").trim().toLowerCase();
+  var incomingGameId = String(data.game_id || data.gameId || "").trim().toLowerCase();
   if (incomingGameId && incomingGameId !== String(MODULE_CONFIG.gameId || "").trim().toLowerCase()) {
     throw new Error("game_id mismatch");
   }
-  var status = String(data.status || "").trim().toLowerCase();
+  var status = String(data.status || data.link_status || "").trim().toLowerCase();
   if (!status) {
     throw new Error("status is required");
   }
   var row = {
     status: status,
     email: String(data.email || "").trim().toLowerCase(),
-    primaryProfileId: String(data.primary_profile_id || "").trim(),
-    secondaryProfileId: String(data.secondary_profile_id || "").trim(),
-    completedAt: toInt(data.completed_at, Math.floor(Date.now() / 1000)),
+    primaryProfileId: String(data.primary_profile_id || data.primaryProfileId || "").trim(),
+    secondaryProfileId: String(data.secondary_profile_id || data.secondaryProfileId || "").trim(),
+    completedAt: toInt(data.completed_at || data.completedAt, Math.floor(Date.now() / 1000)),
     receivedAt: Math.floor(Date.now() / 1000),
   };
   writeMagicLinkStatus(nk, userId, row);
@@ -1237,6 +1237,33 @@ function normalizeObject(input) {
     return {};
   }
   return input;
+}
+
+function resolveMagicLinkNotifyUserId(data) {
+  var explicit = String(data.nakama_user_id || data.nakamaUserId || "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  var candidates = [
+    data.profile_id,
+    data.profileId,
+    data.secondary_profile_id,
+    data.secondaryProfileId,
+    data.primary_profile_id,
+    data.primaryProfileId,
+  ];
+  for (var i = 0; i < candidates.length; i++) {
+    var candidate = String(candidates[i] || "").trim();
+    if (isLikelyNakamaUserId(candidate)) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+function isLikelyNakamaUserId(value) {
+  var text = String(value || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text);
 }
 
 function asArray(value) {
