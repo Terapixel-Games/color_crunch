@@ -41,6 +41,8 @@ services:
         sync: false
       - key: TPX_PLATFORM_API_KEY
         sync: false
+      - key: TPX_PLATFORM_TELEMETRY_EVENTS_URL
+        sync: false
       - key: TPX_PLATFORM_IAP_START_URL
         sync: false
       - key: TPX_PLATFORM_IAP_ENTITLEMENTS_URL

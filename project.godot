@@ -39,6 +39,8 @@ platform="terapixel"
 export_target="web"
 terapixel_user_id=""
 terapixel_display_name=""
+client_events_enabled=true
+client_event_sample_rate=1.0
 
 [debug]
 

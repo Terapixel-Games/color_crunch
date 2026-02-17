@@ -8,7 +8,8 @@ var SHOP_KEY = "state";
 var ACCOUNT_COLLECTION = "colorcrunch_player_account";
 var MAGIC_LINK_STATUS_KEY = "magic_link_status";
 var MAGIC_LINK_PENDING_KEY = "magic_link_pending";
-var MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX = "magic_link_email_lookup:";
+var MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX = "magic_link_email_lookup_";
+var SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 var USERNAME_STATE_KEY = "username_state";
 var USERNAME_AUDIT_KEY = "username_audit";
 var DEFAULT_USERNAME_CHANGE_COST_COINS = 300;
@@ -55,6 +56,7 @@ var MODULE_CONFIG = {
   leaderboardId: DEFAULT_LEADERBOARD_ID,
   authUrl: "",
   eventUrl: "",
+  telemetryEventsUrl: "",
   identityNakamaAuthUrl: "",
   iapVerifyUrl: "",
   iapEntitlementsUrl: "",
@@ -102,6 +104,7 @@ function InitModule(ctx, logger, nk, initializer) {
   initializer.registerRpc("tpx_account_update_username", rpcAccountUpdateUsername);
   initializer.registerRpc("tpx_account_merge_code", rpcAccountMergeCode);
   initializer.registerRpc("tpx_account_merge_redeem", rpcAccountMergeRedeem);
+  initializer.registerRpc("tpx_client_event_track", rpcClientEventTrack);
 
   initializer.registerBeforeAuthenticateCustom(beforeAuthenticateCustom);
   initializer.registerBeforeAuthenticateDevice(beforeAuthenticateDevice);
@@ -126,6 +129,10 @@ function loadConfig(ctx) {
     leaderboardId: env.COLOR_CRUNCH_LEADERBOARD_ID || DEFAULT_LEADERBOARD_ID,
     authUrl: env.TPX_PLATFORM_AUTH_URL || "",
     eventUrl: env.TPX_PLATFORM_EVENT_URL || "",
+    telemetryEventsUrl:
+      env.TPX_PLATFORM_TELEMETRY_EVENTS_URL ||
+      env.TPX_PLATFORM_TELEMETRY_URL ||
+      "",
     identityNakamaAuthUrl: env.TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL || "",
     iapVerifyUrl: env.TPX_PLATFORM_IAP_VERIFY_URL || "",
     iapEntitlementsUrl: env.TPX_PLATFORM_IAP_ENTITLEMENTS_URL || "",
@@ -819,14 +826,27 @@ function rpcAccountMagicLinkStatus(ctx, logger, nk, payload) {
 }
 
 function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
-  var data = parsePayload(payload);
+  var data = {};
+  try {
+    data = parsePayload(payload);
+  } catch (err) {
+    logger.warn(
+      "magic_link_notify rejected: invalid payload shape=%s err=%s",
+      describePayloadShape(payload),
+      String(err || "")
+    );
+    throw err;
+  }
   logger.info("magic_link_notify received: %s", summarizeMagicLinkNotifyPayload(data));
-  if (!MODULE_CONFIG.magicLinkNotifySecret) {
-    logger.error("magic_link_notify rejected: notify secret is not configured");
-    throw new Error("magic link notify secret is not configured");
+  var expectedSecret =
+    String(MODULE_CONFIG.magicLinkNotifySecret || "").trim() ||
+    String((ctx && ctx.env && ctx.env.TPX_MAGIC_LINK_NOTIFY_SECRET) || "").trim();
+  if (!expectedSecret) {
+    logger.error("magic_link_notify rejected: notify secret is not configured (env=TPX_MAGIC_LINK_NOTIFY_SECRET)");
+    throw new Error("magic link notify secret is not configured (set TPX_MAGIC_LINK_NOTIFY_SECRET)");
   }
   var providedSecret = String(data.secret || "").trim();
-  if (!providedSecret || providedSecret !== MODULE_CONFIG.magicLinkNotifySecret) {
+  if (!providedSecret || providedSecret !== expectedSecret) {
     logger.warn("magic_link_notify rejected: invalid secret. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("invalid notify secret");
   }
@@ -1040,6 +1060,90 @@ function rpcAccountMergeRedeem(ctx, logger, nk, payload) {
   return JSON.stringify(parsed || {});
 }
 
+function rpcClientEventTrack(ctx, logger, nk, payload) {
+  assertAuthenticated(ctx);
+  var data = parsePayload(payload);
+  var eventName = normalizeClientEventName(data.event_name || data.eventName || "");
+  if (!eventName) {
+    throw new Error("event_name is required");
+  }
+  var eventTime = toInt(
+    data.event_time || data.eventTime,
+    Math.floor(Date.now() / 1000)
+  );
+  var eventProperties = ensurePlainObject(data.properties, {});
+  var requestPayload = {
+    eventName: eventName,
+    eventTime: eventTime,
+    sessionId: String(data.session_id || data.sessionId || "").trim(),
+    seq: toInt(data.seq, -1),
+    properties: eventProperties,
+  };
+
+  if (!MODULE_CONFIG.telemetryEventsUrl && !MODULE_CONFIG.eventUrl) {
+    return JSON.stringify({
+      ok: true,
+      accepted: false,
+      transport: "none",
+      reason: "no_platform_event_endpoint_configured",
+      event_name: requestPayload.eventName,
+    });
+  }
+
+  if (MODULE_CONFIG.telemetryEventsUrl) {
+    var platformSession = exchangePlatformSession(ctx, nk);
+    var telemetryResponse = platformPost(
+      nk,
+      MODULE_CONFIG.telemetryEventsUrl,
+      {
+        game_id: MODULE_CONFIG.gameId,
+        profile_id: String((ctx && ctx.userId) || "").trim(),
+        session_id: requestPayload.sessionId,
+        events: [
+          {
+            event_name: requestPayload.eventName,
+            event_time: requestPayload.eventTime,
+            seq: requestPayload.seq >= 0 ? requestPayload.seq : undefined,
+            properties: withClientEventContext(ctx, requestPayload.properties),
+          },
+        ],
+      },
+      "",
+      platformSession
+    );
+    if (telemetryResponse.code < 200 || telemetryResponse.code >= 300) {
+      throw new Error(
+        "failed to ingest client telemetry: " +
+          extractHttpErrorDetail(telemetryResponse)
+      );
+    }
+    return JSON.stringify({
+      ok: true,
+      transport: "telemetry",
+      event_name: requestPayload.eventName,
+    });
+  }
+
+  publishPlatformEvent(
+    nk,
+    logger,
+    "client_event",
+    {
+      eventName: requestPayload.eventName,
+      eventTime: requestPayload.eventTime,
+      sessionId: requestPayload.sessionId,
+      seq: requestPayload.seq,
+      properties: withClientEventContext(ctx, requestPayload.properties),
+    },
+    ctx
+  );
+  return JSON.stringify({
+    ok: true,
+    transport: "event",
+    event_name: requestPayload.eventName,
+  });
+}
+
 function writePlayerHighScore(nk, userId, record) {
   nk.storageWrite([
     {
@@ -1235,6 +1339,36 @@ function platformPost(nk, url, body, adminKey, bearerToken) {
     MODULE_CONFIG.httpTimeoutMs,
     false
   );
+}
+
+function withClientEventContext(ctx, properties) {
+  var out = ensurePlainObject(properties, {});
+  out.nakama_user_id = String((ctx && ctx.userId) || "").trim();
+  out.nakama_username = String((ctx && ctx.username) || "").trim();
+  out.game_id = MODULE_CONFIG.gameId;
+  out.export_target = MODULE_CONFIG.exportTarget;
+  return out;
+}
+
+function normalizeClientEventName(value) {
+  var out = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "_");
+  if (!out) {
+    return "";
+  }
+  if (out.length > 120) {
+    out = out.substring(0, 120);
+  }
+  return out;
+}
+
+function ensurePlainObject(value, fallback) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  return fallback;
 }
 
 function parseHttpResponseJson(body) {
@@ -1449,7 +1583,14 @@ function magicLinkLookupKeyByEmail(email) {
   if (!normalized) {
     return "";
   }
-  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + normalized;
+  var safe = normalized.replace(/[^a-z0-9_-]/g, "_");
+  if (!safe) {
+    return "";
+  }
+  if (safe.length > 96) {
+    safe = safe.substring(0, 96);
+  }
+  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + safe;
 }
 
 function writeMagicLinkLookupByEmail(nk, email, userId) {
@@ -1461,6 +1602,7 @@ function writeMagicLinkLookupByEmail(nk, email, userId) {
     {
       collection: ACCOUNT_COLLECTION,
       key: key,
+      userId: SYSTEM_USER_ID,
       value: {
         email: String(email || "").trim().toLowerCase(),
         userId: String(userId || "").trim(),
@@ -1481,6 +1623,7 @@ function readMagicLinkLookupByEmail(nk, email) {
     {
       collection: ACCOUNT_COLLECTION,
       key: key,
+      userId: SYSTEM_USER_ID,
     },
   ]);
   if (storage && storage.length > 0 && storage[0].value) {
@@ -1498,6 +1641,7 @@ function clearMagicLinkLookupByEmail(nk, email) {
     {
       collection: ACCOUNT_COLLECTION,
       key: key,
+      userId: SYSTEM_USER_ID,
     },
   ]);
 }
@@ -1870,6 +2014,12 @@ function parsePayload(payload) {
   if (!payload) {
     return {};
   }
+  if (typeof payload === "object" && !Array.isArray(payload)) {
+    return payload;
+  }
+  if (typeof payload !== "string") {
+    throw new Error("invalid JSON payload");
+  }
   try {
     var parsed = JSON.parse(payload);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -1879,6 +2029,20 @@ function parsePayload(payload) {
   } catch (err) {
     throw new Error("invalid JSON payload");
   }
+}
+
+function describePayloadShape(payload) {
+  if (payload === null || payload === undefined) {
+    return "nullish";
+  }
+  if (typeof payload === "string") {
+    return "string(len=" + payload.length + ")";
+  }
+  if (typeof payload === "object") {
+    var keys = Object.keys(payload);
+    return "object(keys=" + JSON.stringify(keys.sort()) + ")";
+  }
+  return typeof payload;
 }
 
 function toInt(value, fallback) {

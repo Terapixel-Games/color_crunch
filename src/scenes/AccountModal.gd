@@ -21,14 +21,28 @@ func _on_send_magic_link_pressed() -> void:
 	var email := email_input.text.strip_edges().to_lower()
 	if email.is_empty():
 		status_label.text = "Enter an email address."
+		NakamaService.track_client_event("account.magic_link_start_rejected", {
+			"reason": "missing_email",
+		}, true)
 		return
+	NakamaService.track_client_event("account.magic_link_start_clicked", {
+		"email_domain": _safe_email_domain(email),
+	}, true)
 	status_label.text = "Sending magic link..."
 	var result: Dictionary = await NakamaService.start_magic_link(email)
 	if not result.get("ok", false):
 		status_label.text = _format_magic_link_error(result)
+		NakamaService.track_client_event("account.magic_link_start_failed_ui", {
+			"email_domain": _safe_email_domain(email),
+			"error": _extract_error_message(result, "unknown"),
+		}, true)
 		return
 	_magic_link_token = _extract_magic_link_token(result)
 	status_label.text = "Magic link sent. Check your email."
+	NakamaService.track_client_event("account.magic_link_start_success_ui", {
+		"email_domain": _safe_email_domain(email),
+		"token_returned": not _magic_link_token.is_empty(),
+	}, true)
 	if not _polling_magic_link:
 		_polling_magic_link = true
 		_poll_magic_link_completion(_magic_link_token)
@@ -98,6 +112,11 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 					if complete_status.is_empty():
 						complete_status = "ok"
 					status_label.text = "Magic link completed: %s" % complete_status
+					NakamaService.track_client_event("account.magic_link_completed_ui", {
+						"path": "complete_rpc",
+						"status": complete_status,
+						"attempts": attempts,
+					}, true)
 					_polling_magic_link = false
 					return
 		var result: Dictionary = await NakamaService.get_magic_link_status(true)
@@ -106,11 +125,20 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 			if bool(data.get("completed", false)):
 				var status := str(data.get("status", "ok"))
 				status_label.text = "Magic link completed: %s" % status
+				NakamaService.track_client_event("account.magic_link_completed_ui", {
+					"path": "status_rpc",
+					"status": status,
+					"attempts": attempts,
+				}, true)
 				_polling_magic_link = false
 				return
 		await get_tree().create_timer(3.0).timeout
 	if _polling_magic_link:
 		status_label.text = "Waiting for email link click..."
+		NakamaService.track_client_event("account.magic_link_poll_timeout", {
+			"attempts": attempts,
+			"had_token": not ml_token.is_empty(),
+		}, true)
 	_polling_magic_link = false
 
 func _refresh_username_policy() -> void:
@@ -166,3 +194,10 @@ func _extract_magic_link_token(result: Dictionary) -> String:
 	var data: Dictionary = data_var
 	var token := str(data.get("ml_token", data.get("magic_link_token", data.get("token", "")))).strip_edges()
 	return token
+
+func _safe_email_domain(email: String) -> String:
+	var cleaned := email.strip_edges().to_lower()
+	var at_idx := cleaned.find("@")
+	if at_idx < 0:
+		return ""
+	return cleaned.substr(at_idx + 1)

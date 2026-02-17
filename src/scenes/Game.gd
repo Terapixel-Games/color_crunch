@@ -25,6 +25,8 @@ var _shuffle_charges: int = 0
 var _undo_stack: Array[Dictionary] = []
 var _pending_powerup_refill_type: String = ""
 var _powerup_coin_costs := {"undo": 120, "prism": 180, "shuffle": 140}
+var _powerup_usage := {"undo": 0, "prism": 0, "shuffle": 0}
+var _run_started_at_unix := 0
 
 const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
 const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
@@ -32,6 +34,12 @@ const ICON_SHUFFLE: Texture2D = preload("res://assets/ui/icons/atlas/powerup_shu
 const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loading.tres")
 
 func _ready() -> void:
+	_run_started_at_unix = Time.get_unix_time_from_system()
+	NakamaService.track_client_event("gameplay.run_started", {
+		"streak_days": StreakManager.get_streak_days(),
+		"track_id": MusicManager.get_current_track_id(),
+		"is_authenticated": NakamaService.get_is_authenticated(),
+	}, true)
 	var stale_overlay: Node = get_node_or_null("RunEndOverlay")
 	if stale_overlay:
 		stale_overlay.queue_free()
@@ -142,6 +150,7 @@ func _on_undo_pressed() -> void:
 	score = int(state["score"])
 	combo = int(state["combo"])
 	_undo_charges -= 1
+	_record_powerup_use("undo")
 	call_deferred("_consume_powerup_server", "undo")
 	_update_score()
 	_update_gameplay_mood_from_matches(0.3)
@@ -165,6 +174,7 @@ func _on_remove_color_pressed() -> void:
 		return
 	_push_undo(snapshot, score_before, combo_before)
 	_remove_color_charges -= 1
+	_record_powerup_use("prism")
 	call_deferred("_consume_powerup_server", "prism")
 	combo += 1
 	score += removed * 12
@@ -190,6 +200,7 @@ func _on_shuffle_pressed() -> void:
 		return
 	_push_undo(snapshot, score_before, combo_before)
 	_shuffle_charges -= 1
+	_record_powerup_use("shuffle")
 	call_deferred("_consume_powerup_server", "shuffle")
 	score += 80
 	combo = max(0, combo - 1)
@@ -366,7 +377,36 @@ func _finish_run(completed_by_gameplay: bool) -> void:
 	_ending_transition_started = true
 	await _play_end_transition()
 	_run_finished = true
+	var elapsed := max(0, Time.get_unix_time_from_system() - _run_started_at_unix)
+	NakamaService.track_client_event("gameplay.run_finished", {
+		"score": score,
+		"combo": combo,
+		"completed_by_gameplay": completed_by_gameplay,
+		"elapsed_seconds": elapsed,
+		"powerup_undo_used": int(_powerup_usage.get("undo", 0)),
+		"powerup_prism_used": int(_powerup_usage.get("prism", 0)),
+		"powerup_shuffle_used": int(_powerup_usage.get("shuffle", 0)),
+	}, true)
 	RunManager.end_game(score, completed_by_gameplay)
+
+func _record_powerup_use(powerup_type: String) -> void:
+	if not _powerup_usage.has(powerup_type):
+		_powerup_usage[powerup_type] = 0
+	_powerup_usage[powerup_type] = int(_powerup_usage[powerup_type]) + 1
+	NakamaService.track_client_event("gameplay.powerup_used", {
+		"powerup_type": powerup_type,
+		"remaining": _remaining_powerup_charges(powerup_type),
+	}, true)
+
+func _remaining_powerup_charges(powerup_type: String) -> int:
+	match powerup_type:
+		"undo":
+			return _undo_charges
+		"prism":
+			return _remove_color_charges
+		"shuffle":
+			return _shuffle_charges
+	return 0
 
 func _play_end_transition() -> void:
 	set_process_input(false)

@@ -13,6 +13,8 @@ const DEFAULT_BASE_URL := "http://127.0.0.1:7350"
 const DEFAULT_SERVER_KEY := "colorcrunch-dev-key"
 const DEFAULT_LEADERBOARD_LIMIT := 10
 const DEFAULT_EXPORT_TARGET := "web"
+const DEFAULT_CLIENT_EVENTS_ENABLED := true
+const DEFAULT_CLIENT_EVENT_SAMPLE_RATE := 1.0
 var PROVIDERS_BY_EXPORT_TARGET := {
 	"ios": ["apple"],
 	"android": ["google"],
@@ -26,6 +28,12 @@ var _server_key: String = DEFAULT_SERVER_KEY
 var _leaderboard_limit: int = DEFAULT_LEADERBOARD_LIMIT
 var _connect_enabled: bool = false
 var _export_target: String = DEFAULT_EXPORT_TARGET
+var _client_events_enabled := DEFAULT_CLIENT_EVENTS_ENABLED
+var _client_event_sample_rate := DEFAULT_CLIENT_EVENT_SAMPLE_RATE
+var _client_event_seq := 0
+var _client_event_session_id := ""
+var _client_event_rng := RandomNumberGenerator.new()
+var _client_events_rpc_available := true
 
 var _session_token: String = ""
 var _refresh_token: String = ""
@@ -185,6 +193,11 @@ func ensure_authenticated() -> bool:
 	_set_online_state("Connected")
 	_is_authenticated = true
 	auth_state_changed.emit(true, _user_id)
+	track_client_event("auth.succeeded", {
+		"provider": str(result.get("provider", "unknown")),
+		"user_id_present": not _user_id.is_empty(),
+		"is_guest_account": is_guest_account(),
+	}, true)
 	return true
 
 func submit_score_background(score: int, metadata: Dictionary = {}) -> void:
@@ -425,7 +438,20 @@ func start_magic_link(email: String) -> Dictionary:
 	if not await ensure_authenticated():
 		return {"ok": false, "error": "auth failed"}
 	var payload := {"email": email.strip_edges().to_lower()}
-	return await _rpc_call("tpx_account_magic_link_start", payload, true, true)
+	track_client_event("account.magic_link_start_requested", {
+		"email_domain": _safe_email_domain(payload["email"]),
+	}, true)
+	var rpc: Dictionary = await _rpc_call("tpx_account_magic_link_start", payload, true, true)
+	if rpc.get("ok", false):
+		track_client_event("account.magic_link_start_succeeded", {
+			"email_domain": _safe_email_domain(payload["email"]),
+		}, true)
+	else:
+		track_client_event("account.magic_link_start_failed", {
+			"email_domain": _safe_email_domain(payload["email"]),
+			"error": _summarize_rpc_error(rpc),
+		}, true)
+	return rpc
 
 func complete_magic_link(ml_token: String) -> Dictionary:
 	if not await ensure_authenticated():
@@ -436,6 +462,14 @@ func complete_magic_link(ml_token: String) -> Dictionary:
 		var data: Variant = rpc.get("data", {})
 		if typeof(data) == TYPE_DICTIONARY and _is_magic_link_completion_payload(data as Dictionary):
 			await _handle_magic_link_completion(data as Dictionary)
+		track_client_event("account.magic_link_complete_succeeded", {
+			"has_token": not payload["ml_token"].is_empty(),
+		}, true)
+	else:
+		track_client_event("account.magic_link_complete_failed", {
+			"has_token": not payload["ml_token"].is_empty(),
+			"error": _summarize_rpc_error(rpc),
+		}, true)
 	return rpc
 
 func get_magic_link_status(clear_after_read: bool = true) -> Dictionary:
@@ -444,6 +478,9 @@ func get_magic_link_status(clear_after_read: bool = true) -> Dictionary:
 	var payload := {"clear_after_read": clear_after_read}
 	var rpc: Dictionary = await _rpc_call("tpx_account_magic_link_status", payload, true, true)
 	if not rpc.get("ok", false):
+		track_client_event("account.magic_link_status_failed", {
+			"error": _summarize_rpc_error(rpc),
+		}, true)
 		return rpc
 	var data: Variant = rpc.get("data", {})
 	if typeof(data) == TYPE_DICTIONARY:
@@ -473,10 +510,17 @@ func update_username(new_username: String) -> Dictionary:
 	var payload := {"username": new_username.strip_edges().to_lower()}
 	var rpc: Dictionary = await _rpc_call("tpx_account_update_username", payload, true, true)
 	if not rpc.get("ok", false):
+		track_client_event("account.username_update_failed", {
+			"error": _summarize_rpc_error(rpc),
+		}, true)
 		return rpc
 	var data: Variant = rpc.get("data", {})
 	if typeof(data) == TYPE_DICTIONARY:
 		var row: Dictionary = data
+		track_client_event("account.username_update_succeeded", {
+			"changed": bool(row.get("changed", true)),
+			"coin_cost": int(row.get("coinCost", 0)),
+		}, true)
 		var username := str(row.get("username", "")).strip_edges()
 		if not username.is_empty():
 			_username = username
@@ -490,8 +534,12 @@ func _authenticate_preferred() -> Dictionary:
 	if not terapixel_user_id.is_empty():
 		var custom_result: Dictionary = await _authenticate_custom(terapixel_user_id)
 		if custom_result.get("ok", false):
+			custom_result["provider"] = "custom"
 			return custom_result
-	return await _authenticate_device()
+	var device_result: Dictionary = await _authenticate_device()
+	if device_result.get("ok", false):
+		device_result["provider"] = "device"
+	return device_result
 
 func _authenticate_custom(terapixel_user_id: String) -> Dictionary:
 	var cleaned_id := terapixel_user_id.strip_edges()
@@ -572,6 +620,100 @@ func _handle_magic_link_completion(data: Dictionary) -> void:
 			auth_state_changed.emit(true, _user_id)
 	await refresh_wallet(true)
 	profile_upgraded.emit(true, status)
+	track_client_event("account.magic_link_completed", {
+		"status": status.to_lower(),
+		"has_linked_profile_id": not linked_profile_id.is_empty(),
+	}, true)
+
+func track_client_event(event_name: String, properties: Dictionary = {}, requires_auth: bool = true) -> void:
+	if not _client_events_enabled:
+		return
+	if not _client_events_rpc_available:
+		return
+	var normalized_name := event_name.strip_edges().to_lower()
+	if normalized_name.is_empty():
+		return
+	if _client_event_sample_rate < 1.0:
+		var roll := _client_event_rng.randf()
+		if roll > _client_event_sample_rate:
+			return
+	_client_event_seq += 1
+	var payload := {
+		"event_name": normalized_name,
+		"event_time": Time.get_unix_time_from_system(),
+		"session_id": _client_event_session_id,
+		"seq": _client_event_seq,
+		"properties": _build_client_event_properties(properties),
+	}
+	call_deferred("_track_client_event_async", payload, requires_auth)
+
+func _track_client_event_async(payload: Dictionary, requires_auth: bool) -> void:
+	var rpc: Dictionary = await _rpc_call(
+		"tpx_client_event_track",
+		payload,
+		requires_auth,
+		false
+	)
+	if rpc.get("ok", false):
+		return
+	var summary := _summarize_rpc_error(rpc)
+	if _looks_like_missing_client_event_rpc(rpc, summary):
+		_client_events_rpc_available = false
+		push_warning("Client event RPC unavailable; disabling client telemetry events for this session.")
+		return
+	# Keep telemetry failures non-fatal, but leave breadcrumbs in logs for debugging.
+	push_warning("Client event publish failed: %s" % summary)
+
+func _build_client_event_properties(custom_props: Dictionary) -> Dictionary:
+	var props := {
+		"game_id": "color_crunch",
+		"export_target": _export_target,
+		"build_version": str(_project_setting("application/config/version", "")),
+		"is_guest_account": is_guest_account(),
+	}
+	if not _user_id.is_empty():
+		props["nakama_user_id"] = _user_id
+	if not _username.is_empty():
+		props["nakama_username"] = _username
+	for key in custom_props.keys():
+		props[str(key)] = custom_props[key]
+	return props
+
+func _summarize_rpc_error(result: Dictionary) -> String:
+	var body_text := str(result.get("body", "")).strip_edges()
+	if not body_text.is_empty():
+		var parsed: Variant = JSON.parse_string(body_text)
+		if typeof(parsed) == TYPE_DICTIONARY:
+			var row: Dictionary = parsed
+			if row.has("message"):
+				return str(row.get("message"))
+			if row.has("error"):
+				var err_var: Variant = row.get("error")
+				if typeof(err_var) == TYPE_DICTIONARY:
+					var err_row: Dictionary = err_var
+					if err_row.has("message"):
+						return str(err_row.get("message"))
+				return str(err_var)
+	var raw_error := str(result.get("error", "")).strip_edges()
+	if not raw_error.is_empty():
+		return raw_error
+	var code := int(result.get("code", 0))
+	if code > 0:
+		return "HTTP %d" % code
+	return "unknown_error"
+
+func _safe_email_domain(email: String) -> String:
+	var value := email.strip_edges().to_lower()
+	var at_idx := value.find("@")
+	if at_idx < 0:
+		return ""
+	return value.substr(at_idx + 1)
+
+func _looks_like_missing_client_event_rpc(result: Dictionary, summary: String) -> bool:
+	if int(result.get("code", 0)) == 404:
+		return true
+	var lowered := summary.strip_edges().to_lower()
+	return lowered.find("rpc function") != -1 and lowered.find("not found") != -1
 
 func _extract_magic_link_profile_id(data: Dictionary) -> String:
 	var primary := str(data.get("primaryProfileId", data.get("primary_profile_id", ""))).strip_edges()
@@ -677,6 +819,19 @@ func _read_runtime_settings() -> void:
 	_leaderboard_limit = int(_project_setting("color_crunch/nakama_leaderboard_limit", DEFAULT_LEADERBOARD_LIMIT))
 	_connect_enabled = bool(_project_setting("color_crunch/nakama_enable_client", false))
 	_export_target = _resolve_export_target()
+	_client_events_enabled = _env_or_setting_bool(
+		"COLOR_CRUNCH_CLIENT_EVENTS_ENABLED",
+		"color_crunch/client_events_enabled",
+		DEFAULT_CLIENT_EVENTS_ENABLED
+	)
+	_client_event_sample_rate = _env_or_setting_float(
+		"COLOR_CRUNCH_CLIENT_EVENT_SAMPLE_RATE",
+		"color_crunch/client_event_sample_rate",
+		DEFAULT_CLIENT_EVENT_SAMPLE_RATE
+	)
+	_client_event_sample_rate = clamp(_client_event_sample_rate, 0.0, 1.0)
+	_client_event_rng.randomize()
+	_client_event_session_id = _build_client_event_session_id()
 	_base_url = _base_url.strip_edges()
 	if _base_url.is_empty():
 		_base_url = DEFAULT_BASE_URL
@@ -703,6 +858,35 @@ func _env_or_setting_string(env_key: String, setting_key: String, fallback: Stri
 	if not from_setting.is_empty():
 		return from_setting
 	return fallback
+
+func _env_or_setting_bool(env_key: String, setting_key: String, fallback: bool) -> bool:
+	var from_env := OS.get_environment(env_key).strip_edges().to_lower()
+	if from_env in ["1", "true", "yes", "on"]:
+		return true
+	if from_env in ["0", "false", "no", "off"]:
+		return false
+	return bool(_project_setting(setting_key, fallback))
+
+func _env_or_setting_float(env_key: String, setting_key: String, fallback: float) -> float:
+	var from_env := OS.get_environment(env_key).strip_edges()
+	if not from_env.is_empty() and from_env.is_valid_float():
+		return float(from_env)
+	var from_setting: Variant = _project_setting(setting_key, fallback)
+	if typeof(from_setting) == TYPE_FLOAT or typeof(from_setting) == TYPE_INT:
+		return float(from_setting)
+	var from_setting_text := str(from_setting).strip_edges()
+	if from_setting_text.is_valid_float():
+		return float(from_setting_text)
+	return fallback
+
+func _build_client_event_session_id() -> String:
+	var run_seed := "%s:%s:%s" % [
+		SaveStore.get_or_create_nakama_device_id(),
+		Time.get_unix_time_from_system(),
+		_client_event_rng.randi(),
+	]
+	var digest := run_seed.sha256_text()
+	return digest.substr(0, 24)
 
 func _resolve_display_name() -> String:
 	var from_store: String = SaveStore.get_terapixel_display_name()

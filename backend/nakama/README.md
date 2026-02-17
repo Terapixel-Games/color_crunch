@@ -31,6 +31,7 @@ Set these in `backend/nakama/local.yml` under `runtime.env`:
 - `TPX_PLATFORM_AUTH_URL`: Optional URL called before custom/device auth. Non-2xx blocks auth.
 - `TPX_PLATFORM_EVENT_URL`: Optional URL called on auth success and score submit.
 - `TPX_PLATFORM_API_KEY`: Optional bearer token for both Terapixel endpoints.
+- `TPX_PLATFORM_TELEMETRY_EVENTS_URL`: Optional telemetry ingest endpoint (`POST /v1/telemetry/events`) used by `tpx_client_event_track`.
 - `TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL`: `POST /v1/auth/nakama`
 - `TPX_PLATFORM_IAP_VERIFY_URL`: `POST /v1/iap/verify`
 - `TPX_PLATFORM_IAP_ENTITLEMENTS_URL`: `GET /v1/iap/entitlements`
@@ -141,6 +142,7 @@ If the Terapixel auth URL is unset, Nakama auth proceeds without external verifi
 - `tpx_account_magic_link_notify`: platform callback endpoint (shared-secret protected; enforces `game_id` when provided).
 - `tpx_account_username_status`: returns current username + free/paid rename policy.
 - `tpx_account_update_username`: validates and updates username (first change free, then coins).
+- `tpx_client_event_track`: ingests normalized client telemetry events through Nakama to platform telemetry.
 
 ## Deploy on Render
 
