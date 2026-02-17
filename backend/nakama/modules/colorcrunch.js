@@ -746,7 +746,7 @@ function rpcAccountMagicLinkStart(ctx, logger, nk, payload) {
     platformSession
   );
   if (response.code < 200 || response.code >= 300) {
-    throw new Error("failed to start magic link");
+    throw new Error("failed to start magic link: " + extractHttpErrorDetail(response));
   }
   var parsed = parseHttpResponseJson(response.body);
   return JSON.stringify(parsed || { ok: true });
@@ -776,7 +776,7 @@ function rpcAccountMagicLinkComplete(ctx, logger, nk, payload) {
     platformSession
   );
   if (response.code < 200 || response.code >= 300) {
-    throw new Error("failed to complete magic link");
+    throw new Error("failed to complete magic link: " + extractHttpErrorDetail(response));
   }
   return JSON.stringify(parseHttpResponseJson(response.body) || {});
 }
@@ -1209,6 +1209,27 @@ function parseHttpResponseJson(body) {
     return {};
   }
   return parsed;
+}
+
+function extractHttpErrorDetail(response) {
+  var code = toInt(response && response.code, 0);
+  var parsed = parseHttpResponseJson((response && response.body) || "");
+  var message = "";
+  if (parsed && parsed.error && parsed.error.message) {
+    message = String(parsed.error.message);
+  } else if (parsed && parsed.message) {
+    message = String(parsed.message);
+  } else if (response && response.body) {
+    message = String(response.body);
+  }
+  message = message.trim();
+  if (message.length > 220) {
+    message = message.substring(0, 220) + "...";
+  }
+  if (message) {
+    return "[" + code + "] " + message;
+  }
+  return "status " + code;
 }
 
 function normalizeObject(input) {
