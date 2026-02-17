@@ -15,15 +15,16 @@ mouse_filter = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.45)
+mouse_filter = 0
 
 [node name="Panel" type="PanelContainer" parent="."]
-anchor_left = 0.08
-anchor_top = 0.18
-anchor_right = 0.92
-anchor_bottom = 0.82
+anchor_left = 0.03
+anchor_top = 0.04
+anchor_right = 0.97
+anchor_bottom = 0.96
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 mouse_filter = 2
 
 [node name="Title" type="Label" parent="Panel/VBox"]
@@ -33,29 +34,38 @@ horizontal_alignment = 1
 [node name="Status" type="Label" parent="Panel/VBox"]
 text = "Link account with magic link"
 horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="Email" type="LineEdit" parent="Panel/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="Panel/VBox"]
+size_flags_vertical = 3
+
+[node name="Content" type="VBoxContainer" parent="Panel/VBox/Scroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="Email" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
 placeholder_text = "email@example.com"
 
-[node name="SendMagicLink" type="Button" parent="Panel/VBox"]
+[node name="SendMagicLink" type="Button" parent="Panel/VBox/Scroll/Content"]
 script = ExtResource( 3 )
 text = "Send Magic Link"
 
-[node name="Username" type="LineEdit" parent="Panel/VBox"]
+[node name="Username" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
 placeholder_text = "username (3-20 chars)"
 
-[node name="UpdateUsername" type="Button" parent="Panel/VBox"]
+[node name="UpdateUsername" type="Button" parent="Panel/VBox/Scroll/Content"]
 script = ExtResource( 3 )
 text = "Set Username (Free)"
 
-[node name="MergeCode" type="LineEdit" parent="Panel/VBox"]
+[node name="MergeCode" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
 placeholder_text = "merge code"
 
-[node name="CreateMergeCode" type="Button" parent="Panel/VBox"]
+[node name="CreateMergeCode" type="Button" parent="Panel/VBox/Scroll/Content"]
 script = ExtResource( 3 )
 text = "Create Merge Code"
 
-[node name="RedeemMergeCode" type="Button" parent="Panel/VBox"]
+[node name="RedeemMergeCode" type="Button" parent="Panel/VBox/Scroll/Content"]
 script = ExtResource( 3 )
 text = "Redeem Merge Code"
 
@@ -63,8 +73,8 @@ text = "Redeem Merge Code"
 script = ExtResource( 3 )
 text = "Close"
 
-[connection signal="pressed" from="Panel/VBox/SendMagicLink" to="." method="_on_send_magic_link_pressed"]
-[connection signal="pressed" from="Panel/VBox/UpdateUsername" to="." method="_on_update_username_pressed"]
-[connection signal="pressed" from="Panel/VBox/CreateMergeCode" to="." method="_on_create_merge_code_pressed"]
-[connection signal="pressed" from="Panel/VBox/RedeemMergeCode" to="." method="_on_redeem_merge_code_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/SendMagicLink" to="." method="_on_send_magic_link_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/UpdateUsername" to="." method="_on_update_username_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CreateMergeCode" to="." method="_on_create_merge_code_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/RedeemMergeCode" to="." method="_on_redeem_merge_code_pressed"]
 [connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]

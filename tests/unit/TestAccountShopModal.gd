@@ -8,11 +8,13 @@ func test_account_modal_input_contract_and_close() -> void:
 	await get_tree().process_frame
 
 	var backdrop: Control = modal.get_node("Backdrop") as Control
+	var scroll: ScrollContainer = modal.get_node("Panel/VBox/Scroll") as ScrollContainer
 	var close_button: Button = modal.get_node("Panel/VBox/Close") as Button
 
 	assert_that(modal.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)
 	assert_that(modal.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
 	assert_that(backdrop.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_that(scroll).is_not_null()
 	assert_that(close_button.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 	close_button.emit_signal("pressed")
@@ -31,13 +33,16 @@ func test_account_modal_shows_logout_for_linked_profile() -> void:
 	get_tree().root.add_child(modal)
 	await get_tree().process_frame
 
-	var email_input: LineEdit = modal.get_node("Panel/VBox/Email") as LineEdit
-	var send_button: Button = modal.get_node("Panel/VBox/SendMagicLink") as Button
+	var email_input: LineEdit = modal.get_node("Panel/VBox/Scroll/Content/Email") as LineEdit
+	var send_button: Button = modal.get_node("Panel/VBox/Scroll/Content/SendMagicLink") as Button
+	var status_label: Label = modal.get_node("Panel/VBox/Status") as Label
 	assert_that(email_input).is_not_null()
 	assert_that(send_button).is_not_null()
+	assert_that(status_label).is_not_null()
 	assert_that(email_input.editable).is_false()
 	assert_that(email_input.text).is_equal("linked@example.com")
 	assert_that(send_button.text).is_equal("Logout")
+	assert_that(status_label.text).is_equal("Logged in as: linked@example.com")
 
 	modal.queue_free()
 	await get_tree().process_frame
@@ -51,11 +56,15 @@ func test_shop_modal_input_contract_and_close() -> void:
 	await get_tree().process_frame
 
 	var backdrop: Control = modal.get_node("Backdrop") as Control
+	var scroll: ScrollContainer = modal.get_node("Panel/VBox/Scroll") as ScrollContainer
+	var powerups_box: VBoxContainer = modal.get_node("Panel/VBox/Scroll/Content/Powerups") as VBoxContainer
 	var close_button: Button = modal.get_node("Panel/VBox/Close") as Button
 
 	assert_that(modal.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)
 	assert_that(modal.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
 	assert_that(backdrop.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_that(scroll).is_not_null()
+	assert_that(powerups_box).is_not_null()
 	assert_that(close_button.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 	close_button.emit_signal("pressed")

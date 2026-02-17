@@ -16,7 +16,7 @@ const COIN_PACKS := [
 
 @onready var status_label: Label = $Panel/VBox/Status
 @onready var coins_label: Label = $Panel/VBox/Coins
-@onready var owned_label: Label = $Panel/VBox/Themes/Owned
+@onready var owned_label: Label = $Panel/VBox/Scroll/Content/Themes/Owned
 
 var _pending_theme_ad_unlock: bool = false
 
@@ -29,7 +29,7 @@ func _ready() -> void:
 		NakamaService.wallet_updated.connect(_on_wallet_updated)
 	for i in range(COIN_PACKS.size()):
 		var row: Dictionary = COIN_PACKS[i]
-		var button: Button = $Panel/VBox/CoinPacks.get_child(i) as Button
+		var button: Button = $Panel/VBox/Scroll/Content/CoinPacks.get_child(i) as Button
 		button.text = str(row.get("label", "Pack"))
 		if not button.pressed.is_connected(_on_coin_pack_pressed.bind(i)):
 			button.pressed.connect(_on_coin_pack_pressed.bind(i))

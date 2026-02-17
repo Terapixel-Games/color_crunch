@@ -1,11 +1,11 @@
 extends Control
 
 @onready var status_label: Label = $Panel/VBox/Status
-@onready var email_input: LineEdit = $Panel/VBox/Email
-@onready var send_magic_link_button: Button = $Panel/VBox/SendMagicLink
-@onready var merge_code_input: LineEdit = $Panel/VBox/MergeCode
-@onready var username_input: LineEdit = $Panel/VBox/Username
-@onready var username_button: Button = $Panel/VBox/UpdateUsername
+@onready var email_input: LineEdit = $Panel/VBox/Scroll/Content/Email
+@onready var send_magic_link_button: Button = $Panel/VBox/Scroll/Content/SendMagicLink
+@onready var merge_code_input: LineEdit = $Panel/VBox/Scroll/Content/MergeCode
+@onready var username_input: LineEdit = $Panel/VBox/Scroll/Content/Username
+@onready var username_button: Button = $Panel/VBox/Scroll/Content/UpdateUsername
 
 var _polling_magic_link := false
 var _username_cost := 0
@@ -175,11 +175,16 @@ func _refresh_account_controls() -> void:
 				NakamaService.set_linked_email(linked_email)
 		if not linked_email.is_empty():
 			email_input.text = linked_email
+			status_label.text = "Logged in as: %s" % linked_email
+		else:
+			status_label.text = "Logged in as: linked account"
 		email_input.editable = false
 		send_magic_link_button.text = "Logout"
 	else:
 		email_input.editable = true
 		send_magic_link_button.text = "Send Magic Link"
+		if status_label.text.begins_with("Logged in as:"):
+			status_label.text = "Link account with magic link"
 
 func _on_auth_state_changed(_is_authenticated: bool, _user_id: String) -> void:
 	if not is_inside_tree():
