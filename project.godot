@@ -23,11 +23,22 @@ AdManager="*res://src/ads/AdManager.gd"
 MusicManager="*res://src/audio/MusicManager.gd"
 BackgroundMood="*res://src/visual/BackgroundMood.gd"
 VFXManager="*res://src/vfx/VFXManager.gd"
-ThemeManager="*res://src/theme/ThemeManager.gd"
 RunManager="*res://src/core/RunManager.gd"
 SafeArea="*res://src/core/SafeArea.gd"
 Typography="*res://src/ui/Typography.gd"
 NakamaService="*res://src/network/NakamaService.gd"
+ThemeManager="*res://src/theme/ThemeManager.gd"
+
+[color_crunch]
+
+nakama_enable_client=true
+nakama_base_url="https://colorcrunch-nakama.onrender.com"
+nakama_server_key="dev"
+nakama_leaderboard_limit=10
+platform="terapixel"
+export_target="web"
+terapixel_user_id=""
+terapixel_display_name=""
 
 [debug]
 
@@ -46,17 +57,6 @@ window/handheld/orientation=1
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/AdmobPlugin/plugin.cfg", "res://addons/gdUnit4/plugin.cfg")
-
-[color_crunch]
-
-nakama_enable_client=false
-nakama_base_url="http://127.0.0.1:7350"
-nakama_server_key="colorcrunch-dev-key"
-nakama_leaderboard_limit=10
-platform="terapixel"
-export_target="web"
-terapixel_user_id=""
-terapixel_display_name=""
 
 [rendering]
 
