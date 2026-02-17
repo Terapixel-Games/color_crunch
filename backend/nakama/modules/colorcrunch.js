@@ -7,6 +7,8 @@ var SHOP_COLLECTION = "colorcrunch_player_shop";
 var SHOP_KEY = "state";
 var ACCOUNT_COLLECTION = "colorcrunch_player_account";
 var MAGIC_LINK_STATUS_KEY = "magic_link_status";
+var MAGIC_LINK_PENDING_KEY = "magic_link_pending";
+var MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX = "magic_link_email_lookup:";
 var USERNAME_STATE_KEY = "username_state";
 var USERNAME_AUDIT_KEY = "username_audit";
 var DEFAULT_USERNAME_CHANGE_COST_COINS = 300;
@@ -733,6 +735,11 @@ function rpcAccountMagicLinkStart(ctx, logger, nk, payload) {
     throw new Error("magic link start URL is not configured");
   }
   clearMagicLinkStatus(nk, ctx.userId);
+  writeMagicLinkPending(nk, ctx.userId, {
+    email: email,
+    startedAt: Math.floor(Date.now() / 1000),
+  });
+  writeMagicLinkLookupByEmail(nk, email, ctx.userId);
   var platformSession = exchangePlatformSession(ctx, nk);
   var response = platformPost(
     nk,
@@ -794,6 +801,10 @@ function rpcAccountMagicLinkStatus(ctx, logger, nk, payload) {
   }
   if (clearAfterRead) {
     clearMagicLinkStatus(nk, ctx.userId);
+    clearMagicLinkPending(nk, ctx.userId);
+    if (status.email) {
+      clearMagicLinkLookupByEmail(nk, String(status.email || "").trim().toLowerCase());
+    }
   }
   return JSON.stringify({
     pending: false,
@@ -819,7 +830,9 @@ function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
     logger.warn("magic_link_notify rejected: invalid secret. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("invalid notify secret");
   }
-  var userId = resolveMagicLinkNotifyUserId(data);
+  var incomingEmail = String(data.email || "").trim().toLowerCase();
+  var resolved = resolveMagicLinkNotifyTarget(nk, data, incomingEmail);
+  var userId = resolved.userId;
   if (!userId) {
     logger.warn("magic_link_notify rejected: could not resolve user id. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("nakama_user_id is required");
@@ -841,18 +854,23 @@ function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
   }
   var row = {
     status: status,
-    email: String(data.email || "").trim().toLowerCase(),
+    email: incomingEmail,
     primaryProfileId: String(data.primary_profile_id || data.primaryProfileId || "").trim(),
     secondaryProfileId: String(data.secondary_profile_id || data.secondaryProfileId || "").trim(),
     completedAt: toInt(data.completed_at || data.completedAt, Math.floor(Date.now() / 1000)),
     receivedAt: Math.floor(Date.now() / 1000),
   };
   writeMagicLinkStatus(nk, userId, row);
+  clearMagicLinkPending(nk, userId);
+  if (row.email) {
+    clearMagicLinkLookupByEmail(nk, row.email);
+  }
   logger.info(
-    "magic_link_notify stored status for userId=%s status=%s gameId=%s primaryProfileId=%s secondaryProfileId=%s",
+    "magic_link_notify stored status for userId=%s status=%s gameId=%s source=%s primaryProfileId=%s secondaryProfileId=%s",
     userId,
     row.status,
     incomingGameId || String(MODULE_CONFIG.gameId || ""),
+    resolved.source || "",
     row.primaryProfileId || "",
     row.secondaryProfileId || ""
   );
@@ -1258,11 +1276,25 @@ function normalizeObject(input) {
   return input;
 }
 
-function resolveMagicLinkNotifyUserId(data) {
+function resolveMagicLinkNotifyTarget(nk, data, incomingEmail) {
   var explicit = String(data.nakama_user_id || data.nakamaUserId || "").trim();
-  if (explicit) {
-    return explicit;
+  if (explicit && isExistingNakamaUserId(nk, explicit)) {
+    return { userId: explicit, source: "explicit_nakama_user_id" };
   }
+  var profileCandidate = resolveMagicLinkNotifyUserId(data);
+  if (profileCandidate && isExistingNakamaUserId(nk, profileCandidate)) {
+    return { userId: profileCandidate, source: "profile_field" };
+  }
+  if (incomingEmail) {
+    var byEmail = readMagicLinkLookupByEmail(nk, incomingEmail);
+    if (byEmail && isExistingNakamaUserId(nk, byEmail)) {
+      return { userId: byEmail, source: "email_lookup" };
+    }
+  }
+  return { userId: "", source: "unresolved" };
+}
+
+function resolveMagicLinkNotifyUserId(data) {
   var candidates = [
     data.profile_id,
     data.profileId,
@@ -1283,6 +1315,19 @@ function resolveMagicLinkNotifyUserId(data) {
 function isLikelyNakamaUserId(value) {
   var text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text);
+}
+
+function isExistingNakamaUserId(nk, userId) {
+  var candidate = String(userId || "").trim();
+  if (!isLikelyNakamaUserId(candidate)) {
+    return false;
+  }
+  try {
+    var users = nk.usersGetId([candidate]);
+    return !!(users && users.length > 0 && users[0] && users[0].id);
+  } catch (_err) {
+    return false;
+  }
 }
 
 function summarizeMagicLinkNotifyPayload(data) {
@@ -1399,6 +1444,64 @@ function writeShopState(nk, userId, state) {
   ]);
 }
 
+function magicLinkLookupKeyByEmail(email) {
+  var normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + normalized;
+}
+
+function writeMagicLinkLookupByEmail(nk, email, userId) {
+  var key = magicLinkLookupKeyByEmail(email);
+  if (!key) {
+    return;
+  }
+  nk.storageWrite([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+      value: {
+        email: String(email || "").trim().toLowerCase(),
+        userId: String(userId || "").trim(),
+        updatedAt: Math.floor(Date.now() / 1000),
+      },
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+}
+
+function readMagicLinkLookupByEmail(nk, email) {
+  var key = magicLinkLookupKeyByEmail(email);
+  if (!key) {
+    return "";
+  }
+  var storage = nk.storageRead([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+    },
+  ]);
+  if (storage && storage.length > 0 && storage[0].value) {
+    return String(storage[0].value.userId || "").trim();
+  }
+  return "";
+}
+
+function clearMagicLinkLookupByEmail(nk, email) {
+  var key = magicLinkLookupKeyByEmail(email);
+  if (!key) {
+    return;
+  }
+  nk.storageDelete([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+    },
+  ]);
+}
+
 function readMagicLinkStatus(nk, userId) {
   var storage = nk.storageRead([
     {
@@ -1411,6 +1514,29 @@ function readMagicLinkStatus(nk, userId) {
     return storage[0].value;
   }
   return null;
+}
+
+function writeMagicLinkPending(nk, userId, value) {
+  nk.storageWrite([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: MAGIC_LINK_PENDING_KEY,
+      userId: userId,
+      value: value || {},
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+}
+
+function clearMagicLinkPending(nk, userId) {
+  nk.storageDelete([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: MAGIC_LINK_PENDING_KEY,
+      userId: userId,
+    },
+  ]);
 }
 
 function writeMagicLinkStatus(nk, userId, value) {
