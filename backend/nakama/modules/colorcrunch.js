@@ -726,14 +726,17 @@ function rpcAccountMagicLinkStart(ctx, logger, nk, payload) {
   if (!email) {
     throw new Error("email is required");
   }
-  if (!MODULE_CONFIG.accountMagicLinkStartUrl) {
+  var startUrl =
+    MODULE_CONFIG.accountMagicLinkStartUrl ||
+    ((ctx && ctx.env && ctx.env.TPX_PLATFORM_MAGIC_LINK_START_URL) || "");
+  if (!startUrl) {
     throw new Error("magic link start URL is not configured");
   }
   clearMagicLinkStatus(nk, ctx.userId);
   var platformSession = exchangePlatformSession(ctx, nk);
   var response = platformPost(
     nk,
-    MODULE_CONFIG.accountMagicLinkStartUrl,
+    startUrl,
     {
       email: email,
       game_id: MODULE_CONFIG.gameId,
@@ -756,13 +759,16 @@ function rpcAccountMagicLinkComplete(ctx, logger, nk, payload) {
   if (!token) {
     throw new Error("ml_token is required");
   }
-  if (!MODULE_CONFIG.accountMagicLinkCompleteUrl) {
+  var completeUrl =
+    MODULE_CONFIG.accountMagicLinkCompleteUrl ||
+    ((ctx && ctx.env && ctx.env.TPX_PLATFORM_MAGIC_LINK_COMPLETE_URL) || "");
+  if (!completeUrl) {
     throw new Error("magic link complete URL is not configured");
   }
   var platformSession = exchangePlatformSession(ctx, nk);
   var response = platformPost(
     nk,
-    MODULE_CONFIG.accountMagicLinkCompleteUrl,
+    completeUrl,
     {
       ml_token: token,
     },
@@ -1121,12 +1127,15 @@ function persistIapSnapshot(nk, userId, entitlements) {
 }
 
 function exchangePlatformSession(ctx, nk) {
-  if (!MODULE_CONFIG.identityNakamaAuthUrl) {
+  var authUrl =
+    MODULE_CONFIG.identityNakamaAuthUrl ||
+    ((ctx && ctx.env && ctx.env.TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL) || "");
+  if (!authUrl) {
     throw new Error("identity exchange URL is not configured");
   }
   var response = platformPost(
     nk,
-    MODULE_CONFIG.identityNakamaAuthUrl,
+    authUrl,
     {
       game_id: MODULE_CONFIG.gameId,
       nakama_user_id: ctx.userId,

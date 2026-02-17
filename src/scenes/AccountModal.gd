@@ -24,7 +24,7 @@ func _on_send_magic_link_pressed() -> void:
 	status_label.text = "Sending magic link..."
 	var result: Dictionary = await NakamaService.start_magic_link(email)
 	if not result.get("ok", false):
-		status_label.text = "Magic link unavailable."
+		status_label.text = _format_magic_link_error(result)
 		return
 	status_label.text = "Magic link sent. Check your email."
 	if not _polling_magic_link:
@@ -126,5 +126,21 @@ func _extract_error_message(result: Dictionary, fallback: String) -> String:
 		if row.has("message"):
 			return str(row.get("message"))
 		if row.has("error"):
-			return str(row.get("error"))
+			var err: Variant = row.get("error")
+			if typeof(err) == TYPE_DICTIONARY:
+				var err_row: Dictionary = err
+				if err_row.has("message"):
+					return str(err_row.get("message"))
+				if err_row.has("code"):
+					return str(err_row.get("code"))
+			return str(err)
 	return fallback
+
+func _format_magic_link_error(result: Dictionary) -> String:
+	var message := _extract_error_message(result, "Magic link unavailable.")
+	var normalized := message.to_lower()
+	if normalized.find("mail relay denied") != -1:
+		return "Magic link email failed: relay rejected by SMTP provider."
+	if normalized.find("rate limit exceeded") != -1:
+		return "Too many attempts. Please wait and try again."
+	return message
