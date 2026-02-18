@@ -1,6 +1,7 @@
 extends Control
 
 @onready var score_label: Label = $UI/VBox/Score
+@onready var mode_badge_label: Label = $UI/VBox/ModeBadge
 @onready var best_label: Label = $UI/VBox/Best
 @onready var streak_label: Label = $UI/VBox/Streak
 @onready var online_status_label: Label = $UI/VBox/OnlineStatus
@@ -34,6 +35,7 @@ func _ready() -> void:
 
 func _update_labels() -> void:
 	score_label.text = "%d" % RunManager.last_score
+	mode_badge_label.text = "Mode: %s" % _mode_label()
 	var local_best: int = int(SaveStore.data["high_score"])
 	var online_record: Dictionary = NakamaService.get_my_high_score()
 	var online_best: int = int(online_record.get("score", 0))
@@ -103,11 +105,16 @@ func _on_leaderboard_updated(records: Array) -> void:
 	leaderboard_label.text = _format_leaderboard(records)
 
 func _sync_online_results() -> void:
+	var mode: String = String(RunManager.last_run_leaderboard_mode).strip_edges().to_upper()
+	if mode.is_empty():
+		mode = "PURE"
 	await NakamaService.submit_score(RunManager.last_score, {
 		"source": "results_ready",
-	})
-	await NakamaService.refresh_my_high_score()
-	await NakamaService.refresh_leaderboard(5)
+		"run_id": RunManager.last_run_id,
+		"powerup_breakdown": RunManager.last_run_powerup_breakdown.duplicate(true),
+	}, mode, RunManager.last_run_powerups_used, RunManager.last_run_coins_spent, RunManager.last_run_id, RunManager.last_run_duration_ms)
+	await NakamaService.refresh_my_high_score(mode)
+	await NakamaService.refresh_leaderboard(5, mode)
 
 func _sync_wallet_rewards() -> void:
 	await NakamaService.refresh_wallet(false)
@@ -162,8 +169,9 @@ func _on_double_reward_ad_earned() -> void:
 	double_reward_button.text = "Coins Doubled"
 
 func _format_leaderboard(records: Array) -> String:
+	var mode_label := _mode_label()
 	if records.is_empty():
-		return "Leaderboard: no online records yet"
+		return "%s Leaderboard: no online records yet" % mode_label
 	var lines: Array[String] = []
 	var count: int = min(records.size(), 3)
 	for i in range(count):
@@ -175,7 +183,10 @@ func _format_leaderboard(records: Array) -> String:
 		var username: String = str(row.get("username", "Player"))
 		var score: int = int(row.get("score", 0))
 		lines.append("%d. %s - %d" % [rank, username, score])
-	return "Leaderboard\n%s" % "\n".join(lines)
+	return "%s Leaderboard\n%s" % [mode_label, "\n".join(lines)]
+
+func _mode_label() -> String:
+	return "Pure" if String(RunManager.last_run_leaderboard_mode).to_upper() == "PURE" else "Open"
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:

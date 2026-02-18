@@ -2,6 +2,7 @@ extends Node
 
 const SAVE_PATH := "user://color_crunch_save.json"
 const WEB_STORAGE_KEY := "color_crunch_save_v1"
+const TIP_OPEN_LEADERBOARD_FIRST_POWERUP := "leaderboard.open_mode_first_powerup"
 
 var data := {
 	"high_score": 0,
@@ -20,6 +21,8 @@ var data := {
 	"equipped_theme": "default",
 	"theme_rentals": {},
 	"owned_powerups": {"undo": 0, "prism": 0, "shuffle": 0},
+	"dismissed_tips": {},
+	"show_open_leaderboard_tip": true,
 }
 
 func _ready() -> void:
@@ -62,7 +65,17 @@ func _apply_serialized_payload(payload: String) -> bool:
 	for k in data.keys():
 		if parsed.has(k):
 			data[k] = parsed[k]
+	_migrate_legacy_tip_preferences()
 	return true
+
+func _migrate_legacy_tip_preferences() -> void:
+	var dismissed_var: Variant = data.get("dismissed_tips", {})
+	var dismissed: Dictionary = {}
+	if typeof(dismissed_var) == TYPE_DICTIONARY:
+		dismissed = (dismissed_var as Dictionary).duplicate(true)
+	if not bool(data.get("show_open_leaderboard_tip", true)):
+		dismissed[TIP_OPEN_LEADERBOARD_FIRST_POWERUP] = true
+	data["dismissed_tips"] = dismissed
 
 func _is_web_storage_supported() -> bool:
 	return OS.has_feature("web") and ClassDB.class_exists("JavaScriptBridge")
@@ -217,3 +230,34 @@ func get_owned_powerups() -> Dictionary:
 	if typeof(raw) == TYPE_DICTIONARY:
 		return (raw as Dictionary).duplicate(true)
 	return {"undo": 0, "prism": 0, "shuffle": 0}
+
+func should_show_tip(tip_id: String, default_value: bool = true) -> bool:
+	var key := tip_id.strip_edges().to_lower()
+	if key.is_empty():
+		return default_value
+	var dismissed_var: Variant = data.get("dismissed_tips", {})
+	if typeof(dismissed_var) != TYPE_DICTIONARY:
+		return default_value
+	return not bool((dismissed_var as Dictionary).get(key, false))
+
+func set_tip_dismissed(tip_id: String, dismissed: bool = true) -> void:
+	var key := tip_id.strip_edges().to_lower()
+	if key.is_empty():
+		return
+	var dismissed_var: Variant = data.get("dismissed_tips", {})
+	var dismissed_tips: Dictionary = {}
+	if typeof(dismissed_var) == TYPE_DICTIONARY:
+		dismissed_tips = (dismissed_var as Dictionary).duplicate(true)
+	if dismissed:
+		dismissed_tips[key] = true
+	else:
+		dismissed_tips.erase(key)
+	data["dismissed_tips"] = dismissed_tips
+	save()
+
+func should_show_open_leaderboard_tip() -> bool:
+	return should_show_tip(TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
+
+func set_show_open_leaderboard_tip(should_show: bool) -> void:
+	data["show_open_leaderboard_tip"] = should_show
+	set_tip_dismissed(TIP_OPEN_LEADERBOARD_FIRST_POWERUP, not should_show)

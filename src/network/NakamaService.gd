@@ -253,18 +253,60 @@ func submit_score_background(score: int, metadata: Dictionary = {}) -> void:
 func _submit_score_background(score: int, metadata: Dictionary = {}) -> void:
 	await submit_score(score, metadata)
 
-func submit_score(score: int, metadata: Dictionary = {}) -> Dictionary:
+func build_leaderboard_run_metrics(
+	leaderboard_mode: String = "OPEN",
+	powerups_used: int = 0,
+	coins_spent: int = 0,
+	run_id: String = "",
+	run_duration_ms: int = -1
+) -> Dictionary:
+	return {
+		"mode": leaderboard_mode.strip_edges().to_upper(),
+		"powerups_used": max(0, powerups_used),
+		"coins_spent": max(0, coins_spent),
+		"run_id": run_id.strip_edges(),
+		"run_duration_ms": max(-1, run_duration_ms),
+	}
+
+func submit_score(
+	score: int,
+	metadata: Dictionary = {},
+	leaderboard_mode: String = "OPEN",
+	powerups_used: int = 0,
+	coins_spent: int = 0,
+	run_id: String = "",
+	run_duration_ms: int = -1
+) -> Dictionary:
 	if score < 0:
 		return {"ok": false, "error": "invalid score"}
 	if not await ensure_authenticated():
 		return {"ok": false, "error": "auth failed"}
 
+	var run_metrics := build_leaderboard_run_metrics(
+		leaderboard_mode,
+		powerups_used,
+		coins_spent,
+		run_id,
+		run_duration_ms
+	)
+	var enriched_metadata := metadata.duplicate(true)
+	if not str(run_metrics.get("run_id", "")).is_empty():
+		enriched_metadata["run_id"] = str(run_metrics["run_id"])
+	if int(run_metrics.get("run_duration_ms", -1)) >= 0:
+		enriched_metadata["run_duration_ms"] = int(run_metrics["run_duration_ms"])
+
 	_set_online_state("Syncing score...")
 	var payload := {
 		"score": score,
-		"subscore": max(0, StreakManager.get_streak_days()),
-		"metadata": _augment_metadata(metadata),
+		"mode": str(run_metrics["mode"]),
+		"powerups_used": int(run_metrics["powerups_used"]),
+		"coins_spent": int(run_metrics["coins_spent"]),
+		"metadata": _augment_metadata(enriched_metadata),
 	}
+	if not str(run_metrics.get("run_id", "")).is_empty():
+		payload["run_id"] = str(run_metrics["run_id"])
+	if int(run_metrics.get("run_duration_ms", -1)) >= 0:
+		payload["run_duration_ms"] = int(run_metrics["run_duration_ms"])
 	var rpc: Dictionary = await _rpc_call("tpx_submit_score", payload, true, true)
 	if not rpc.get("ok", false):
 		_set_online_state("Connected")
@@ -278,10 +320,15 @@ func submit_score(score: int, metadata: Dictionary = {}) -> Dictionary:
 	_set_online_state("Connected")
 	return rpc
 
-func refresh_my_high_score() -> Dictionary:
+func refresh_my_high_score(leaderboard_mode: String = "OPEN") -> Dictionary:
 	if not await ensure_authenticated():
 		return {"ok": false, "error": "auth failed"}
-	var rpc: Dictionary = await _rpc_call("tpx_get_my_high_score", {}, true, true)
+	var rpc: Dictionary = await _rpc_call(
+		"tpx_get_my_high_score",
+		{"mode": leaderboard_mode.strip_edges().to_upper()},
+		true,
+		true
+	)
 	if not rpc.get("ok", false):
 		return rpc
 
@@ -294,7 +341,7 @@ func refresh_my_high_score() -> Dictionary:
 		high_score_updated.emit(_my_high_score.duplicate(true))
 	return rpc
 
-func refresh_leaderboard(limit: int = DEFAULT_LEADERBOARD_LIMIT) -> Dictionary:
+func refresh_leaderboard(limit: int = DEFAULT_LEADERBOARD_LIMIT, leaderboard_mode: String = "OPEN") -> Dictionary:
 	if not await ensure_authenticated():
 		return {"ok": false, "error": "auth failed"}
 	if limit <= 0:
@@ -302,7 +349,15 @@ func refresh_leaderboard(limit: int = DEFAULT_LEADERBOARD_LIMIT) -> Dictionary:
 	if limit > 100:
 		limit = 100
 
-	var rpc: Dictionary = await _rpc_call("tpx_list_leaderboard", {"limit": limit}, true, true)
+	var rpc: Dictionary = await _rpc_call(
+		"tpx_list_leaderboard",
+		{
+			"limit": limit,
+			"mode": leaderboard_mode.strip_edges().to_upper(),
+		},
+		true,
+		true
+	)
 	if not rpc.get("ok", false):
 		return rpc
 

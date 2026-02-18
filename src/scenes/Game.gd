@@ -27,11 +27,15 @@ var _pending_powerup_refill_type: String = ""
 var _powerup_coin_costs := {"undo": 120, "prism": 180, "shuffle": 140}
 var _powerup_usage := {"undo": 0, "prism": 0, "shuffle": 0}
 var _run_started_at_unix := 0
+var _run_powerups_used_total: int = 0
+var _run_coins_spent: int = 0
+var _open_tip_shown_this_run: bool = false
 
 const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
 const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
 const ICON_SHUFFLE: Texture2D = preload("res://assets/ui/icons/atlas/powerup_shuffle.tres")
 const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loading.tres")
+const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
@@ -314,6 +318,7 @@ func _try_purchase_powerup_with_coins(powerup_type: String) -> bool:
 			_remove_color_charges += 1
 		"shuffle":
 			_shuffle_charges += 1
+	_run_coins_spent += cost
 	_update_powerup_buttons()
 	return true
 
@@ -387,16 +392,43 @@ func _finish_run(completed_by_gameplay: bool) -> void:
 		"powerup_prism_used": int(_powerup_usage.get("prism", 0)),
 		"powerup_shuffle_used": int(_powerup_usage.get("shuffle", 0)),
 	}, true)
+	RunManager.set_run_leaderboard_context(_run_powerups_used_total, _run_coins_spent, _powerup_usage)
 	RunManager.end_game(score, completed_by_gameplay)
 
 func _record_powerup_use(powerup_type: String) -> void:
 	if not _powerup_usage.has(powerup_type):
 		_powerup_usage[powerup_type] = 0
 	_powerup_usage[powerup_type] = int(_powerup_usage[powerup_type]) + 1
+	_run_powerups_used_total += 1
+	_maybe_show_open_mode_tip()
 	NakamaService.track_client_event("gameplay.powerup_used", {
 		"powerup_type": powerup_type,
 		"remaining": _remaining_powerup_charges(powerup_type),
 	}, true)
+
+func _maybe_show_open_mode_tip() -> void:
+	if _open_tip_shown_this_run:
+		return
+	if not SaveStore.should_show_tip(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true):
+		_open_tip_shown_this_run = true
+		return
+	_open_tip_shown_this_run = true
+	var modal := TUTORIAL_TIP_SCENE.instantiate()
+	if modal.has_method("configure"):
+		modal.configure({
+			"title": "Open Leaderboard Run",
+			"message": "Power-up used. This run will post to the Open leaderboard with other powered-up runs.",
+			"confirm_text": "Got it",
+			"checkbox_text": "Don't show this again",
+			"show_checkbox": true,
+		})
+	if modal.has_signal("dismissed"):
+		modal.dismissed.connect(_on_open_mode_tip_dismissed)
+	add_child(modal)
+
+func _on_open_mode_tip_dismissed(do_not_show_again: bool) -> void:
+	if do_not_show_again:
+		SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
 
 func _remaining_powerup_charges(powerup_type: String) -> int:
 	match powerup_type:

@@ -1,4 +1,6 @@
-var DEFAULT_LEADERBOARD_ID = "colorcrunch_high_scores";
+var DEFAULT_LEADERBOARD_ID_OPEN = "colorcrunch_open_high_scores";
+var DEFAULT_LEADERBOARD_ID_PURE = "colorcrunch_pure_high_scores";
+var LEADERBOARD_SUBSCORE_BASE = 1000000;
 var PLAYER_STATS_COLLECTION = "colorcrunch_player_stats";
 var PLAYER_STATS_KEY = "high_score";
 var IAP_COLLECTION = "colorcrunch_player_iap";
@@ -54,7 +56,10 @@ var POWERUP_COSTS = {
   shuffle: 140,
 };
 var MODULE_CONFIG = {
-  leaderboardId: DEFAULT_LEADERBOARD_ID,
+  leaderboardIds: {
+    open: DEFAULT_LEADERBOARD_ID_OPEN,
+    pure: DEFAULT_LEADERBOARD_ID_PURE,
+  },
   authUrl: "",
   eventUrl: "",
   telemetryEventsUrl: "",
@@ -82,7 +87,7 @@ var MODULE_CONFIG = {
 
 function InitModule(ctx, logger, nk, initializer) {
   MODULE_CONFIG = loadConfig(ctx);
-  ensureLeaderboard(nk, logger, MODULE_CONFIG.leaderboardId);
+  ensureLeaderboard(nk, logger, MODULE_CONFIG.leaderboardIds);
 
   initializer.registerRpc("tpx_submit_score", rpcSubmitScore);
   initializer.registerRpc("tpx_get_my_high_score", rpcGetMyHighScore);
@@ -113,8 +118,9 @@ function InitModule(ctx, logger, nk, initializer) {
   initializer.registerAfterAuthenticateDevice(afterAuthenticateDevice);
 
   logger.info(
-    "Color Crunch Nakama module loaded. Leaderboard ID: %s",
-    MODULE_CONFIG.leaderboardId
+    "Color Crunch Nakama module loaded. Leaderboards open=%s pure=%s",
+    MODULE_CONFIG.leaderboardIds.open,
+    MODULE_CONFIG.leaderboardIds.pure
   );
 }
 
@@ -127,7 +133,15 @@ function loadConfig(ctx) {
   }
 
   return {
-    leaderboardId: env.COLOR_CRUNCH_LEADERBOARD_ID || DEFAULT_LEADERBOARD_ID,
+    leaderboardIds: {
+      open:
+        env.COLOR_CRUNCH_LEADERBOARD_ID_OPEN ||
+        env.COLOR_CRUNCH_LEADERBOARD_ID ||
+        DEFAULT_LEADERBOARD_ID_OPEN,
+      pure:
+        env.COLOR_CRUNCH_LEADERBOARD_ID_PURE ||
+        DEFAULT_LEADERBOARD_ID_PURE,
+    },
     authUrl: env.TPX_PLATFORM_AUTH_URL || "",
     eventUrl: env.TPX_PLATFORM_EVENT_URL || "",
     telemetryEventsUrl:
@@ -169,7 +183,25 @@ function loadConfig(ctx) {
   };
 }
 
-function ensureLeaderboard(nk, logger, leaderboardId) {
+function ensureLeaderboard(nk, logger, leaderboardIds) {
+  ensureLeaderboardOne(
+    nk,
+    logger,
+    String(leaderboardIds.open || "").trim(),
+    { game: "Color Crunch", platform: "terapixel", mode: "open" }
+  );
+  ensureLeaderboardOne(
+    nk,
+    logger,
+    String(leaderboardIds.pure || "").trim(),
+    { game: "Color Crunch", platform: "terapixel", mode: "pure" }
+  );
+}
+
+function ensureLeaderboardOne(nk, logger, leaderboardId, metadata) {
+  if (!leaderboardId) {
+    return;
+  }
   try {
     nk.leaderboardCreate(
       leaderboardId,
@@ -177,7 +209,7 @@ function ensureLeaderboard(nk, logger, leaderboardId) {
       "descending",
       "best",
       null,
-      { game: "Color Crunch", platform: "terapixel" },
+      metadata || {},
       true
     );
     logger.info("Created leaderboard %s", leaderboardId);
@@ -277,20 +309,89 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
   if (!isFinite(score) || score < 0) {
     throw new Error("score must be a non-negative integer");
   }
-
-  var subscore = data.subscore === undefined ? 0 : toInt(data.subscore, NaN);
-  if (!isFinite(subscore) || subscore < 0) {
-    throw new Error("subscore must be a non-negative integer");
+  var mode = normalizeLeaderboardMode(data.mode || data.leaderboard_mode);
+  var leaderboardId = leaderboardIdForMode(mode);
+  var powerupsUsed = toInt(data.powerups_used, 0);
+  if (!isFinite(powerupsUsed) || powerupsUsed < 0) {
+    throw new Error("powerups_used must be a non-negative integer");
+  }
+  var coinsSpent = toInt(data.coins_spent, 0);
+  if (!isFinite(coinsSpent) || coinsSpent < 0) {
+    throw new Error("coins_spent must be a non-negative integer");
+  }
+  var runId = normalizeRunId(data.run_id || "");
+  var runDurationMs = toInt(data.run_duration_ms, -1);
+  if (runDurationMs < 0) {
+    runDurationMs = -1;
   }
 
   var metadata = data.metadata;
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     metadata = {};
   }
+  if (!runId) {
+    runId = normalizeRunId(metadata.run_id || "");
+  }
+  if (runDurationMs < 0) {
+    runDurationMs = toInt(metadata.run_duration_ms, -1);
+    if (runDurationMs < 0) {
+      runDurationMs = -1;
+    }
+  }
+  metadata.mode = mode.toUpperCase();
+  metadata.powerups_used = powerupsUsed;
+  metadata.coins_spent = coinsSpent;
+  if (runId) {
+    metadata.run_id = runId;
+  }
+  if (runDurationMs >= 0) {
+    metadata.run_duration_ms = runDurationMs;
+  }
+
+  var flaggedReasons = [];
+  if (mode === "pure" && powerupsUsed > 0) {
+    flaggedReasons.push("pure_with_powerups_used");
+  }
+  if (mode === "pure" && coinsSpent > 0) {
+    flaggedReasons.push("pure_with_coins_spent");
+  }
+  var metadataPowerupsUsed = extractMetadataPowerupsUsed(metadata);
+  if (mode === "pure" && metadataPowerupsUsed > 0) {
+    flaggedReasons.push("pure_with_metadata_powerups");
+  }
+  if (flaggedReasons.length > 0) {
+    logger.warn(
+      "Suspicious score submission flagged. userId=%s mode=%s reasons=%s runId=%s",
+      ctx.userId,
+      mode,
+      flaggedReasons.join(","),
+      runId
+    );
+    publishPlatformEvent(
+      nk,
+      logger,
+      "score_submission_flagged",
+      {
+        leaderboardId: leaderboardId,
+        mode: mode,
+        score: score,
+        powerups_used: powerupsUsed,
+        coins_spent: coinsSpent,
+        metadata_powerups_used: metadataPowerupsUsed,
+        reasons: flaggedReasons,
+        run_id: runId,
+      },
+      ctx
+    );
+  }
+  if (mode === "pure" && powerupsUsed > 0) {
+    throw new Error("PURE mode submissions cannot include powerups_used > 0");
+  }
+  var subscore = Math.max(0, LEADERBOARD_SUBSCORE_BASE - powerupsUsed);
 
   var currentUsername = resolveCurrentUsername(nk, ctx);
   var record = nk.leaderboardRecordWrite(
-    MODULE_CONFIG.leaderboardId,
+    leaderboardId,
     ctx.userId,
     currentUsername,
     score,
@@ -306,7 +407,8 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
     logger,
     "score_submitted",
     {
-      leaderboardId: MODULE_CONFIG.leaderboardId,
+      leaderboardId: leaderboardId,
+      mode: mode,
       score: record.score,
       subscore: record.subscore,
       rank: record.rank,
@@ -316,7 +418,8 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
   );
 
   return JSON.stringify({
-    leaderboardId: MODULE_CONFIG.leaderboardId,
+    leaderboardId: leaderboardId,
+    leaderboardMode: mode.toUpperCase(),
     record: record,
   });
 }
@@ -343,9 +446,12 @@ function resolveCurrentUsername(nk, ctx) {
 
 function rpcGetMyHighScore(ctx, logger, nk, payload) {
   assertAuthenticated(ctx);
+  var data = parsePayload(payload);
+  var mode = normalizeLeaderboardMode(data.mode || data.leaderboard_mode);
+  var leaderboardId = leaderboardIdForMode(mode);
 
   var records = nk.leaderboardRecordsList(
-    MODULE_CONFIG.leaderboardId,
+    leaderboardId,
     [ctx.userId],
     1
   );
@@ -365,7 +471,8 @@ function rpcGetMyHighScore(ctx, logger, nk, payload) {
   ]);
 
   return JSON.stringify({
-    leaderboardId: MODULE_CONFIG.leaderboardId,
+    leaderboardId: leaderboardId,
+    leaderboardMode: mode.toUpperCase(),
     highScore: ownerRecord,
     playerStats:
       storage && storage.length > 0 && storage[0].value ? storage[0].value : {},
@@ -374,6 +481,8 @@ function rpcGetMyHighScore(ctx, logger, nk, payload) {
 
 function rpcListLeaderboard(ctx, logger, nk, payload) {
   var data = parsePayload(payload);
+  var mode = normalizeLeaderboardMode(data.mode || data.leaderboard_mode);
+  var leaderboardId = leaderboardIdForMode(mode);
   var limit = toInt(data.limit, 25);
   if (!isFinite(limit) || limit <= 0) {
     limit = 25;
@@ -388,14 +497,15 @@ function rpcListLeaderboard(ctx, logger, nk, payload) {
       : undefined;
 
   var list = nk.leaderboardRecordsList(
-    MODULE_CONFIG.leaderboardId,
+    leaderboardId,
     undefined,
     limit,
     cursor
   );
 
   return JSON.stringify({
-    leaderboardId: MODULE_CONFIG.leaderboardId,
+    leaderboardId: leaderboardId,
+    leaderboardMode: mode.toUpperCase(),
     records: list.records || [],
     nextCursor: list.nextCursor || "",
     prevCursor: list.prevCursor || "",
@@ -2096,6 +2206,54 @@ function providerForExportTarget(exportTarget) {
   return "paypal_web";
 }
 
+function normalizeRunId(value) {
+  var runId = String(value || "").trim();
+  if (!runId) {
+    return "";
+  }
+  if (runId.length > 128) {
+    runId = runId.substring(0, 128);
+  }
+  return runId;
+}
+
+function extractMetadataPowerupsUsed(metadata) {
+  if (!metadata || typeof metadata !== "object") {
+    return 0;
+  }
+  var total = 0;
+  var direct = toInt(metadata.powerups_used, -1);
+  if (direct >= 0) {
+    total = Math.max(total, direct);
+  }
+  var breakdown = metadata.powerup_breakdown;
+  if (breakdown && typeof breakdown === "object" && !Array.isArray(breakdown)) {
+    var keys = Object.keys(breakdown);
+    var sum = 0;
+    for (var i = 0; i < keys.length; i++) {
+      sum += Math.max(0, toInt(breakdown[keys[i]], 0));
+    }
+    total = Math.max(total, sum);
+  }
+  return total;
+}
+
+function normalizeLeaderboardMode(value) {
+  var mode = String(value || "open").trim().toLowerCase();
+  if (mode === "pure") {
+    return "pure";
+  }
+  return "open";
+}
+
+function leaderboardIdForMode(mode) {
+  var normalizedMode = normalizeLeaderboardMode(mode);
+  if (normalizedMode === "pure") {
+    return String(MODULE_CONFIG.leaderboardIds.pure || "").trim();
+  }
+  return String(MODULE_CONFIG.leaderboardIds.open || "").trim();
+}
+
 function assertAuthenticated(ctx) {
   if (!ctx || !ctx.userId) {
     throw new Error("User session is required.");
@@ -2163,4 +2321,24 @@ function toBool(value, fallback) {
     return false;
   }
   return !!fallback;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    rpcSubmitScore: rpcSubmitScore,
+    rpcGetMyHighScore: rpcGetMyHighScore,
+    rpcListLeaderboard: rpcListLeaderboard,
+    normalizeLeaderboardMode: normalizeLeaderboardMode,
+    leaderboardIdForMode: leaderboardIdForMode,
+    extractMetadataPowerupsUsed: extractMetadataPowerupsUsed,
+    __setModuleConfigForTests: function (partialConfig) {
+      partialConfig = partialConfig || {};
+      MODULE_CONFIG = Object.assign({}, MODULE_CONFIG, partialConfig);
+      MODULE_CONFIG.leaderboardIds = Object.assign(
+        {},
+        MODULE_CONFIG.leaderboardIds || {},
+        partialConfig.leaderboardIds || {}
+      );
+    },
+  };
 }
