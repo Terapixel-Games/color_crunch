@@ -421,6 +421,7 @@ function rpcIapPurchaseStart(ctx, logger, nk, payload) {
 
   var platformSession = exchangePlatformSession(ctx, nk);
   var body = {
+    game_id: MODULE_CONFIG.gameId,
     provider: provider,
     product_id: productId,
     export_target: String(data.export_target || MODULE_CONFIG.exportTarget || "web")
