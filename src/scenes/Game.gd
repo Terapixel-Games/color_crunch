@@ -1,8 +1,11 @@
 extends Control
 
 @onready var board: BoardView = $BoardView
+@onready var top_bar_bg: Control = $UI/TopBarBg
 @onready var top_bar: Control = $UI/TopBar
 @onready var powerups_row: Control = $UI/Powerups
+@onready var pause_button: Button = $UI/TopBar/Pause
+@onready var score_caption_label: Label = $UI/TopBar/ScoreBox/ScoreCaption
 @onready var score_value_label: Label = $UI/TopBar/ScoreBox/ScoreValue
 @onready var undo_button: Button = $UI/Powerups/Undo
 @onready var remove_color_button: Button = $UI/Powerups/RemoveColor
@@ -36,6 +39,8 @@ const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism
 const ICON_SHUFFLE: Texture2D = preload("res://assets/ui/icons/atlas/powerup_shuffle.tres")
 const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loading.tres")
 const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
+const HUD_MAX_WIDTH: float = 760.0
+const POWERUPS_MAX_WIDTH: float = 700.0
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
@@ -358,28 +363,51 @@ func _update_badge(label: Label, charges: int, is_loading: bool) -> void:
 	if label == null:
 		return
 	label.visible = true
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.clip_text = true
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	if is_loading:
 		label.text = "Loading..."
 		label.modulate = Color(0.78, 0.86, 1.0, 0.94)
-		_set_badge_centered(label)
 	elif charges > 0:
 		label.text = "x%d" % charges
 		label.modulate = Color(0.98, 0.99, 1.0, 0.98)
-		_set_badge_top_center(label)
 	else:
 		label.text = "Watch Ad"
 		label.modulate = Color(0.78, 0.9, 1.0, 0.98)
-		_set_badge_top_center(label)
+	_set_badge_top_center(label)
+	_fit_badge_font_size(label)
 
 func _set_badge_top_center(label: Label) -> void:
+	var top_inset: float = 6.0
+	var row_height: float = 110.0
+	if powerups_row and powerups_row.size.y > 0.0:
+		row_height = powerups_row.size.y
+	var badge_height: float = clamp(row_height * 0.35, 24.0, 44.0)
 	label.anchor_left = 0.0
 	label.anchor_top = 0.0
 	label.anchor_right = 1.0
 	label.anchor_bottom = 0.0
-	label.offset_left = 8.0
-	label.offset_top = 8.0
-	label.offset_right = -8.0
-	label.offset_bottom = 40.0
+	label.offset_left = 6.0
+	label.offset_top = top_inset
+	label.offset_right = -6.0
+	label.offset_bottom = top_inset + badge_height
+
+func _fit_badge_font_size(label: Label) -> void:
+	var font: Font = label.get_theme_font("font")
+	if font == null:
+		return
+	if label.size.x <= 0.0:
+		return
+	var max_width: float = max(24.0, label.size.x - 10.0)
+	var size: int = max(12, label.get_theme_font_size("font_size"))
+	while size > 12:
+		var measured_width: float = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
+		if measured_width <= max_width:
+			break
+		size -= 1
+	label.add_theme_font_size_override("font_size", size)
 
 func _set_badge_centered(label: Label) -> void:
 	label.anchor_left = 0.0
@@ -509,21 +537,100 @@ func _center_board() -> void:
 	if board == null:
 		return
 	var view_size: Vector2 = get_viewport_rect().size
-	var horizontal_padding: float = max(28.0, view_size.x * 0.06)
+	if view_size.x <= 0.0 or view_size.y <= 0.0:
+		return
+
+	var outer_margin: float = clamp(view_size.x * 0.04, 14.0, 44.0)
+	var max_column_width: float = max(260.0, min(HUD_MAX_WIDTH, view_size.x - 8.0))
+	var min_column_width: float = min(340.0, max_column_width)
+	var content_width: float = clamp(view_size.x - (outer_margin * 2.0), min_column_width, max_column_width)
+	var content_left: float = (view_size.x - content_width) * 0.5
+
+	_layout_top_bar(view_size, content_left, content_width)
+
+	var powerup_row_height: float = clamp(view_size.y * 0.16, 96.0, 122.0)
+	var max_row_width: float = max(280.0, min(POWERUPS_MAX_WIDTH, content_width))
+	var min_row_width: float = min(320.0, max_row_width)
+	var powerup_row_width: float = clamp(content_width, min_row_width, max_row_width)
+	_layout_powerups(view_size, powerup_row_width, powerup_row_height)
+	_apply_responsive_hud_typography(content_width, top_bar_bg.size.y, powerup_row_height)
+
+	var vertical_gap: float = clamp(view_size.y * 0.022, 14.0, 26.0)
 	var top_limit: float = view_size.y * 0.14
-	if top_bar and top_bar.size.y > 0.0:
-		top_limit = top_bar.position.y + top_bar.size.y + 30.0
+	if top_bar_bg and top_bar_bg.size.y > 0.0:
+		top_limit = top_bar_bg.position.y + top_bar_bg.size.y + vertical_gap
 	var bottom_limit: float = view_size.y * 0.81
 	if powerups_row and powerups_row.size.y > 0.0:
-		bottom_limit = powerups_row.position.y - 30.0
-	var available_width: float = max(320.0, view_size.x - (horizontal_padding * 2.0))
-	var available_height: float = max(420.0, bottom_limit - top_limit)
+		bottom_limit = powerups_row.position.y - vertical_gap
+	var available_width: float = max(120.0, content_width)
+	var available_height: float = max(120.0, bottom_limit - top_limit)
 	var fit_w: float = floor(available_width / float(board.width))
 	var fit_h: float = floor(available_height / float(board.height))
-	var target_tile_size: float = clamp(min(fit_w, fit_h), 118.0, 188.0)
+	var target_tile_size: float = clamp(min(fit_w, fit_h), 72.0, 188.0)
 	board.set_tile_size(target_tile_size)
 	var board_size: Vector2 = Vector2(board.width * board.tile_size, board.height * board.tile_size)
 	board.position = Vector2(
 		(view_size.x - board_size.x) * 0.5,
 		top_limit + ((available_height - board_size.y) * 0.5)
 	)
+
+	powerup_row_width = clamp(board_size.x + max(84.0, board.tile_size * 0.8), min_row_width, max_row_width)
+	_layout_powerups(view_size, powerup_row_width, powerup_row_height)
+	_apply_responsive_hud_typography(content_width, top_bar_bg.size.y, powerup_row_height)
+
+	if board_frame:
+		var frame_padding: float = clamp(board.tile_size * 0.18, 12.0, 24.0)
+		board_frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		board_frame.position = board.position - Vector2(frame_padding, frame_padding)
+		board_frame.size = board_size + Vector2(frame_padding * 2.0, frame_padding * 2.0)
+	if board_glow:
+		var glow_padding: float = clamp(board.tile_size * 0.28, 18.0, 36.0)
+		board_glow.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		board_glow.position = board.position - Vector2(glow_padding, glow_padding)
+		board_glow.size = board_size + Vector2(glow_padding * 2.0, glow_padding * 2.0)
+
+func _layout_top_bar(view_size: Vector2, content_left: float, content_width: float) -> void:
+	if top_bar_bg == null or top_bar == null:
+		return
+	var top_margin: float = clamp(view_size.y * 0.03, 14.0, 30.0)
+	var bar_height: float = clamp(view_size.y * 0.16, 92.0, 132.0)
+	top_bar_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	top_bar_bg.position = Vector2(content_left, top_margin)
+	top_bar_bg.size = Vector2(content_width, bar_height)
+
+	var content_inset: float = clamp(content_width * 0.04, 10.0, 24.0)
+	top_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	top_bar.position = Vector2(content_left + content_inset, top_margin + 6.0)
+	top_bar.size = Vector2(max(220.0, content_width - (content_inset * 2.0)), max(56.0, bar_height - 12.0))
+	if pause_button:
+		var pause_size: float = clamp(bar_height - 12.0, 74.0, 102.0)
+		pause_button.custom_minimum_size = Vector2(pause_size, pause_size)
+
+func _apply_responsive_hud_typography(content_width: float, bar_height: float, powerup_row_height: float) -> void:
+	var caption_size: int = int(round(clamp(bar_height * 0.25, 14.0, 30.0)))
+	var value_size: int = int(round(clamp(bar_height * 0.62, 26.0, 72.0)))
+	if content_width < 520.0:
+		caption_size = min(caption_size, 22)
+		value_size = min(value_size, 48)
+	if score_caption_label:
+		score_caption_label.add_theme_font_size_override("font_size", caption_size)
+	if score_value_label:
+		score_value_label.add_theme_font_size_override("font_size", value_size)
+
+	var badge_font_size: int = int(round(clamp(powerup_row_height * 0.27, 15.0, 28.0)))
+	for badge in [undo_badge, prism_badge, shuffle_badge]:
+		if badge:
+			badge.add_theme_font_size_override("font_size", badge_font_size)
+			_fit_badge_font_size(badge)
+
+func _layout_powerups(view_size: Vector2, row_width: float, row_height: float) -> void:
+	if powerups_row == null:
+		return
+	var bottom_margin: float = clamp(view_size.y * 0.035, 14.0, 28.0)
+	powerups_row.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	powerups_row.position = Vector2((view_size.x - row_width) * 0.5, view_size.y - bottom_margin - row_height)
+	powerups_row.size = Vector2(row_width, row_height)
+	powerups_row.add_theme_constant_override("separation", int(round(clamp(row_width * 0.03, 12.0, 22.0))))
+	for button in [undo_button, remove_color_button, shuffle_button]:
+		if button:
+			button.custom_minimum_size = Vector2(0.0, row_height)

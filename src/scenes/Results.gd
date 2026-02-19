@@ -1,6 +1,7 @@
 extends Control
 
 @onready var score_label: Label = $UI/Panel/Scroll/VBox/Score
+@onready var title_label: Label = $UI/Panel/Scroll/VBox/Title
 @onready var mode_badge_label: Label = $UI/Panel/Scroll/VBox/ModeBadge
 @onready var best_label: Label = $UI/Panel/Scroll/VBox/Best
 @onready var streak_label: Label = $UI/Panel/Scroll/VBox/Streak
@@ -14,6 +15,7 @@ extends Control
 @onready var box: VBoxContainer = $UI/Panel/Scroll/VBox
 @onready var play_again_button: Button = $UI/Panel/Scroll/VBox/PlayAgain
 @onready var menu_button: Button = $UI/Panel/Scroll/VBox/Menu
+@onready var spacer: Control = $UI/Panel/Scroll/VBox/Spacer
 
 var _base_reward_claimed: bool = false
 var _double_reward_pending: bool = false
@@ -101,31 +103,51 @@ func _layout_results() -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
-	var max_panel_width: float = max(320.0, viewport_size.x - 34.0)
-	var min_panel_width: float = min(520.0, max_panel_width)
-	var max_panel_height: float = max(280.0, viewport_size.y - 40.0)
-	var min_panel_height: float = min(460.0, max_panel_height)
-	var panel_size: Vector2 = Vector2(
-		clamp(viewport_size.x * 0.82, min_panel_width, max_panel_width),
-		clamp(viewport_size.y * 0.72, min_panel_height, max_panel_height)
-	)
+	var viewport_aspect: float = viewport_size.x / max(1.0, viewport_size.y)
+	var is_wide: bool = viewport_aspect >= 1.55
+	var outer_margin_x: float = clamp(viewport_size.x * 0.04, 18.0, 64.0)
+	var outer_margin_y: float = clamp(viewport_size.y * 0.04, 16.0, 40.0)
+	var max_panel_width: float = max(360.0, viewport_size.x - (outer_margin_x * 2.0))
+	var min_panel_width: float = min(460.0, max_panel_width)
+	var target_panel_width: float = viewport_size.x * (0.62 if is_wide else 0.82)
+	var panel_width: float = clamp(target_panel_width, min_panel_width, min(980.0, max_panel_width))
+	var max_panel_height: float = max(320.0, viewport_size.y - (outer_margin_y * 2.0))
+	var min_panel_height: float = min(500.0, max_panel_height)
+	var target_panel_height: float = viewport_size.y * (0.84 if is_wide else 0.72)
+	var panel_height: float = clamp(target_panel_height, min_panel_height, max_panel_height)
+	var panel_size: Vector2 = Vector2(panel_width, panel_height)
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.position = (viewport_size - panel_size) * 0.5
 	panel.size = panel_size
 
-	var margin_x: float = clamp(panel_size.x * 0.045, 18.0, 36.0)
-	var margin_y: float = clamp(panel_size.y * 0.04, 16.0, 40.0)
+	var margin_x: float = clamp(panel_size.x * 0.055, 20.0, 44.0)
+	var margin_y: float = clamp(panel_size.y * 0.045, 16.0, 34.0)
 	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
-	var separation: int = int(clamp(round(content_size.y * 0.012), 10.0, 20.0))
-	box.add_theme_constant_override("separation", separation)
+	var base_separation: float = clamp(round(content_size.y * 0.01), 8.0, 16.0)
+	var compact_scale: float = 1.0
+	for _i in range(3):
+		var separation: int = int(clamp(round(base_separation * compact_scale), 6.0, 16.0))
+		box.add_theme_constant_override("separation", separation)
+		_apply_responsive_typography(content_size, viewport_aspect, compact_scale)
 
-	var secondary_button_height: float = clamp(content_size.y * 0.07, 70.0, 88.0)
-	var primary_button_height: float = clamp(content_size.y * 0.09, 88.0, 116.0)
-	double_reward_button.custom_minimum_size.y = secondary_button_height
-	if play_again_button:
-		play_again_button.custom_minimum_size.y = primary_button_height
-	if menu_button:
-		menu_button.custom_minimum_size.y = primary_button_height
+		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, 52.0, 84.0)
+		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, 64.0, 104.0)
+		double_reward_button.custom_minimum_size.y = secondary_button_height
+		if play_again_button:
+			play_again_button.custom_minimum_size.y = primary_button_height
+		if menu_button:
+			menu_button.custom_minimum_size.y = primary_button_height
+		if spacer:
+			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * 0.015 * compact_scale))
+
+		var required_height: float = box.get_combined_minimum_size().y
+		if required_height <= content_size.y:
+			break
+		var fit_ratio: float = content_size.y / max(1.0, required_height)
+		var next_scale: float = clamp(compact_scale * fit_ratio, 0.68, compact_scale)
+		if absf(next_scale - compact_scale) < 0.01:
+			break
+		compact_scale = next_scale
 
 	scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	scroll.position = Vector2(margin_x, margin_y)
@@ -137,6 +159,43 @@ func _layout_results() -> void:
 	box.custom_minimum_size = Vector2(content_size.x, 0.0)
 	var content_min_height: float = box.get_combined_minimum_size().y
 	box.custom_minimum_size.y = max(content_size.y, content_min_height)
+
+func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, compact_scale: float = 1.0) -> void:
+	var is_wide: bool = viewport_aspect >= 1.55
+	var title_size: int = int(round(clamp(content_size.x * (0.06 if is_wide else 0.07) * compact_scale, 28.0, 62.0)))
+	var score_size: int = int(round(clamp(content_size.x * (0.11 if is_wide else 0.13) * compact_scale, 44.0, 108.0)))
+	var mode_size: int = int(round(clamp(content_size.x * 0.038 * compact_scale, 16.0, 32.0)))
+	var stat_size: int = int(round(clamp(content_size.x * 0.05 * compact_scale, 22.0, 44.0)))
+	var body_size: int = int(round(clamp(content_size.x * 0.032 * compact_scale, 15.0, 30.0)))
+	var coin_size: int = int(round(clamp(content_size.x * 0.028 * compact_scale, 14.0, 26.0)))
+	var reward_button_size: int = int(round(clamp(content_size.x * 0.026 * compact_scale, 14.0, 26.0)))
+	var primary_button_size: int = int(round(clamp(content_size.x * 0.032 * compact_scale, 16.0, 34.0)))
+
+	if title_label:
+		title_label.add_theme_font_size_override("font_size", title_size)
+	if score_label:
+		score_label.add_theme_font_size_override("font_size", score_size)
+	if mode_badge_label:
+		mode_badge_label.add_theme_font_size_override("font_size", mode_size)
+	if best_label:
+		best_label.add_theme_font_size_override("font_size", stat_size)
+	if streak_label:
+		streak_label.add_theme_font_size_override("font_size", stat_size)
+	if online_status_label:
+		online_status_label.add_theme_font_size_override("font_size", body_size)
+	if leaderboard_label:
+		leaderboard_label.add_theme_font_size_override("font_size", body_size)
+		leaderboard_label.add_theme_constant_override("line_spacing", int(clamp(round(float(body_size) * 0.25), 4.0, 10.0)))
+	if coins_earned_label:
+		coins_earned_label.add_theme_font_size_override("font_size", coin_size)
+	if coin_balance_label:
+		coin_balance_label.add_theme_font_size_override("font_size", coin_size)
+	if double_reward_button:
+		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)
+	if play_again_button:
+		play_again_button.add_theme_font_size_override("font_size", primary_button_size)
+	if menu_button:
+		menu_button.add_theme_font_size_override("font_size", primary_button_size)
 
 func _bind_online_signals() -> void:
 	if not NakamaService.online_state_changed.is_connected(_on_online_state_changed):
