@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://drwtb62moeens"]
+[gd_scene load_steps=13 format=3 uid="uid://drwtb62moeens"]
 
 [ext_resource type="Script" uid="uid://1y8jncy7k6rg" path="res://src/scenes/Game.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id="2"]
@@ -10,6 +10,8 @@
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_undo.tres" id="8"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_prism.tres" id="9"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_shuffle.tres" id="10"]
+[ext_resource type="PackedScene" path="res://ui/components/IconButton.tscn" id="11"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/music_on.tres" id="12"]
 
 [node name="Game" type="Control"]
 layout_mode = 3
@@ -96,6 +98,29 @@ icon_alignment = 1
 expand_icon = true
 script = ExtResource("5")
 corner_radius = 0.5
+
+[node name="TopRightBar" type="Control" parent="UI"]
+layout_mode = 0
+anchors_preset = -1
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -86.0
+offset_top = 18.0
+offset_right = -18.0
+offset_bottom = 86.0
+
+[node name="Audio" parent="UI/TopRightBar" instance=ExtResource("11")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+icon_texture = ExtResource("12")
+tooltip_text_override = "Audio"
+accessibility_name_override = "Audio"
 
 [node name="Powerups" type="HBoxContainer" parent="UI"]
 layout_mode = 0
@@ -239,6 +264,7 @@ anchor_bottom = 1.0
 color = Color(1, 1, 1, 0)
 
 [connection signal="pressed" from="UI/TopBar/Pause" to="." method="_on_pause_pressed"]
+[connection signal="pressed" from="UI/TopRightBar/Audio" to="." method="_on_audio_pressed"]
 [connection signal="pressed" from="UI/Powerups/Undo" to="." method="_on_undo_pressed"]
 [connection signal="pressed" from="UI/Powerups/RemoveColor" to="." method="_on_remove_color_pressed"]
 [connection signal="pressed" from="UI/Powerups/Shuffle" to="." method="_on_shuffle_pressed"]

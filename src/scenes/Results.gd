@@ -1,6 +1,12 @@
 extends Control
 
+const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.tscn")
+const ICON_MUSIC_ON: Texture2D = preload("res://assets/ui/icons/atlas/music_on.tres")
+const ICON_MUSIC_OFF: Texture2D = preload("res://assets/ui/icons/atlas/music_off.tres")
+
 @onready var title_label: Label = $UI/Panel/Scroll/VBox/Title
+@onready var top_right_bar: Control = $UI/TopRightBar
+@onready var audio_button: Button = $UI/TopRightBar/Audio
 @onready var stats_split: GridContainer = $UI/Panel/Scroll/VBox/StatsSplit
 @onready var stats_left_column: VBoxContainer = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn
 @onready var stats_right_column: VBoxContainer = $UI/Panel/Scroll/VBox/StatsSplit/RightColumn
@@ -23,6 +29,7 @@ extends Control
 var _base_reward_claimed: bool = false
 var _double_reward_pending: bool = false
 var _base_reward_amount: int = 0
+var _audio_overlay: AudioTrackOverlay
 
 func _ready() -> void:
 	BackgroundMood.register_controller($BackgroundController)
@@ -31,6 +38,7 @@ func _ready() -> void:
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_results(self)
 	ThemeManager.apply_to_scene(self)
+	_refresh_audio_icon()
 	_layout_results()
 	call_deferred("_layout_results")
 	_refresh_intro_pivots()
@@ -68,10 +76,12 @@ func _update_labels() -> void:
 	_layout_results()
 
 func _on_play_again_pressed() -> void:
+	_close_audio_overlay()
 	AdManager.maybe_show_interstitial()
 	RunManager.start_game()
 
 func _on_menu_pressed() -> void:
+	_close_audio_overlay()
 	AdManager.maybe_show_interstitial()
 	RunManager.goto_menu()
 
@@ -124,21 +134,22 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.position = (viewport_size - panel_size) * 0.5
 	panel.size = panel_size
+	_layout_top_right(viewport_size)
 
 	var margin_x: float = clamp(panel_size.x * 0.055, 20.0, 44.0)
 	var margin_y: float = clamp(panel_size.y * 0.045, 16.0, 34.0)
 	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
 	var use_split: bool = viewport_aspect >= 1.45
 	_configure_stats_split(content_size, use_split)
-	var base_separation: float = clamp(round(content_size.y * 0.01), 8.0, 16.0)
+	var base_separation: float = clamp(round(content_size.y * 0.01), 6.0, 16.0)
 	var compact_scale: float = 1.0
 	for _i in range(6):
 		var separation: int = int(clamp(round(base_separation * compact_scale), 6.0, 16.0))
 		box.add_theme_constant_override("separation", separation)
 		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale)
 
-		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, 52.0, 84.0)
-		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, 64.0, 104.0)
+		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, 38.0, 84.0)
+		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, 48.0, 104.0)
 		double_reward_button.custom_minimum_size.y = secondary_button_height
 		if play_again_button:
 			play_again_button.custom_minimum_size.y = primary_button_height
@@ -167,6 +178,16 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 	var content_min_height: float = box.get_combined_minimum_size().y
 	box.custom_minimum_size.y = max(content_size.y, content_min_height)
 
+func _layout_top_right(viewport_size: Vector2) -> void:
+	if top_right_bar == null or audio_button == null:
+		return
+	var margin: float = clamp(min(viewport_size.x, viewport_size.y) * 0.045, 12.0, 32.0)
+	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
+	top_right_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	top_right_bar.position = Vector2(viewport_size.x - margin - icon_size, margin)
+	top_right_bar.size = Vector2(icon_size, icon_size)
+	audio_button.custom_minimum_size = Vector2(icon_size, icon_size)
+
 func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
 	if stats_split == null:
 		return
@@ -191,18 +212,22 @@ func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
 
 func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, use_split: bool, compact_scale: float = 1.0) -> void:
 	var is_wide: bool = viewport_aspect >= 1.55
+	var headline_scale: float = compact_scale
+	var action_scale: float = compact_scale
 	var split_gap: float = 20.0
 	if stats_split:
 		split_gap = float(stats_split.get_theme_constant("h_separation"))
 	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
-	var title_size: int = int(round(clamp(content_size.x * (0.06 if is_wide else 0.07) * compact_scale, 28.0, 62.0)))
-	var score_size: int = int(round(clamp(stat_column_width * 0.17 * compact_scale, 40.0, 102.0)))
-	var mode_size: int = int(round(clamp(stat_column_width * 0.055 * compact_scale, 15.0, 30.0)))
-	var stat_size: int = int(round(clamp(stat_column_width * 0.072 * compact_scale, 20.0, 42.0)))
-	var body_size: int = int(round(clamp(stat_column_width * 0.048 * compact_scale, 14.0, 28.0)))
-	var coin_size: int = int(round(clamp(content_size.x * 0.028 * compact_scale, 14.0, 26.0)))
-	var reward_button_size: int = int(round(clamp(content_size.x * 0.026 * compact_scale, 14.0, 26.0)))
-	var primary_button_size: int = int(round(clamp(content_size.x * 0.032 * compact_scale, 16.0, 34.0)))
+	var menu_title_px: int = Typography.px(Typography.SIZE_MENU_TITLE)
+	var menu_button_px: int = Typography.px(Typography.SIZE_BUTTON)
+	var title_size: int = int(round(clamp(float(menu_title_px) * 0.82 * headline_scale, 46.0, 124.0)))
+	var score_size: int = int(round(clamp(max(float(menu_title_px) * 1.0, stat_column_width * 0.16) * headline_scale, 58.0, 156.0)))
+	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale, 18.0, 48.0)))
+	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.9 * compact_scale, 22.0, 58.0)))
+	var body_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale, 17.0, 44.0)))
+	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.8 * compact_scale, 17.0, 46.0)))
+	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.78 * action_scale, 17.0, 40.0)))
+	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.9 if is_wide else 0.95) * action_scale, 20.0, 56.0)))
 
 	if title_label:
 		title_label.add_theme_font_size_override("font_size", title_size)
@@ -330,6 +355,83 @@ func _format_leaderboard(records: Array) -> String:
 
 func _mode_label() -> String:
 	return "Pure" if String(RunManager.last_run_leaderboard_mode).to_upper() == "PURE" else "Open"
+
+func _on_audio_pressed() -> void:
+	if is_instance_valid(_audio_overlay):
+		_close_audio_overlay()
+		return
+	var tracks: Array[Dictionary] = _music_tracks()
+	if tracks.is_empty():
+		return
+	var overlay := AUDIO_TRACK_OVERLAY_SCENE.instantiate() as AudioTrackOverlay
+	if overlay == null:
+		return
+	add_child(overlay)
+	_audio_overlay = overlay
+	overlay.setup(_track_names_from_tracks(tracks), _selected_track_index_for_current(tracks))
+	overlay.track_selected.connect(_on_audio_overlay_track_selected)
+	overlay.closed.connect(_on_audio_overlay_closed)
+
+func _on_audio_overlay_track_selected(_track_name: String, index: int) -> void:
+	_apply_audio_track_index(index)
+
+func _on_audio_overlay_closed() -> void:
+	_audio_overlay = null
+
+func _close_audio_overlay() -> void:
+	if not is_instance_valid(_audio_overlay):
+		_audio_overlay = null
+		return
+	_audio_overlay.queue_free()
+	_audio_overlay = null
+
+func _music_tracks() -> Array[Dictionary]:
+	return MusicManager.get_available_tracks()
+
+func _track_names_from_tracks(tracks: Array[Dictionary]) -> Array[String]:
+	var names: Array[String] = []
+	for track in tracks:
+		names.append(str(track.get("name", "Track")))
+	return names
+
+func _selected_track_index_for_current(tracks: Array[Dictionary]) -> int:
+	if tracks.is_empty():
+		return 0
+	var current_id: String = str(MusicManager.get_current_track_id())
+	for i in range(tracks.size()):
+		if str(tracks[i].get("id", "")) == current_id:
+			return i
+	return 0
+
+func _apply_audio_track_index(index: int) -> void:
+	var tracks: Array[Dictionary] = _music_tracks()
+	if tracks.is_empty():
+		return
+	var selected: int = clampi(index, 0, tracks.size() - 1)
+	var track_id: String = str(tracks[selected].get("id", ""))
+	if track_id.is_empty():
+		return
+	MusicManager.set_track(track_id, true)
+	_sync_audio_overlay_selection()
+	_refresh_audio_icon()
+
+func _sync_audio_overlay_selection() -> void:
+	if not is_instance_valid(_audio_overlay):
+		return
+	var tracks: Array[Dictionary] = _music_tracks()
+	_audio_overlay.set_selected_index(_selected_track_index_for_current(tracks))
+
+static func is_muted_track(track_id: String) -> bool:
+	return track_id.strip_edges().to_lower() == "off"
+
+func _refresh_audio_icon() -> void:
+	if audio_button == null:
+		return
+	var muted: bool = is_muted_track(str(MusicManager.get_current_track_id()))
+	audio_button.set("icon_texture", ICON_MUSIC_OFF if muted else ICON_MUSIC_ON)
+	var label: String = "Audio Off" if muted else "Audio"
+	audio_button.set("tooltip_text_override", label)
+	audio_button.set("accessibility_name_override", label)
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:

@@ -105,6 +105,9 @@ func style_main_menu(scene: Control) -> void:
 		"UI/VBox/Start",
 	]) as BaseButton, SIZE_BUTTON, WEIGHT_SEMIBOLD)
 	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/TopBar/Audio",
+	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
+	style_button(_node_from_paths(scene, [
 		"UI/RootMargin/Layout/TopBar/Account",
 		"UI/Account",
 	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
@@ -122,6 +125,7 @@ func style_game(scene: Control) -> void:
 	style_label(scene.get_node_or_null("UI/TopBar/ScoreBox/ScoreCaption"), 20.0, WEIGHT_MEDIUM, true)
 	style_label(scene.get_node_or_null("UI/TopBar/ScoreBox/ScoreValue"), 60.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/TopBar/Pause"), 24.0, WEIGHT_BOLD)
+	style_button(scene.get_node_or_null("UI/TopRightBar/Audio"), 20.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/Powerups/Undo"), 56.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/Powerups/RemoveColor"), 56.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/Powerups/Shuffle"), 56.0, WEIGHT_SEMIBOLD)
@@ -139,6 +143,7 @@ func style_game(scene: Control) -> void:
 	]) as Label, 28.0, WEIGHT_SEMIBOLD)
 
 func style_results(scene: Control) -> void:
+	style_button(scene.get_node_or_null("UI/TopRightBar/Audio"), 20.0, WEIGHT_SEMIBOLD)
 	var base_path := "UI/Panel/Scroll/VBox"
 	if scene.get_node_or_null("%s/Title" % base_path) == null:
 		base_path = "UI/VBox"

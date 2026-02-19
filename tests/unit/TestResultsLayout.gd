@@ -26,9 +26,11 @@ func test_results_actions_stay_inside_panel_on_wide_short_viewports() -> void:
 	var panel: Control = results.get_node("UI/Panel") as Control
 	var play_again: Button = results.get_node("UI/Panel/Scroll/VBox/PlayAgain") as Button
 	var menu: Button = results.get_node("UI/Panel/Scroll/VBox/Menu") as Button
+	var audio_button: Control = results.get_node_or_null("UI/TopRightBar/Audio") as Control
 	assert_that(panel).is_not_null()
 	assert_that(play_again).is_not_null()
 	assert_that(menu).is_not_null()
+	assert_that(audio_button).is_not_null()
 
 	var viewport_sizes: Array[Vector2] = [
 		Vector2(1920.0, 1010.0),
@@ -42,8 +44,10 @@ func test_results_actions_stay_inside_panel_on_wide_short_viewports() -> void:
 		var panel_rect: Rect2 = panel.get_global_rect()
 		var play_rect: Rect2 = play_again.get_global_rect()
 		var menu_rect: Rect2 = menu.get_global_rect()
+		var audio_rect: Rect2 = audio_button.get_global_rect()
 		_assert_rect_inside(play_rect, panel_rect)
 		_assert_rect_inside(menu_rect, panel_rect)
+		_assert_rect_inside(audio_rect, Rect2(Vector2.ZERO, size))
 
 	results.queue_free()
 

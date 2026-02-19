@@ -1,12 +1,16 @@
 extends Control
 
+const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.tscn")
+const ICON_MUSIC_ON := preload("res://assets/ui/icons/atlas/music_on.tres")
+const ICON_MUSIC_OFF := preload("res://assets/ui/icons/atlas/music_off.tres")
+
 @onready var root_margin: MarginContainer = $UI/RootMargin
 @onready var panel_shell: PanelContainer = $UI/RootMargin/Layout/Center/PanelShell
 @onready var panel: ColorRect = $UI/RootMargin/Layout/Center/PanelShell/Panel
 @onready var content_margin: MarginContainer = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin
 @onready var title_label: Label = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title
-@onready var track_selector: TrackSelectorControl = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector
 @onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start
+@onready var audio_button: Button = $UI/RootMargin/Layout/TopBar/Audio
 @onready var account_button: Button = $UI/RootMargin/Layout/TopBar/Account
 @onready var shop_button: Button = $UI/RootMargin/Layout/BottomBar/Shop
 @onready var coin_badge_panel: PanelContainer = $UI/RootMargin/Layout/BottomBar/Shop/CoinBadge
@@ -17,6 +21,7 @@ var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
 var _title_accent_color: Color = Color(0.78, 0.88, 1.0, 1.0)
 var _tracks: Array[Dictionary] = []
 var _track_index: int = 0
+var _audio_overlay: AudioTrackOverlay
 const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
 const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
 
@@ -39,6 +44,7 @@ func _ready() -> void:
 	_style_coin_badge()
 	title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
+	_refresh_audio_icon()
 	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
 		NakamaService.wallet_updated.connect(_on_wallet_updated)
 	start_button.disabled = true
@@ -88,9 +94,9 @@ func _layout_menu() -> void:
 	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
 	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.095, 84.0, 118.0)
-	track_selector.custom_minimum_size.y = clamp(viewport_size.y * 0.09, 86.0, 104.0)
 
 	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
+	audio_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	account_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	shop_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	_layout_coin_badge(icon_size)
@@ -107,6 +113,20 @@ func _on_start_pressed() -> void:
 func _on_account_pressed() -> void:
 	var modal := preload("res://src/scenes/AccountModal.tscn").instantiate()
 	add_child(modal)
+
+func _on_audio_pressed() -> void:
+	if is_instance_valid(_audio_overlay):
+		_audio_overlay.queue_free()
+		_audio_overlay = null
+		return
+	var overlay := AUDIO_TRACK_OVERLAY_SCENE.instantiate() as AudioTrackOverlay
+	if overlay == null:
+		return
+	add_child(overlay)
+	_audio_overlay = overlay
+	overlay.setup(_track_names(), _track_index)
+	overlay.track_selected.connect(_on_audio_overlay_track_selected)
+	overlay.closed.connect(_on_audio_overlay_closed)
 
 func _on_shop_pressed() -> void:
 	var modal := preload("res://src/scenes/ShopModal.tscn").instantiate()
@@ -126,12 +146,14 @@ func _apply_wallet_to_ui(wallet: Dictionary) -> void:
 func _populate_track_options() -> void:
 	_tracks = MusicManager.get_available_tracks()
 	_track_index = _selected_index_for_id(MusicManager.get_current_track_id(), _tracks)
+	_sync_audio_overlay_selector()
+	_refresh_audio_icon()
+
+func _track_names() -> Array[String]:
 	var names: Array[String] = []
 	for track_data in _tracks:
 		names.append(str(track_data.get("name", "Track")))
-	track_selector.tracks = names
-	track_selector.current_index = _track_index
-	track_selector.set_expanded(false)
+	return names
 
 func _selected_index_for_id(track_id: String, tracks: Array[Dictionary]) -> int:
 	for i in range(tracks.size()):
@@ -139,31 +161,43 @@ func _selected_index_for_id(track_id: String, tracks: Array[Dictionary]) -> int:
 			return i
 	return 0
 
-func _on_track_prev_pressed() -> void:
-	_cycle_track(-1)
-
-func _on_track_next_pressed() -> void:
-	_cycle_track(1)
-
 func _cycle_track(step: int) -> void:
 	if _tracks.is_empty():
 		return
-	if track_selector != null:
-		track_selector.cycle_track(step)
-		return
-	_track_index = posmod(_track_index + step, _tracks.size())
-	var track_id: String = str(_tracks[_track_index].get("id", ""))
-	MusicManager.set_track(track_id, true)
+	var wrapped_index: int = posmod(_track_index + step, _tracks.size())
+	_apply_track_index(wrapped_index)
 
-func _on_track_selector_track_changed(_track_name: String, index: int) -> void:
+func _on_audio_overlay_track_selected(_track_name: String, index: int) -> void:
+	_apply_track_index(index)
+
+func _apply_track_index(index: int) -> void:
 	if _tracks.is_empty():
 		return
 	_track_index = clampi(index, 0, _tracks.size() - 1)
 	var track_id: String = str(_tracks[_track_index].get("id", ""))
 	MusicManager.set_track(track_id, true)
+	_sync_audio_overlay_selector()
+	_refresh_audio_icon()
 
-func _on_track_selector_expanded_changed(_is_expanded: bool) -> void:
-	pass
+func _on_audio_overlay_closed() -> void:
+	_audio_overlay = null
+
+func _sync_audio_overlay_selector() -> void:
+	if not is_instance_valid(_audio_overlay):
+		return
+	_audio_overlay.set_selected_index(_track_index)
+
+static func is_muted_track(track_id: String) -> bool:
+	return track_id.strip_edges().to_lower() == "off"
+
+func _refresh_audio_icon() -> void:
+	if audio_button == null:
+		return
+	var is_muted: bool = is_muted_track(str(MusicManager.get_current_track_id()))
+	audio_button.set("icon_texture", ICON_MUSIC_OFF if is_muted else ICON_MUSIC_ON)
+	var label: String = "Audio Off" if is_muted else "Audio"
+	audio_button.set("tooltip_text_override", label)
+	audio_button.set("accessibility_name_override", label)
 
 func _style_coin_badge() -> void:
 	if coin_badge_panel == null or coin_badge == null:

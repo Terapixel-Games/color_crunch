@@ -3,9 +3,11 @@ extends Control
 @onready var board: BoardView = $BoardView
 @onready var top_bar_bg: Control = $UI/TopBarBg
 @onready var top_bar: Control = $UI/TopBar
+@onready var top_right_bar: Control = $UI/TopRightBar
 @onready var score_box: VBoxContainer = $UI/TopBar/ScoreBox
 @onready var powerups_row: Control = $UI/Powerups
 @onready var pause_button: Button = $UI/TopBar/Pause
+@onready var audio_button: Button = $UI/TopRightBar/Audio
 @onready var score_caption_label: Label = $UI/TopBar/ScoreBox/ScoreCaption
 @onready var score_value_label: Label = $UI/TopBar/ScoreBox/ScoreValue
 @onready var undo_button: Button = $UI/Powerups/Undo
@@ -38,11 +40,15 @@ var _run_powerups_used_total: int = 0
 var _run_coins_spent: int = 0
 var _open_tip_shown_this_run: bool = false
 var _pause_overlap_factor: float = 0.5
+var _audio_overlay: AudioTrackOverlay
 
 const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
 const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
 const ICON_SHUFFLE: Texture2D = preload("res://assets/ui/icons/atlas/powerup_shuffle.tres")
 const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loading.tres")
+const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.tscn")
+const ICON_MUSIC_ON: Texture2D = preload("res://assets/ui/icons/atlas/music_on.tres")
+const ICON_MUSIC_OFF: Texture2D = preload("res://assets/ui/icons/atlas/music_off.tres")
 const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
 const HUD_MAX_WIDTH: float = 760.0
 const POWERUPS_MAX_WIDTH: float = 700.0
@@ -100,6 +106,7 @@ func _ready() -> void:
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.expand_icon = true
 		button.clip_contents = false
+	_refresh_audio_icon()
 	powerup_flash.visible = false
 	_update_score()
 	_update_powerup_buttons()
@@ -142,6 +149,7 @@ func _update_score() -> void:
 	score_value_label.text = "%d" % score
 
 func _on_pause_pressed() -> void:
+	_close_audio_overlay()
 	if board and board.has_method("set_hints_enabled"):
 		board.call("set_hints_enabled", false)
 	var pause := preload("res://src/scenes/PauseOverlay.tscn").instantiate()
@@ -502,8 +510,8 @@ func _maybe_show_open_mode_tip() -> void:
 	var modal := TUTORIAL_TIP_SCENE.instantiate()
 	if modal.has_method("configure"):
 		modal.configure({
-			"title": "Open Leaderboard Run",
-			"message": "Power-up used. This run will post to the Open leaderboard with other powered-up runs.",
+			"title": "Leaderboard Mode Update",
+			"message": "Using power-ups moves this run to the Open leaderboard. Only games without power-up usage are posted to the Pure leaderboard.",
 			"confirm_text": "Got it",
 			"checkbox_text": "Don't show this again",
 			"show_checkbox": true,
@@ -515,6 +523,83 @@ func _maybe_show_open_mode_tip() -> void:
 func _on_open_mode_tip_dismissed(do_not_show_again: bool) -> void:
 	if do_not_show_again:
 		SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
+
+func _on_audio_pressed() -> void:
+	if is_instance_valid(_audio_overlay):
+		_close_audio_overlay()
+		return
+	var tracks: Array[Dictionary] = _music_tracks()
+	if tracks.is_empty():
+		return
+	var overlay := AUDIO_TRACK_OVERLAY_SCENE.instantiate() as AudioTrackOverlay
+	if overlay == null:
+		return
+	add_child(overlay)
+	_audio_overlay = overlay
+	overlay.setup(_track_names_from_tracks(tracks), _selected_track_index_for_current(tracks))
+	overlay.track_selected.connect(_on_audio_overlay_track_selected)
+	overlay.closed.connect(_on_audio_overlay_closed)
+
+func _on_audio_overlay_track_selected(_track_name: String, index: int) -> void:
+	_apply_audio_track_index(index)
+
+func _on_audio_overlay_closed() -> void:
+	_audio_overlay = null
+
+func _close_audio_overlay() -> void:
+	if not is_instance_valid(_audio_overlay):
+		_audio_overlay = null
+		return
+	_audio_overlay.queue_free()
+	_audio_overlay = null
+
+func _music_tracks() -> Array[Dictionary]:
+	return MusicManager.get_available_tracks()
+
+func _track_names_from_tracks(tracks: Array[Dictionary]) -> Array[String]:
+	var names: Array[String] = []
+	for track in tracks:
+		names.append(str(track.get("name", "Track")))
+	return names
+
+func _selected_track_index_for_current(tracks: Array[Dictionary]) -> int:
+	if tracks.is_empty():
+		return 0
+	var current_id: String = str(MusicManager.get_current_track_id())
+	for i in range(tracks.size()):
+		if str(tracks[i].get("id", "")) == current_id:
+			return i
+	return 0
+
+func _apply_audio_track_index(index: int) -> void:
+	var tracks: Array[Dictionary] = _music_tracks()
+	if tracks.is_empty():
+		return
+	var selected: int = clampi(index, 0, tracks.size() - 1)
+	var track_id: String = str(tracks[selected].get("id", ""))
+	if track_id.is_empty():
+		return
+	MusicManager.set_track(track_id, true)
+	_sync_audio_overlay_selection()
+	_refresh_audio_icon()
+
+func _sync_audio_overlay_selection() -> void:
+	if not is_instance_valid(_audio_overlay):
+		return
+	var tracks: Array[Dictionary] = _music_tracks()
+	_audio_overlay.set_selected_index(_selected_track_index_for_current(tracks))
+
+static func is_muted_track(track_id: String) -> bool:
+	return track_id.strip_edges().to_lower() == "off"
+
+func _refresh_audio_icon() -> void:
+	if audio_button == null:
+		return
+	var muted: bool = is_muted_track(str(MusicManager.get_current_track_id()))
+	audio_button.set("icon_texture", ICON_MUSIC_OFF if muted else ICON_MUSIC_ON)
+	var label: String = "Audio Off" if muted else "Audio"
+	audio_button.set("tooltip_text_override", label)
+	audio_button.set("accessibility_name_override", label)
 
 func _remaining_powerup_charges(powerup_type: String) -> int:
 	match powerup_type:
@@ -581,6 +666,7 @@ func _center_board() -> void:
 	var content_left: float = (view_size.x - content_width) * 0.5
 
 	_layout_top_bar(view_size, content_left, content_width)
+	_layout_top_right(view_size)
 
 	var powerup_row_height: float = clamp(view_size.y * 0.16, 96.0, 122.0)
 	var max_row_width: float = max(280.0, min(POWERUPS_MAX_WIDTH, content_width))
@@ -654,6 +740,16 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 		_pause_overlap_factor = _pause_overlap_factor_for_viewport(view_size)
 		_queue_pause_button_overlap_position()
 
+func _layout_top_right(view_size: Vector2) -> void:
+	if top_right_bar == null or audio_button == null:
+		return
+	var margin: float = clamp(min(view_size.x, view_size.y) * 0.045, 12.0, 32.0)
+	var icon_size: float = clamp(min(view_size.x, view_size.y) * 0.12, 68.0, 92.0)
+	top_right_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	top_right_bar.position = Vector2(view_size.x - margin - icon_size, margin)
+	top_right_bar.size = Vector2(icon_size, icon_size)
+	audio_button.custom_minimum_size = Vector2(icon_size, icon_size)
+
 func _apply_responsive_hud_typography(content_width: float, bar_height: float, powerup_row_height: float) -> void:
 	var caption_size: int = int(round(clamp(bar_height * 0.25, 14.0, 30.0)))
 	var value_size: int = int(round(clamp(bar_height * 0.54, 26.0, 68.0)))
@@ -686,7 +782,7 @@ func _layout_powerups(view_size: Vector2, row_width: float, row_height: float) -
 			button.custom_minimum_size = Vector2(0.0, row_height)
 
 func _refresh_button_pivots() -> void:
-	for button_variant in [pause_button, undo_button, remove_color_button, shuffle_button]:
+	for button_variant in [pause_button, audio_button, undo_button, remove_color_button, shuffle_button]:
 		var button: Control = button_variant as Control
 		if button == null:
 			continue
