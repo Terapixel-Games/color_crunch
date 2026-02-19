@@ -81,6 +81,7 @@ var _hint_timer: Timer
 var _hint_tween: Tween
 var _hint_group: Array = []
 var _tile_gap_px: float = 8.0
+var _hints_enabled: bool = true
 
 var _touch_active: bool = false
 var _touch_start: Vector2 = Vector2.ZERO
@@ -413,16 +414,22 @@ func _setup_hint_timer() -> void:
 	_hint_timer.wait_time = max(0.1, FeatureFlags.match_hint_delay_seconds())
 	add_child(_hint_timer)
 	_hint_timer.timeout.connect(_on_hint_timeout)
-	_restart_hint_timer()
+	if _hints_enabled:
+		_restart_hint_timer()
 
 func _restart_hint_timer() -> void:
 	if _hint_timer == null:
+		return
+	if not _hints_enabled:
+		_hint_timer.stop()
 		return
 	_hint_timer.stop()
 	_hint_timer.wait_time = max(0.1, FeatureFlags.match_hint_delay_seconds())
 	_hint_timer.start()
 
 func _on_hint_timeout() -> void:
+	if not _hints_enabled:
+		return
 	if _animating or _game_over_emitted:
 		if _animating:
 			_restart_hint_timer()
@@ -486,6 +493,18 @@ func _clear_hint() -> void:
 				tile.rotation_degrees = 0.0
 				tile.z_index = 0
 	_hint_group.clear()
+
+func set_hints_enabled(enabled: bool) -> void:
+	if _hints_enabled == enabled:
+		return
+	_hints_enabled = enabled
+	if not _hints_enabled:
+		_clear_hint()
+		if _hint_timer:
+			_hint_timer.stop()
+		return
+	if _check_no_moves_and_emit():
+		_restart_hint_timer()
 
 func _best_removal_level() -> int:
 	var counts: Dictionary = {}

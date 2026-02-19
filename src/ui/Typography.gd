@@ -113,6 +113,7 @@ func style_main_menu(scene: Control) -> void:
 		"UI/Shop",
 	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
 	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/BottomBar/Shop/CoinBadge/Value",
 		"UI/RootMargin/Layout/BottomBar/CoinBadge",
 		"UI/Shop/CoinBadge",
 	]) as Label, 16.0, WEIGHT_BOLD)
@@ -124,9 +125,18 @@ func style_game(scene: Control) -> void:
 	style_button(scene.get_node_or_null("UI/Powerups/Undo"), 56.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/Powerups/RemoveColor"), 56.0, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("UI/Powerups/Shuffle"), 56.0, WEIGHT_SEMIBOLD)
-	style_label(scene.get_node_or_null("UI/Powerups/Undo/Badge"), 28.0, WEIGHT_SEMIBOLD)
-	style_label(scene.get_node_or_null("UI/Powerups/RemoveColor/Badge"), 28.0, WEIGHT_SEMIBOLD)
-	style_label(scene.get_node_or_null("UI/Powerups/Shuffle/Badge"), 28.0, WEIGHT_SEMIBOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/Powerups/Undo/Badge/Value",
+		"UI/Powerups/Undo/Badge",
+	]) as Label, 28.0, WEIGHT_SEMIBOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/Powerups/RemoveColor/Badge/Value",
+		"UI/Powerups/RemoveColor/Badge",
+	]) as Label, 28.0, WEIGHT_SEMIBOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/Powerups/Shuffle/Badge/Value",
+		"UI/Powerups/Shuffle/Badge",
+	]) as Label, 28.0, WEIGHT_SEMIBOLD)
 
 func style_results(scene: Control) -> void:
 	var base_path := "UI/Panel/Scroll/VBox"

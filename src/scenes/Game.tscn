@@ -116,14 +116,23 @@ icon_alignment = 1
 expand_icon = true
 script = ExtResource("5")
 
-[node name="Badge" type="Label" parent="UI/Powerups/Undo"]
+[node name="Badge" type="PanelContainer" parent="UI/Powerups/Undo"]
 layout_mode = 0
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -28.0
-offset_top = 8.0
-offset_right = 28.0
-offset_bottom = 40.0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+
+[node name="Value" type="Label" parent="UI/Powerups/Undo/Badge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "x0"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -138,14 +147,23 @@ icon_alignment = 1
 expand_icon = true
 script = ExtResource("5")
 
-[node name="Badge" type="Label" parent="UI/Powerups/RemoveColor"]
+[node name="Badge" type="PanelContainer" parent="UI/Powerups/RemoveColor"]
 layout_mode = 0
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -28.0
-offset_top = 8.0
-offset_right = 28.0
-offset_bottom = 40.0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+
+[node name="Value" type="Label" parent="UI/Powerups/RemoveColor/Badge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "x0"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -160,14 +178,23 @@ icon_alignment = 1
 expand_icon = true
 script = ExtResource("5")
 
-[node name="Badge" type="Label" parent="UI/Powerups/Shuffle"]
+[node name="Badge" type="PanelContainer" parent="UI/Powerups/Shuffle"]
 layout_mode = 0
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -28.0
-offset_top = 8.0
-offset_right = 28.0
-offset_bottom = 40.0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+
+[node name="Value" type="Label" parent="UI/Powerups/Shuffle/Badge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "x0"
 horizontal_alignment = 1
 vertical_alignment = 1

@@ -9,13 +9,16 @@ extends Control
 @onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start
 @onready var account_button: Button = $UI/RootMargin/Layout/TopBar/Account
 @onready var shop_button: Button = $UI/RootMargin/Layout/BottomBar/Shop
-@onready var coin_badge: Label = $UI/RootMargin/Layout/BottomBar/CoinBadge
+@onready var coin_badge_panel: PanelContainer = $UI/RootMargin/Layout/BottomBar/Shop/CoinBadge
+@onready var coin_badge: Label = $UI/RootMargin/Layout/BottomBar/Shop/CoinBadge/Value
 
 var _title_t: float = 0.0
 var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
 var _title_accent_color: Color = Color(0.78, 0.88, 1.0, 1.0)
 var _tracks: Array[Dictionary] = []
 var _track_index: int = 0
+const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
+const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
 
 func _ready() -> void:
 	if FeatureFlags.clear_high_score_on_boot():
@@ -33,6 +36,7 @@ func _ready() -> void:
 	ThemeManager.apply_to_scene(self)
 	_layout_menu()
 	call_deferred("_layout_menu")
+	_style_coin_badge()
 	title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
 	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
@@ -89,6 +93,7 @@ func _layout_menu() -> void:
 	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
 	account_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	shop_button.custom_minimum_size = Vector2(icon_size, icon_size)
+	_layout_coin_badge(icon_size)
 
 	_refresh_title_pivots()
 
@@ -159,3 +164,42 @@ func _on_track_selector_track_changed(_track_name: String, index: int) -> void:
 
 func _on_track_selector_expanded_changed(_is_expanded: bool) -> void:
 	pass
+
+func _style_coin_badge() -> void:
+	if coin_badge_panel == null or coin_badge == null:
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = BADGE_BG_COLOR
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = BADGE_BORDER_COLOR
+	style.corner_radius_top_left = 128
+	style.corner_radius_top_right = 128
+	style.corner_radius_bottom_left = 128
+	style.corner_radius_bottom_right = 128
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.2
+	coin_badge_panel.add_theme_stylebox_override("panel", style)
+	coin_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin_badge.add_theme_color_override("font_color", Color(0.98, 0.99, 1.0, 1.0))
+	coin_badge.add_theme_color_override("font_outline_color", Color(0.3, 0.0, 0.05, 0.95))
+	coin_badge.add_theme_constant_override("outline_size", 2)
+	coin_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coin_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shop_button.clip_contents = false
+
+func _layout_coin_badge(icon_size: float) -> void:
+	if coin_badge_panel == null:
+		return
+	var radius: float = clamp(icon_size * 0.23, 14.0, 22.0)
+	coin_badge_panel.anchor_left = 1.0
+	coin_badge_panel.anchor_top = 0.0
+	coin_badge_panel.anchor_right = 1.0
+	coin_badge_panel.anchor_bottom = 0.0
+	coin_badge_panel.offset_left = -radius
+	coin_badge_panel.offset_top = -radius
+	coin_badge_panel.offset_right = radius
+	coin_badge_panel.offset_bottom = radius
+	coin_badge_panel.z_index = 10

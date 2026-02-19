@@ -11,9 +11,12 @@ extends Control
 @onready var undo_button: Button = $UI/Powerups/Undo
 @onready var remove_color_button: Button = $UI/Powerups/RemoveColor
 @onready var shuffle_button: Button = $UI/Powerups/Shuffle
-@onready var undo_badge: Label = $UI/Powerups/Undo/Badge
-@onready var prism_badge: Label = $UI/Powerups/RemoveColor/Badge
-@onready var shuffle_badge: Label = $UI/Powerups/Shuffle/Badge
+@onready var undo_badge_panel: PanelContainer = $UI/Powerups/Undo/Badge
+@onready var prism_badge_panel: PanelContainer = $UI/Powerups/RemoveColor/Badge
+@onready var shuffle_badge_panel: PanelContainer = $UI/Powerups/Shuffle/Badge
+@onready var undo_badge: Label = $UI/Powerups/Undo/Badge/Value
+@onready var prism_badge: Label = $UI/Powerups/RemoveColor/Badge/Value
+@onready var shuffle_badge: Label = $UI/Powerups/Shuffle/Badge/Value
 @onready var board_frame: ColorRect = $UI/BoardFrame
 @onready var board_glow: ColorRect = $UI/BoardGlow
 @onready var powerup_flash: ColorRect = $UI/PowerupFlash
@@ -34,6 +37,7 @@ var _run_started_at_unix := 0
 var _run_powerups_used_total: int = 0
 var _run_coins_spent: int = 0
 var _open_tip_shown_this_run: bool = false
+var _pause_overlap_factor: float = 0.5
 
 const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
 const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
@@ -42,6 +46,8 @@ const ICON_LOADING: Texture2D = preload("res://assets/ui/icons/atlas/powerup_loa
 const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
 const HUD_MAX_WIDTH: float = 760.0
 const POWERUPS_MAX_WIDTH: float = 700.0
+const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
+const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
@@ -81,14 +87,19 @@ func _ready() -> void:
 		board_glow.visible = false
 	for badge in [undo_badge, prism_badge, shuffle_badge]:
 		badge.add_theme_color_override("font_color", Color(0.98, 0.99, 1.0, 1.0))
-		badge.add_theme_color_override("font_outline_color", Color(0.1, 0.18, 0.36, 0.95))
+		badge.add_theme_color_override("font_outline_color", Color(0.3, 0.0, 0.05, 0.95))
 		badge.add_theme_constant_override("outline_size", 3)
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	for badge_panel in [undo_badge_panel, prism_badge_panel, shuffle_badge_panel]:
+		_style_badge_panel(badge_panel)
 	undo_button.tooltip_text = "Undo"
 	remove_color_button.tooltip_text = "Prism"
 	shuffle_button.tooltip_text = "Shuffle"
 	for button in [undo_button, remove_color_button, shuffle_button]:
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.expand_icon = true
+		button.clip_contents = false
 	powerup_flash.visible = false
 	_update_score()
 	_update_powerup_buttons()
@@ -101,12 +112,14 @@ func _ready() -> void:
 			ThemeManager.apply_to_scene(self)
 
 	_center_board()
+	call_deferred("_refresh_button_pivots")
 	_play_enter_transition()
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_game(self)
 		_center_board()
+		call_deferred("_refresh_button_pivots")
 
 func _on_match_made(group: Array) -> void:
 	var gained: int = board.consume_last_move_score()
@@ -129,7 +142,10 @@ func _update_score() -> void:
 	score_value_label.text = "%d" % score
 
 func _on_pause_pressed() -> void:
+	if board and board.has_method("set_hints_enabled"):
+		board.call("set_hints_enabled", false)
 	var pause := preload("res://src/scenes/PauseOverlay.tscn").instantiate()
+	pause.z_index = 1000
 	add_child(pause)
 	pause.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	get_tree().paused = true
@@ -138,9 +154,13 @@ func _on_pause_pressed() -> void:
 
 func _on_resume() -> void:
 	get_tree().paused = false
+	if board and board.has_method("set_hints_enabled"):
+		board.call("set_hints_enabled", true)
 
 func _on_quit() -> void:
 	get_tree().paused = false
+	if board and board.has_method("set_hints_enabled"):
+		board.call("set_hints_enabled", true)
 	_finish_run(false)
 
 func _on_undo_pressed() -> void:
@@ -230,9 +250,9 @@ func _update_powerup_buttons() -> void:
 	undo_button.icon = _powerup_button_icon(ICON_UNDO, "undo")
 	remove_color_button.icon = _powerup_button_icon(ICON_PRISM, "prism")
 	shuffle_button.icon = _powerup_button_icon(ICON_SHUFFLE, "shuffle")
-	_update_badge(undo_badge, _undo_charges, _pending_powerup_refill_type == "undo")
-	_update_badge(prism_badge, _remove_color_charges, _pending_powerup_refill_type == "prism")
-	_update_badge(shuffle_badge, _shuffle_charges, _pending_powerup_refill_type == "shuffle")
+	_update_badge(undo_badge_panel, undo_badge, _undo_charges, _pending_powerup_refill_type == "undo")
+	_update_badge(prism_badge_panel, prism_badge, _remove_color_charges, _pending_powerup_refill_type == "prism")
+	_update_badge(shuffle_badge_panel, shuffle_badge, _shuffle_charges, _pending_powerup_refill_type == "shuffle")
 	undo_button.disabled = (_undo_charges > 0 and _undo_stack.is_empty()) or _is_other_refill_pending("undo")
 	remove_color_button.disabled = _is_other_refill_pending("prism")
 	shuffle_button.disabled = _is_other_refill_pending("shuffle")
@@ -360,40 +380,44 @@ func _is_powerup_inventory_empty(powerups: Dictionary) -> bool:
 		and int(powerups.get("prism", 0)) <= 0 \
 		and int(powerups.get("shuffle", 0)) <= 0
 
-func _update_badge(label: Label, charges: int, is_loading: bool) -> void:
+func _update_badge(panel: PanelContainer, label: Label, charges: int, is_loading: bool) -> void:
 	if label == null:
 		return
+	_style_badge_panel(panel)
 	label.visible = true
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.clip_text = true
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	if is_loading:
-		label.text = "Loading..."
-		label.modulate = Color(0.78, 0.86, 1.0, 0.94)
+		label.text = "..."
+		label.modulate = Color(1.0, 0.98, 1.0, 0.94)
 	elif charges > 0:
 		label.text = "x%d" % charges
 		label.modulate = Color(0.98, 0.99, 1.0, 0.98)
 	else:
-		label.text = "Watch Ad"
-		label.modulate = Color(0.78, 0.9, 1.0, 0.98)
-	_set_badge_top_center(label)
+		label.text = "0"
+		label.modulate = Color(0.98, 0.99, 1.0, 0.88)
+	_set_badge_top_right(panel)
 	_fit_badge_font_size(label)
 
-func _set_badge_top_center(label: Label) -> void:
-	var top_inset: float = 6.0
+func _set_badge_top_right(panel: PanelContainer) -> void:
+	if panel == null:
+		return
 	var row_height: float = 110.0
 	if powerups_row and powerups_row.size.y > 0.0:
 		row_height = powerups_row.size.y
-	var badge_height: float = clamp(row_height * 0.35, 24.0, 44.0)
-	label.anchor_left = 0.0
-	label.anchor_top = 0.0
-	label.anchor_right = 1.0
-	label.anchor_bottom = 0.0
-	label.offset_left = 6.0
-	label.offset_top = top_inset
-	label.offset_right = -6.0
-	label.offset_bottom = top_inset + badge_height
+	var radius: float = clamp(row_height * 0.17, 15.0, 22.0)
+	panel.anchor_left = 1.0
+	panel.anchor_top = 0.0
+	panel.anchor_right = 1.0
+	panel.anchor_bottom = 0.0
+	panel.offset_left = -radius
+	panel.offset_top = -radius
+	panel.offset_right = radius
+	panel.offset_bottom = radius
+	panel.z_index = 10
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_END
 
 func _fit_badge_font_size(label: Label) -> void:
 	var font: Font = label.get_theme_font("font")
@@ -410,15 +434,24 @@ func _fit_badge_font_size(label: Label) -> void:
 		size -= 1
 	label.add_theme_font_size_override("font_size", size)
 
-func _set_badge_centered(label: Label) -> void:
-	label.anchor_left = 0.0
-	label.anchor_top = 0.0
-	label.anchor_right = 1.0
-	label.anchor_bottom = 1.0
-	label.offset_left = 8.0
-	label.offset_top = 0.0
-	label.offset_right = -8.0
-	label.offset_bottom = 0.0
+func _style_badge_panel(panel: PanelContainer) -> void:
+	if panel == null:
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = BADGE_BG_COLOR
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = BADGE_BORDER_COLOR
+	style.corner_radius_top_left = 128
+	style.corner_radius_top_right = 128
+	style.corner_radius_bottom_left = 128
+	style.corner_radius_bottom_right = 128
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.2
+	panel.add_theme_stylebox_override("panel", style)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _is_other_refill_pending(powerup_type: String) -> bool:
 	return not _pending_powerup_refill_type.is_empty() and _pending_powerup_refill_type != powerup_type
@@ -578,6 +611,7 @@ func _center_board() -> void:
 	powerup_row_width = clamp(board_size.x + max(84.0, board.tile_size * 0.8), min_row_width, max_row_width)
 	_layout_powerups(view_size, powerup_row_width, powerup_row_height)
 	_apply_responsive_hud_typography(content_width, top_bar_bg.size.y, powerup_row_height)
+	_refresh_button_pivots()
 
 	if board_frame:
 		var frame_padding: float = clamp(board.tile_size * 0.18, 12.0, 24.0)
@@ -602,8 +636,9 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 	var content_inset_x: float = clamp(content_width * 0.055, 14.0, 34.0)
 	var content_inset_y: float = clamp(bar_height * 0.09, 8.0, 14.0)
 	var right_reserve: float = clamp(content_width * 0.03, 12.0, 28.0)
+	var vertical_lift: float = clamp(bar_height * 0.06, 4.0, 8.0)
 	top_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	top_bar.position = Vector2(content_left + content_inset_x, top_margin + content_inset_y)
+	top_bar.position = Vector2(content_left + content_inset_x, top_margin + content_inset_y - vertical_lift)
 	top_bar.size = Vector2(
 		max(220.0, content_width - (content_inset_x * 2.0) - right_reserve),
 		max(56.0, bar_height - (content_inset_y * 2.0))
@@ -612,10 +647,12 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 	if score_box:
 		score_box.add_theme_constant_override("separation", int(round(clamp(bar_height * 0.035, 4.0, 8.0))))
 	if pause_button:
-		var pause_vertical_margin: float = clamp(top_bar.size.y * 0.1, 6.0, 12.0)
-		var pause_size: float = clamp(top_bar.size.y - (pause_vertical_margin * 2.0), 60.0, 96.0)
+		var pause_size: float = clamp(top_bar.size.y * 0.74, 52.0, 82.0)
 		pause_button.custom_minimum_size = Vector2(pause_size, pause_size)
 		pause_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_pause_overlap_factor = _pause_overlap_factor_for_viewport(view_size)
+		_queue_pause_button_overlap_position()
 
 func _apply_responsive_hud_typography(content_width: float, bar_height: float, powerup_row_height: float) -> void:
 	var caption_size: int = int(round(clamp(bar_height * 0.25, 14.0, 30.0)))
@@ -628,7 +665,7 @@ func _apply_responsive_hud_typography(content_width: float, bar_height: float, p
 	if score_value_label:
 		score_value_label.add_theme_font_size_override("font_size", value_size)
 		score_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		score_value_label.custom_minimum_size.y = clamp(bar_height * 0.56, 44.0, 80.0)
+		score_value_label.custom_minimum_size.y = clamp(bar_height * 0.5, 40.0, 72.0)
 
 	var badge_font_size: int = int(round(clamp(powerup_row_height * 0.27, 15.0, 28.0)))
 	for badge in [undo_badge, prism_badge, shuffle_badge]:
@@ -647,3 +684,33 @@ func _layout_powerups(view_size: Vector2, row_width: float, row_height: float) -
 	for button in [undo_button, remove_color_button, shuffle_button]:
 		if button:
 			button.custom_minimum_size = Vector2(0.0, row_height)
+
+func _refresh_button_pivots() -> void:
+	for button_variant in [pause_button, undo_button, remove_color_button, shuffle_button]:
+		var button: Control = button_variant as Control
+		if button == null:
+			continue
+		if button.size.x <= 0.0 or button.size.y <= 0.0:
+			continue
+		button.pivot_offset = button.size * 0.5
+
+func _position_pause_button_overlap() -> void:
+	if pause_button == null or top_bar == null:
+		return
+	if pause_button.size.y <= 0.0:
+		return
+	var centered_y: float = floor((top_bar.size.y - pause_button.size.y) * 0.5)
+	pause_button.position.y = centered_y - (pause_button.size.y * _pause_overlap_factor)
+
+func _pause_overlap_factor_for_viewport(view_size: Vector2) -> float:
+	if view_size.y <= 0.0:
+		return 0.5
+	var aspect: float = view_size.x / view_size.y
+	# Portrait needs slightly less overlap to keep pause visually aligned with the bar.
+	return 0.42 if aspect < 0.9 else 0.5
+
+func _queue_pause_button_overlap_position() -> void:
+	call_deferred("_queue_pause_button_overlap_position_deferred")
+
+func _queue_pause_button_overlap_position_deferred() -> void:
+	call_deferred("_position_pause_button_overlap")

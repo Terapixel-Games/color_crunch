@@ -19,7 +19,7 @@ extends Button
 
 func _ready() -> void:
 	text = ""
-	clip_contents = true
+	clip_contents = false
 	focus_mode = Control.FOCUS_NONE
 	_apply_styles()
 	_apply_icon()
