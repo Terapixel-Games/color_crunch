@@ -585,19 +585,35 @@ func _layout_modal_for_size(viewport_size: Vector2) -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
-	var outer_margin: float = clamp(viewport_size.x * 0.04, 18.0, 28.0)
-	var panel_width: float = clamp(viewport_size.x - (outer_margin * 2.0), 420.0, viewport_size.x - 12.0)
-	var max_panel_height: float = clamp(viewport_size.y - (outer_margin * 2.0), 520.0, viewport_size.y - 12.0)
+	var viewport_aspect: float = viewport_size.x / max(1.0, viewport_size.y)
+	var is_wide: bool = viewport_aspect >= 1.5
+	var outer_margin_x: float = clamp(viewport_size.x * (0.03 if is_wide else 0.04), 18.0, 48.0)
+	var outer_margin_y: float = clamp(viewport_size.y * 0.04, 14.0, 30.0)
+	var panel_max_width_cap: float = 1460.0 if is_wide else viewport_size.x - 12.0
+	var panel_width: float = clamp(
+		viewport_size.x - (outer_margin_x * 2.0),
+		420.0,
+		min(panel_max_width_cap, viewport_size.x - 12.0)
+	)
+	var max_panel_height: float = clamp(viewport_size.y - (outer_margin_y * 2.0), 520.0, viewport_size.y - 12.0)
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.size = Vector2(panel_width, max_panel_height)
 	panel.position = (viewport_size - panel.size) * 0.5
 
-	var margin_x: float = clamp(panel_width * 0.07, 26.0, 40.0)
+	var margin_x: float = clamp(panel_width * (0.032 if is_wide else 0.07), 16.0, 34.0)
 	var panel_inner_width: float = max(280.0, panel_width - (margin_x * 2.0))
-	var content_inset: float = clamp(panel_inner_width * 0.03, 14.0, 24.0)
+	var content_inset: float = clamp(panel_inner_width * (0.012 if is_wide else 0.03), 8.0, 24.0)
 	var content_width: float = clamp(panel_inner_width - (content_inset * 2.0), 280.0, panel_inner_width)
 	# Match top/bottom inside spacing to the effective side spacing (panel inset + content inset).
 	var inside_edge_padding: float = margin_x + content_inset
+	panel_vbox.add_theme_constant_override("separation", int(round(clamp(max_panel_height * 0.01, 8.0, 12.0))))
+	if scroll_content is VBoxContainer:
+		(scroll_content as VBoxContainer).add_theme_constant_override(
+			"separation",
+			int(round(clamp(max_panel_height * (0.008 if is_wide else 0.01), 8.0, 12.0)))
+		)
+	if header_bar != null:
+		header_bar.custom_minimum_size.y = clamp(max_panel_height * (0.105 if is_wide else 0.12), 68.0, 90.0)
 	if top_inset != null:
 		top_inset.custom_minimum_size.y = inside_edge_padding
 	if bottom_inset != null:
@@ -617,24 +633,24 @@ func _layout_modal_for_size(viewport_size: Vector2) -> void:
 		_apply_centered_content_width(path, content_width)
 
 	if footer_panel != null:
-		footer_panel.custom_minimum_size.y = 118.0
+		footer_panel.custom_minimum_size.y = clamp(max_panel_height * (0.1 if is_wide else 0.12), 96.0, 118.0)
 
 	if close_button != null:
 		close_button.size_flags_horizontal = Control.SIZE_FILL
-		close_button.custom_minimum_size = Vector2(0.0, 54.0)
+		close_button.custom_minimum_size = Vector2(0.0, clamp(max_panel_height * 0.055, 48.0, 56.0))
 		close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 	# Keep theme item rows tall enough for title/subtitle + action controls.
 	if theme_default_card != null:
-		theme_default_card.custom_minimum_size.y = 92.0
+		theme_default_card.custom_minimum_size.y = clamp(max_panel_height * (0.082 if is_wide else 0.092), 78.0, 96.0)
 	if theme_neon_card != null:
-		theme_neon_card.custom_minimum_size.y = 96.0
+		theme_neon_card.custom_minimum_size.y = clamp(max_panel_height * (0.086 if is_wide else 0.096), 82.0, 100.0)
 
 	var row_inner_width: float = max(320.0, content_width - 12.0)
 	var action_gap: int = 10
-	var primary_action_width: float = clamp(row_inner_width * 0.24, 108.0, 138.0)
-	var ad_badge_width: float = clamp(row_inner_width * 0.16, 84.0, 108.0)
-	var action_height: float = clamp(max_panel_height * 0.045, 46.0, 52.0)
+	var primary_action_width: float = clamp(row_inner_width * (0.18 if is_wide else 0.24), 102.0, 140.0)
+	var ad_badge_width: float = clamp(row_inner_width * (0.12 if is_wide else 0.16), 82.0, 108.0)
+	var action_height: float = clamp(max_panel_height * (0.042 if is_wide else 0.045), 44.0, 52.0)
 
 	if theme_default_action != null:
 		theme_default_action.custom_minimum_size = Vector2(primary_action_width, action_height)
@@ -657,10 +673,10 @@ func _layout_modal_for_size(viewport_size: Vector2) -> void:
 	for index in range(COIN_PACKS.size()):
 		var coin_card := get_node_or_null("Panel/VBox/Scroll/Content/CoinPacks/Pack%d" % index) as Control
 		if coin_card != null:
-			coin_card.custom_minimum_size.y = 76.0
+			coin_card.custom_minimum_size.y = clamp(max_panel_height * (0.074 if is_wide else 0.082), 68.0, 84.0)
 		var coin_button := get_node_or_null("Panel/VBox/Scroll/Content/CoinPacks/Pack%d/Margin/Row/ActionButton" % index) as Button
 		if coin_button != null:
-			coin_button.custom_minimum_size = Vector2(124.0, 54.0)
+			coin_button.custom_minimum_size = Vector2(clamp(primary_action_width, 106.0, 136.0), clamp(action_height, 44.0, 52.0))
 			coin_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			_apply_button_variant(coin_button, "primary")
 
@@ -671,7 +687,7 @@ func _layout_modal_for_size(viewport_size: Vector2) -> void:
 	]:
 		var card := get_node_or_null(path) as Control
 		if card != null:
-			card.custom_minimum_size.y = 68.0
+			card.custom_minimum_size.y = clamp(max_panel_height * (0.067 if is_wide else 0.074), 62.0, 74.0)
 
 	for button in [
 		get_node_or_null("Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row/ActionButton") as Button,
@@ -682,11 +698,11 @@ func _layout_modal_for_size(viewport_size: Vector2) -> void:
 		if button == null:
 			continue
 		if button == refresh_wallet_button:
-			button.custom_minimum_size = Vector2(0.0, 48.0)
+			button.custom_minimum_size = Vector2(0.0, clamp(max_panel_height * 0.05, 44.0, 50.0))
 			button.size_flags_horizontal = Control.SIZE_FILL
 			_apply_button_variant(button, "ghost")
 		else:
-			button.custom_minimum_size = Vector2(112.0, 50.0)
+			button.custom_minimum_size = Vector2(112.0, clamp(max_panel_height * 0.052, 46.0, 52.0))
 			_apply_button_variant(button, "secondary")
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 

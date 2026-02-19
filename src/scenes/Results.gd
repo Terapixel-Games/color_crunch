@@ -1,12 +1,15 @@
 extends Control
 
-@onready var score_label: Label = $UI/Panel/Scroll/VBox/Score
 @onready var title_label: Label = $UI/Panel/Scroll/VBox/Title
-@onready var mode_badge_label: Label = $UI/Panel/Scroll/VBox/ModeBadge
-@onready var best_label: Label = $UI/Panel/Scroll/VBox/Best
-@onready var streak_label: Label = $UI/Panel/Scroll/VBox/Streak
-@onready var online_status_label: Label = $UI/Panel/Scroll/VBox/OnlineStatus
-@onready var leaderboard_label: Label = $UI/Panel/Scroll/VBox/Leaderboard
+@onready var stats_split: GridContainer = $UI/Panel/Scroll/VBox/StatsSplit
+@onready var stats_left_column: VBoxContainer = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn
+@onready var stats_right_column: VBoxContainer = $UI/Panel/Scroll/VBox/StatsSplit/RightColumn
+@onready var score_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn/Score
+@onready var mode_badge_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn/ModeBadge
+@onready var best_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn/Best
+@onready var streak_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/LeftColumn/Streak
+@onready var online_status_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/RightColumn/OnlineStatus
+@onready var leaderboard_label: Label = $UI/Panel/Scroll/VBox/StatsSplit/RightColumn/Leaderboard
 @onready var coins_earned_label: Label = $UI/Panel/Scroll/VBox/CoinsEarned
 @onready var coin_balance_label: Label = $UI/Panel/Scroll/VBox/CoinBalance
 @onready var double_reward_button: Button = $UI/Panel/Scroll/VBox/DoubleReward
@@ -97,9 +100,11 @@ func _refresh_intro_pivots() -> void:
 		box.pivot_offset = box.size * 0.5
 
 func _layout_results() -> void:
+	_layout_results_for_size(get_viewport_rect().size)
+
+func _layout_results_for_size(viewport_size: Vector2) -> void:
 	if panel == null or scroll == null or box == null:
 		return
-	var viewport_size: Vector2 = get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
@@ -123,12 +128,14 @@ func _layout_results() -> void:
 	var margin_x: float = clamp(panel_size.x * 0.055, 20.0, 44.0)
 	var margin_y: float = clamp(panel_size.y * 0.045, 16.0, 34.0)
 	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
+	var use_split: bool = viewport_aspect >= 1.45
+	_configure_stats_split(content_size, use_split)
 	var base_separation: float = clamp(round(content_size.y * 0.01), 8.0, 16.0)
 	var compact_scale: float = 1.0
-	for _i in range(3):
+	for _i in range(6):
 		var separation: int = int(clamp(round(base_separation * compact_scale), 6.0, 16.0))
 		box.add_theme_constant_override("separation", separation)
-		_apply_responsive_typography(content_size, viewport_aspect, compact_scale)
+		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale)
 
 		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, 52.0, 84.0)
 		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, 64.0, 104.0)
@@ -144,7 +151,7 @@ func _layout_results() -> void:
 		if required_height <= content_size.y:
 			break
 		var fit_ratio: float = content_size.y / max(1.0, required_height)
-		var next_scale: float = clamp(compact_scale * fit_ratio, 0.68, compact_scale)
+		var next_scale: float = clamp(compact_scale * fit_ratio, 0.6, compact_scale)
 		if absf(next_scale - compact_scale) < 0.01:
 			break
 		compact_scale = next_scale
@@ -160,13 +167,39 @@ func _layout_results() -> void:
 	var content_min_height: float = box.get_combined_minimum_size().y
 	box.custom_minimum_size.y = max(content_size.y, content_min_height)
 
-func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, compact_scale: float = 1.0) -> void:
+func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
+	if stats_split == null:
+		return
+	var separation: int = int(clamp(round(content_size.x * 0.03), 12.0, 28.0))
+	stats_split.add_theme_constant_override("h_separation", separation)
+	stats_split.add_theme_constant_override("v_separation", int(clamp(round(content_size.y * 0.015), 8.0, 16.0)))
+	stats_split.columns = 2 if use_split else 1
+	var column_width: float = max(160.0, (content_size.x - float(separation)) * 0.5) if use_split else content_size.x
+	if stats_left_column:
+		stats_left_column.custom_minimum_size.x = column_width
+	if stats_right_column:
+		stats_right_column.custom_minimum_size.x = column_width if use_split else content_size.x
+	var left_alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if use_split else HORIZONTAL_ALIGNMENT_CENTER
+	var right_alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if use_split else HORIZONTAL_ALIGNMENT_CENTER
+	for label in [score_label, mode_badge_label, best_label, streak_label]:
+		if label:
+			label.horizontal_alignment = left_alignment
+	if online_status_label:
+		online_status_label.horizontal_alignment = right_alignment
+	if leaderboard_label:
+		leaderboard_label.horizontal_alignment = right_alignment
+
+func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, use_split: bool, compact_scale: float = 1.0) -> void:
 	var is_wide: bool = viewport_aspect >= 1.55
+	var split_gap: float = 20.0
+	if stats_split:
+		split_gap = float(stats_split.get_theme_constant("h_separation"))
+	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
 	var title_size: int = int(round(clamp(content_size.x * (0.06 if is_wide else 0.07) * compact_scale, 28.0, 62.0)))
-	var score_size: int = int(round(clamp(content_size.x * (0.11 if is_wide else 0.13) * compact_scale, 44.0, 108.0)))
-	var mode_size: int = int(round(clamp(content_size.x * 0.038 * compact_scale, 16.0, 32.0)))
-	var stat_size: int = int(round(clamp(content_size.x * 0.05 * compact_scale, 22.0, 44.0)))
-	var body_size: int = int(round(clamp(content_size.x * 0.032 * compact_scale, 15.0, 30.0)))
+	var score_size: int = int(round(clamp(stat_column_width * 0.17 * compact_scale, 40.0, 102.0)))
+	var mode_size: int = int(round(clamp(stat_column_width * 0.055 * compact_scale, 15.0, 30.0)))
+	var stat_size: int = int(round(clamp(stat_column_width * 0.072 * compact_scale, 20.0, 42.0)))
+	var body_size: int = int(round(clamp(stat_column_width * 0.048 * compact_scale, 14.0, 28.0)))
 	var coin_size: int = int(round(clamp(content_size.x * 0.028 * compact_scale, 14.0, 26.0)))
 	var reward_button_size: int = int(round(clamp(content_size.x * 0.026 * compact_scale, 14.0, 26.0)))
 	var primary_button_size: int = int(round(clamp(content_size.x * 0.032 * compact_scale, 16.0, 34.0)))

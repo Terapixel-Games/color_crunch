@@ -50,34 +50,46 @@ text = "Color Crunch"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 54
 
-[node name="Score" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="StatsSplit" type="GridContainer" parent="UI/Panel/Scroll/VBox"]
+size_flags_horizontal = 3
+columns = 2
+
+[node name="LeftColumn" type="VBoxContainer" parent="UI/Panel/Scroll/VBox/StatsSplit"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Score" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/LeftColumn"]
 text = "Score: 0"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 84
 
-[node name="ModeBadge" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="ModeBadge" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/LeftColumn"]
 text = "Mode: Pure"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 20
 
-[node name="Best" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="Best" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/LeftColumn"]
 text = "Best: 0"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 30
 
-[node name="Streak" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="Streak" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/LeftColumn"]
 text = "Streak: 0"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 30
 
-[node name="OnlineStatus" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="RightColumn" type="VBoxContainer" parent="UI/Panel/Scroll/VBox/StatsSplit"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="OnlineStatus" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/RightColumn"]
 text = "Online: connecting..."
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 24
 
-[node name="Leaderboard" type="Label" parent="UI/Panel/Scroll/VBox"]
+[node name="Leaderboard" type="Label" parent="UI/Panel/Scroll/VBox/StatsSplit/RightColumn"]
 text = "Leaderboard loading..."
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 24
 autowrap_mode = 2
 

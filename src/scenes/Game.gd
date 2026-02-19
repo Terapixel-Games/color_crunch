@@ -3,6 +3,7 @@ extends Control
 @onready var board: BoardView = $BoardView
 @onready var top_bar_bg: Control = $UI/TopBarBg
 @onready var top_bar: Control = $UI/TopBar
+@onready var score_box: VBoxContainer = $UI/TopBar/ScoreBox
 @onready var powerups_row: Control = $UI/Powerups
 @onready var pause_button: Button = $UI/TopBar/Pause
 @onready var score_caption_label: Label = $UI/TopBar/ScoreBox/ScoreCaption
@@ -598,17 +599,27 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 	top_bar_bg.position = Vector2(content_left, top_margin)
 	top_bar_bg.size = Vector2(content_width, bar_height)
 
-	var content_inset: float = clamp(content_width * 0.04, 10.0, 24.0)
+	var content_inset_x: float = clamp(content_width * 0.055, 14.0, 34.0)
+	var content_inset_y: float = clamp(bar_height * 0.09, 8.0, 14.0)
+	var right_reserve: float = clamp(content_width * 0.03, 12.0, 28.0)
 	top_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	top_bar.position = Vector2(content_left + content_inset, top_margin + 6.0)
-	top_bar.size = Vector2(max(220.0, content_width - (content_inset * 2.0)), max(56.0, bar_height - 12.0))
+	top_bar.position = Vector2(content_left + content_inset_x, top_margin + content_inset_y)
+	top_bar.size = Vector2(
+		max(220.0, content_width - (content_inset_x * 2.0) - right_reserve),
+		max(56.0, bar_height - (content_inset_y * 2.0))
+	)
+	top_bar.add_theme_constant_override("separation", int(round(clamp(content_width * 0.016, 10.0, 20.0))))
+	if score_box:
+		score_box.add_theme_constant_override("separation", int(round(clamp(bar_height * 0.035, 4.0, 8.0))))
 	if pause_button:
-		var pause_size: float = clamp(bar_height - 12.0, 74.0, 102.0)
+		var pause_vertical_margin: float = clamp(top_bar.size.y * 0.1, 6.0, 12.0)
+		var pause_size: float = clamp(top_bar.size.y - (pause_vertical_margin * 2.0), 60.0, 96.0)
 		pause_button.custom_minimum_size = Vector2(pause_size, pause_size)
+		pause_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 func _apply_responsive_hud_typography(content_width: float, bar_height: float, powerup_row_height: float) -> void:
 	var caption_size: int = int(round(clamp(bar_height * 0.25, 14.0, 30.0)))
-	var value_size: int = int(round(clamp(bar_height * 0.62, 26.0, 72.0)))
+	var value_size: int = int(round(clamp(bar_height * 0.54, 26.0, 68.0)))
 	if content_width < 520.0:
 		caption_size = min(caption_size, 22)
 		value_size = min(value_size, 48)
@@ -616,6 +627,8 @@ func _apply_responsive_hud_typography(content_width: float, bar_height: float, p
 		score_caption_label.add_theme_font_size_override("font_size", caption_size)
 	if score_value_label:
 		score_value_label.add_theme_font_size_override("font_size", value_size)
+		score_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		score_value_label.custom_minimum_size.y = clamp(bar_height * 0.56, 44.0, 80.0)
 
 	var badge_font_size: int = int(round(clamp(powerup_row_height * 0.27, 15.0, 28.0)))
 	for badge in [undo_badge, prism_badge, shuffle_badge]:
