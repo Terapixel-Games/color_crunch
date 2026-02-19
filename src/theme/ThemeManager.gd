@@ -109,5 +109,7 @@ func apply_to_vfx(config: Dictionary) -> void:
 
 func apply_to_ui(scene: Node, config: Dictionary) -> void:
 	var panel: ColorRect = scene.get_node_or_null("UI/Panel")
+	if panel == null:
+		panel = scene.get_node_or_null("UI/RootMargin/Layout/Center/PanelShell/Panel")
 	if panel:
 		panel.color = config.get("panel_tint", panel.color)

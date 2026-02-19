@@ -1,12 +1,14 @@
-[gd_scene load_steps=8 format=3 uid="uid://40tx7crv0o0w"]
+[gd_scene load_steps=10 format=3 uid="uid://40tx7crv0o0w"]
 
 [ext_resource type="Script" uid="uid://c4g6tpjx8lich" path="res://src/scenes/MainMenu.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id="2"]
 [ext_resource type="Script" uid="uid://ddwjca2l8jso8" path="res://src/ui/GlassPanel.gd" id="3"]
 [ext_resource type="Theme" uid="uid://c7md3l4sokudj" path="res://src/ui/UiTheme.tres" id="4"]
 [ext_resource type="Script" uid="uid://cm18fs18ym62x" path="res://src/ui/LiquidGlassButton.gd" id="5"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/arrow_left.tres" id="6"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/arrow_right.tres" id="7"]
+[ext_resource type="PackedScene" path="res://ui/components/IconButton.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://ui/components/TrackSelector.tscn" id="7"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/person.tres" id="8"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/cart.tres" id="9"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -19,16 +21,60 @@ script = ExtResource("1")
 [node name="BackgroundController" parent="." instance=ExtResource("2")]
 
 [node name="UI" type="Control" parent="."]
-anchors_preset = 0
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Panel" type="ColorRect" parent="UI"]
-layout_mode = 0
-anchor_left = 0.12
-anchor_top = 0.2
-anchor_right = 0.88
-anchor_bottom = 0.8
+[node name="RootMargin" type="MarginContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="Layout" type="VBoxContainer" parent="UI/RootMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="TopBar" type="HBoxContainer" parent="UI/RootMargin/Layout"]
+custom_minimum_size = Vector2(0, 86)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TopSpacer" type="Control" parent="UI/RootMargin/Layout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Account" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("6")]
+layout_mode = 2
+icon_texture = ExtResource("8")
+tooltip_text_override = "Account"
+accessibility_name_override = "Account"
+
+[node name="Center" type="CenterContainer" parent="UI/RootMargin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PanelShell" type="PanelContainer" parent="UI/RootMargin/Layout/Center"]
+custom_minimum_size = Vector2(640, 520)
+layout_mode = 2
+
+[node name="Panel" type="ColorRect" parent="UI/RootMargin/Layout/Center/PanelShell"]
+custom_minimum_size = Vector2(640, 520)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 color = Color(0.12, 0.18, 0.32, 0.22)
 script = ExtResource("3")
 blur_radius = 5.2
@@ -41,121 +87,77 @@ strength_x = 8.0
 strength_y = 8.0
 chromatic_strength = 0.18
 
-[node name="VBox" type="VBoxContainer" parent="UI"]
-layout_mode = 0
-anchor_left = 0.15
-anchor_top = 0.21
-anchor_right = 0.85
-anchor_bottom = 0.79
-theme_override_constants/separation = 24
+[node name="ContentMargin" type="MarginContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 18
 alignment = 1
 
-[node name="Title" type="Label" parent="UI/VBox"]
+[node name="Title" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 78
 text = "Color Crunch"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="UI/VBox"]
+[node name="Subtitle" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 visible = false
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 32
 text = "Swipe to crunch matching colors"
 horizontal_alignment = 1
 
-[node name="TrackLabel" type="Label" parent="UI/VBox"]
+[node name="TrackSelector" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox" instance=ExtResource("7")]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "Track"
-horizontal_alignment = 1
+size_flags_horizontal = 3
+collapsed_text = "Track"
 
-[node name="TrackCarousel" type="HBoxContainer" parent="UI/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="TrackPrev" type="Button" parent="UI/VBox/TrackCarousel"]
-custom_minimum_size = Vector2(88, 88)
-layout_mode = 2
-icon = ExtResource("6")
-icon_alignment = 1
-expand_icon = true
-script = ExtResource("5")
-corner_radius = 0.5
-
-[node name="TrackNameHost" type="Control" parent="UI/VBox/TrackCarousel"]
-clip_contents = true
-custom_minimum_size = Vector2(340, 88)
-layout_mode = 2
-
-[node name="TrackName" type="Label" parent="UI/VBox/TrackCarousel/TrackNameHost"]
-layout_mode = 0
-anchor_right = 1.0
-anchor_bottom = 1.0
-text = "Track"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="TrackNext" type="Button" parent="UI/VBox/TrackCarousel"]
-custom_minimum_size = Vector2(88, 88)
-layout_mode = 2
-icon = ExtResource("7")
-icon_alignment = 1
-expand_icon = true
-script = ExtResource("5")
-corner_radius = 0.5
-
-[node name="Start" type="Button" parent="UI/VBox"]
-custom_minimum_size = Vector2(0, 118)
+[node name="Start" type="Button" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Start"
 script = ExtResource("5")
 
-[node name="Account" type="Button" parent="UI"]
-layout_mode = 0
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -250.0
-offset_top = 44.0
-offset_right = -24.0
-offset_bottom = 126.0
-text = "Account"
-script = ExtResource("5")
-corner_radius = 0.38
+[node name="BottomBar" type="HBoxContainer" parent="UI/RootMargin/Layout"]
+custom_minimum_size = Vector2(0, 98)
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
 
-[node name="Shop" type="Button" parent="UI"]
-layout_mode = 0
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -264.0
-offset_top = -150.0
-offset_right = -24.0
-offset_bottom = -44.0
-text = "Shop"
-script = ExtResource("5")
-corner_radius = 0.38
+[node name="BottomSpacer" type="Control" parent="UI/RootMargin/Layout/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="CoinBadge" type="Label" parent="UI/Shop"]
-layout_mode = 0
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = 64.0
-offset_top = -42.0
-offset_right = 146.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="CoinBadge" type="Label" parent="UI/RootMargin/Layout/BottomBar"]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[connection signal="pressed" from="UI/VBox/TrackCarousel/TrackPrev" to="." method="_on_track_prev_pressed"]
-[connection signal="pressed" from="UI/VBox/TrackCarousel/TrackNext" to="." method="_on_track_next_pressed"]
-[connection signal="pressed" from="UI/VBox/Start" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="UI/Account" to="." method="_on_account_pressed"]
-[connection signal="pressed" from="UI/Shop" to="." method="_on_shop_pressed"]
+[node name="Shop" parent="UI/RootMargin/Layout/BottomBar" instance=ExtResource("6")]
+layout_mode = 2
+icon_texture = ExtResource("9")
+tooltip_text_override = "Shop"
+accessibility_name_override = "Shop"
+
+[connection signal="track_changed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector" to="." method="_on_track_selector_track_changed"]
+[connection signal="expanded_changed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector" to="." method="_on_track_selector_expanded_changed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/TopBar/Account" to="." method="_on_account_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/BottomBar/Shop" to="." method="_on_shop_pressed"]

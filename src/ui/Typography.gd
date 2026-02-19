@@ -77,16 +77,45 @@ func style_button(button: BaseButton, reference_size: float, weight: int = WEIGH
 	button.add_theme_constant_override("outline_size", max(1, int(round(2.0 * scale_factor()))))
 
 func style_main_menu(scene: Control) -> void:
-	style_label(scene.get_node_or_null("UI/VBox/Title"), SIZE_MENU_TITLE, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("UI/VBox/Subtitle"), SIZE_BODY, WEIGHT_REGULAR, true)
-	style_label(scene.get_node_or_null("UI/VBox/TrackLabel"), 22.0, WEIGHT_MEDIUM, true)
-	style_button(scene.get_node_or_null("UI/VBox/TrackCarousel/TrackPrev"), 26.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("UI/VBox/TrackCarousel/TrackNameHost/TrackName"), 24.0, WEIGHT_SEMIBOLD)
-	style_button(scene.get_node_or_null("UI/VBox/TrackCarousel/TrackNext"), 26.0, WEIGHT_BOLD)
-	style_button(scene.get_node_or_null("UI/VBox/Start"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
-	style_button(scene.get_node_or_null("UI/Account"), 20.0, WEIGHT_SEMIBOLD)
-	style_button(scene.get_node_or_null("UI/Shop"), 20.0, WEIGHT_SEMIBOLD)
-	style_label(scene.get_node_or_null("UI/Shop/CoinBadge"), 16.0, WEIGHT_BOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title",
+		"UI/VBox/Title",
+	]) as Label, SIZE_MENU_TITLE, WEIGHT_BOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Subtitle",
+		"UI/VBox/Subtitle",
+	]) as Label, SIZE_BODY, WEIGHT_REGULAR, true)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector/VBox/CollapsedPill",
+	]) as BaseButton, 20.0, WEIGHT_MEDIUM)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector/VBox/ExpandedPill/ExpandedRow/LeftArrowButton",
+		"UI/VBox/TrackCarousel/TrackPrev",
+	]) as BaseButton, 24.0, WEIGHT_BOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector/VBox/ExpandedPill/ExpandedRow/NameToggleButton/NameClip/MarqueeRoot/MarqueeRow/NameLabelA",
+		"UI/VBox/TrackCarousel/TrackNameHost/TrackName",
+	]) as Label, 22.0, WEIGHT_SEMIBOLD)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector/VBox/ExpandedPill/ExpandedRow/RightArrowButton",
+		"UI/VBox/TrackCarousel/TrackNext",
+	]) as BaseButton, 24.0, WEIGHT_BOLD)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start",
+		"UI/VBox/Start",
+	]) as BaseButton, SIZE_BUTTON, WEIGHT_SEMIBOLD)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/TopBar/Account",
+		"UI/Account",
+	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
+	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/BottomBar/Shop",
+		"UI/Shop",
+	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/BottomBar/CoinBadge",
+		"UI/Shop/CoinBadge",
+	]) as Label, 16.0, WEIGHT_BOLD)
 
 func style_game(scene: Control) -> void:
 	style_label(scene.get_node_or_null("UI/TopBar/ScoreBox/ScoreCaption"), 20.0, WEIGHT_MEDIUM, true)
@@ -165,3 +194,10 @@ func style_tutorial_tip(scene: Control) -> void:
 	var toggle := scene.get_node_or_null("Center/Panel/VBox/DoNotShow")
 	if toggle and toggle is BaseButton:
 		style_button(toggle as BaseButton, 14.0, WEIGHT_MEDIUM)
+
+func _node_from_paths(scene: Node, paths: Array[String]) -> Node:
+	for path in paths:
+		var node: Node = scene.get_node_or_null(path)
+		if node != null:
+			return node
+	return null

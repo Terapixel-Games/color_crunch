@@ -1,25 +1,21 @@
 extends Control
 
-@onready var track_prev: Button = $UI/VBox/TrackCarousel/TrackPrev
-@onready var track_next: Button = $UI/VBox/TrackCarousel/TrackNext
-@onready var track_label: Label = $UI/VBox/TrackLabel
-@onready var track_carousel: HBoxContainer = $UI/VBox/TrackCarousel
-@onready var track_name_host: Control = $UI/VBox/TrackCarousel/TrackNameHost
-@onready var track_name: Label = $UI/VBox/TrackCarousel/TrackNameHost/TrackName
-@onready var title_label: Label = $UI/VBox/Title
-@onready var panel: Control = $UI/Panel
-@onready var menu_box: VBoxContainer = $UI/VBox
-@onready var start_button: Button = $UI/VBox/Start
-@onready var account_button: Button = $UI/Account
-@onready var shop_button: Button = $UI/Shop
-@onready var coin_badge: Label = $UI/Shop/CoinBadge
+@onready var root_margin: MarginContainer = $UI/RootMargin
+@onready var panel_shell: PanelContainer = $UI/RootMargin/Layout/Center/PanelShell
+@onready var panel: ColorRect = $UI/RootMargin/Layout/Center/PanelShell/Panel
+@onready var content_margin: MarginContainer = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin
+@onready var title_label: Label = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title
+@onready var track_selector: TrackSelectorControl = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector
+@onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start
+@onready var account_button: Button = $UI/RootMargin/Layout/TopBar/Account
+@onready var shop_button: Button = $UI/RootMargin/Layout/BottomBar/Shop
+@onready var coin_badge: Label = $UI/RootMargin/Layout/BottomBar/CoinBadge
 
 var _title_t: float = 0.0
 var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
 var _title_accent_color: Color = Color(0.78, 0.88, 1.0, 1.0)
 var _tracks: Array[Dictionary] = []
 var _track_index: int = 0
-var _track_slide_tween: Tween
 
 func _ready() -> void:
 	if FeatureFlags.clear_high_score_on_boot():
@@ -62,82 +58,43 @@ func _notification(what: int) -> void:
 		_refresh_title_pivots()
 
 func _layout_menu() -> void:
-	if panel == null or menu_box == null:
+	if root_margin == null or panel_shell == null or content_margin == null:
 		return
 	var viewport_size: Vector2 = get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
-	var outer_margin: float = clamp(viewport_size.x * 0.04, 18.0, 28.0)
-	var available_width: float = max(280.0, viewport_size.x - (outer_margin * 2.0))
-	var available_height: float = max(320.0, viewport_size.y - (outer_margin * 2.0))
-	var min_panel_width: float = min(520.0, available_width)
-	var panel_width: float = clamp(viewport_size.x * 0.76, min_panel_width, available_width)
-	var max_panel_height: float = available_height
+	var outer_margin: int = int(round(clamp(min(viewport_size.x, viewport_size.y) * 0.045, 12.0, 32.0)))
+	root_margin.add_theme_constant_override("margin_left", outer_margin)
+	root_margin.add_theme_constant_override("margin_top", outer_margin)
+	root_margin.add_theme_constant_override("margin_right", outer_margin)
+	root_margin.add_theme_constant_override("margin_bottom", outer_margin)
 
-	# Match modal spacing behavior: effective top/bottom spacing equals side spacing.
-	var margin_x: float = clamp(panel_width * 0.05, 22.0, 34.0)
-	var panel_inner_width: float = max(280.0, panel_width - (margin_x * 2.0))
-	var content_inset: float = clamp(panel_inner_width * 0.03, 12.0, 20.0)
-	var inside_edge_padding: float = margin_x + content_inset
-	var content_width: float = max(220.0, panel_width - (inside_edge_padding * 2.0))
+	var panel_width: float = clamp(viewport_size.x * 0.78, 280.0, min(820.0, viewport_size.x - float(outer_margin * 2)))
+	var panel_height_cap: float = max(280.0, viewport_size.y - float(outer_margin * 2) - 170.0)
+	var panel_height: float = clamp(viewport_size.y * 0.62, 340.0, panel_height_cap)
+	var panel_size := Vector2(panel_width, panel_height)
+	panel_shell.custom_minimum_size = panel_size
+	panel.custom_minimum_size = panel_size
 
-	var carousel_sep: int = track_carousel.get_theme_constant("separation")
-	var side_buttons_width: float = track_prev.get_combined_minimum_size().x + track_next.get_combined_minimum_size().x + float(carousel_sep * 2)
-	track_name_host.custom_minimum_size.x = max(120.0, content_width - side_buttons_width)
+	var inner_margin: int = int(round(clamp(panel_width * 0.05, 16.0, 34.0)))
+	content_margin.add_theme_constant_override("margin_left", inner_margin)
+	content_margin.add_theme_constant_override("margin_top", inner_margin)
+	content_margin.add_theme_constant_override("margin_right", inner_margin)
+	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
-	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	track_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	track_carousel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_fit_label_font_to_width(title_label, content_width, 34)
-	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.09, 86.0, 118.0)
+	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.095, 84.0, 118.0)
+	track_selector.custom_minimum_size.y = clamp(viewport_size.y * 0.09, 86.0, 104.0)
 
-	var menu_sep: float = float(menu_box.get_theme_constant("separation"))
-	var content_height: float = 0.0
-	var visible_children: int = 0
-	for child in menu_box.get_children():
-		var control := child as Control
-		if control == null or not control.visible:
-			continue
-		visible_children += 1
-		content_height += control.get_combined_minimum_size().y
-	var gap_count: int = max(0, visible_children - 1)
-	content_height += menu_sep * float(gap_count)
-
-	var min_panel_height: float = min(320.0, max_panel_height)
-	var panel_height: float = clamp(content_height + (inside_edge_padding * 2.0), min_panel_height, max_panel_height)
-	var panel_size: Vector2 = Vector2(panel_width, panel_height)
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	panel.position = (viewport_size - panel_size) * 0.5
-	panel.size = panel_size
-
-	var content_size: Vector2 = Vector2(content_width, max(120.0, panel_height - (inside_edge_padding * 2.0)))
-
-	menu_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	menu_box.position = panel.position + Vector2(inside_edge_padding, inside_edge_padding)
-	menu_box.size = content_size
+	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
+	account_button.custom_minimum_size = Vector2(icon_size, icon_size)
+	shop_button.custom_minimum_size = Vector2(icon_size, icon_size)
 
 	_refresh_title_pivots()
 
-func _fit_label_font_to_width(label: Label, target_width: float, min_size: int) -> void:
-	if label == null:
-		return
-	var theme_font: Font = label.get_theme_font("font")
-	if theme_font == null:
-		return
-	var font_size: int = label.get_theme_font_size("font_size")
-	var clamped_width: float = max(40.0, target_width)
-	while font_size > min_size and theme_font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > clamped_width:
-		font_size -= 1
-	label.add_theme_font_size_override("font_size", font_size)
-
 func _refresh_title_pivots() -> void:
-	if title_label == null:
-		return
-	title_label.pivot_offset = title_label.size * 0.5
-	if track_name:
-		track_name.pivot_offset = track_name.size * 0.5
+	if title_label:
+		title_label.pivot_offset = title_label.size * 0.5
 
 func _on_start_pressed() -> void:
 	RunManager.start_game()
@@ -164,10 +121,12 @@ func _apply_wallet_to_ui(wallet: Dictionary) -> void:
 func _populate_track_options() -> void:
 	_tracks = MusicManager.get_available_tracks()
 	_track_index = _selected_index_for_id(MusicManager.get_current_track_id(), _tracks)
-	var can_cycle: bool = _tracks.size() > 1
-	track_prev.disabled = not can_cycle
-	track_next.disabled = not can_cycle
-	_refresh_track_name(false)
+	var names: Array[String] = []
+	for track_data in _tracks:
+		names.append(str(track_data.get("name", "Track")))
+	track_selector.tracks = names
+	track_selector.current_index = _track_index
+	track_selector.set_expanded(false)
 
 func _selected_index_for_id(track_id: String, tracks: Array[Dictionary]) -> int:
 	for i in range(tracks.size()):
@@ -184,32 +143,19 @@ func _on_track_next_pressed() -> void:
 func _cycle_track(step: int) -> void:
 	if _tracks.is_empty():
 		return
+	if track_selector != null:
+		track_selector.cycle_track(step)
+		return
 	_track_index = posmod(_track_index + step, _tracks.size())
 	var track_id: String = str(_tracks[_track_index].get("id", ""))
 	MusicManager.set_track(track_id, true)
-	_refresh_track_name(true, step)
 
-func _refresh_track_name(animated: bool, direction: int = 1) -> void:
+func _on_track_selector_track_changed(_track_name: String, index: int) -> void:
 	if _tracks.is_empty():
-		track_name.text = ""
 		return
-	track_name.text = str(_tracks[_track_index].get("name", "Track"))
-	if track_name:
-		track_name.pivot_offset = track_name.size * 0.5
-	if not animated:
-		track_name.modulate = Color(1, 1, 1, 1)
-		track_name.scale = Vector2.ONE
-		track_name.position.x = 0.0
-		return
-	if is_instance_valid(_track_slide_tween):
-		_track_slide_tween.kill()
-	var offset: float = 22.0 * float(sign(direction))
-	var dir_scale: float = 1.0 + (0.05 * float(sign(direction)))
-	track_name.position.x = offset
-	track_name.scale = Vector2(dir_scale, 1.0)
-	track_name.modulate.a = 0.0
-	_track_slide_tween = create_tween()
-	_track_slide_tween.set_parallel(true)
-	_track_slide_tween.tween_property(track_name, "position:x", 0.0, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_track_slide_tween.tween_property(track_name, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_track_slide_tween.tween_property(track_name, "modulate:a", 1.0, 0.2)
+	_track_index = clampi(index, 0, _tracks.size() - 1)
+	var track_id: String = str(_tracks[_track_index].get("id", ""))
+	MusicManager.set_track(track_id, true)
+
+func _on_track_selector_expanded_changed(_is_expanded: bool) -> void:
+	pass

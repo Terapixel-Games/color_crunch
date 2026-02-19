@@ -1,9 +1,3 @@
-databases:
-  - name: colorcrunch-nakama-db
-    databaseName: colorcrunch
-    user: colorcrunch
-    plan: basic-256mb
-
 services:
   - type: web
     name: colorcrunch-nakama
@@ -15,26 +9,32 @@ services:
     envVars:
       - key: PORT
         value: "7350"
+      - key: DB_ADDRESS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: DB_HOST
         fromDatabase:
-          name: colorcrunch-nakama-db
+          name: terapixel-platform-db
           property: host
       - key: DB_PORT
         fromDatabase:
-          name: colorcrunch-nakama-db
+          name: terapixel-platform-db
           property: port
       - key: DB_NAME
-        fromDatabase:
-          name: colorcrunch-nakama-db
-          property: database
+        value: "colorcrunch"
       - key: DB_USER
         fromDatabase:
-          name: colorcrunch-nakama-db
+          name: terapixel-platform-db
           property: user
       - key: DB_PASSWORD
         fromDatabase:
-          name: colorcrunch-nakama-db
+          name: terapixel-platform-db
           property: password
+      - key: DB_SSLMODE
+        value: "require"
+      - key: DB_PARAMS
+        sync: false
       - key: TPX_PLATFORM_AUTH_URL
         sync: false
       - key: TPX_PLATFORM_EVENT_URL

@@ -13,6 +13,10 @@ This folder provides a local Nakama backend for Color Crunch with:
 - `backend/nakama/docker-compose.yml`: Local CockroachDB + Nakama stack.
 - `backend/nakama/local.yml`: Nakama runtime config.
 - `backend/nakama/modules/colorcrunch.js`: Runtime module with hooks and RPCs.
+- `backend/nakama/render/start.sh`: Container startup script (migrations + nginx proxy).
+- `backend/nakama/render/nginx.conf.template`: Single-port reverse proxy config.
+- `backend/nakama/cloudrun/service.template.yaml`: Cloud Run service template.
+- `backend/nakama/cloudrun/README.md`: Cloud Run deploy steps.
 
 ## Run Locally
 
@@ -24,7 +28,7 @@ Nakama ports:
 - API: `http://localhost:7350`
 - Console: `http://localhost:7351` (`admin` / `adminpassword`)
 
-## Runtime Environment Variables
+## Runtime Module Environment Variables
 
 Set these in `backend/nakama/local.yml` under `runtime.env`:
 
@@ -51,6 +55,18 @@ Set these in `backend/nakama/local.yml` under `runtime.env`:
 - `TPX_EXPORT_TARGET`: `ios`|`android`|`poki`|`crazygames`|`web` (used for provider selection; default `web`)
 - `TPX_HTTP_TIMEOUT_MS`: HTTP timeout for Terapixel calls (default `5000`).
 - `COLOR_CRUNCH_LEADERBOARD_ID`: Leaderboard ID (default `colorcrunch_high_scores`).
+
+## Container Database Environment Variables (Render and Cloud Run)
+
+`backend/nakama/render/start.sh` resolves DB config in this order:
+
+1. `DB_ADDRESS` (preferred; accepts with or without `postgres://` prefix)
+2. `DATABASE_URL`
+3. `DB_USER` + `DB_PASSWORD` + `DB_HOST` + `DB_NAME` (+ optional `DB_PORT`, `DB_SSLMODE`, `DB_PARAMS`)
+
+This supports shared Postgres infrastructure where multiple games connect to separate databases on a single Postgres instance.
+
+In this repo's Render blueprint, `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD` are bound from the existing shared Render database service `terapixel-platform-db`, and `DB_NAME` defaults to `colorcrunch`.
 
 ## RPC Contract
 
@@ -146,16 +162,19 @@ If the Terapixel auth URL is unset, Nakama auth proceeds without external verifi
 
 ## Deploy on Render
 
-This repo now includes a Render Blueprint at `render.yaml` for a managed Postgres database plus a Docker-based Nakama web service.
+This repo includes a Render Blueprint at `render.yaml` for a Docker-based Nakama web service that connects to a shared Postgres instance.
 
 1. In Render, create a new Blueprint deployment from this repo.
-2. Confirm the `colorcrunch-nakama` service and `colorcrunch-nakama-db` database are detected.
-3. Set secrets that are marked `sync: false`:
+2. Confirm the `colorcrunch-nakama` service is detected.
+3. Confirm the shared Postgres service `terapixel-platform-db` exists in Render (or update `render.yaml` if your shared DB service has a different name).
+4. Ensure database `colorcrunch` exists on that instance and the shared DB user can run Nakama migrations.
+5. Optional override: set `DB_ADDRESS` directly if you want explicit connection-string control.
+6. Set secrets that are marked `sync: false`:
    - `TPX_PLATFORM_AUTH_URL` (optional)
    - `TPX_PLATFORM_EVENT_URL` (optional)
    - `TPX_PLATFORM_API_KEY` (optional)
    - `NAKAMA_CONSOLE_PASSWORD` (recommended)
-4. Deploy.
+7. Deploy.
 
 The Render startup script (`backend/nakama/render/start.sh`) runs migrations, starts Nakama on internal ports, and fronts it with nginx on Render's public `PORT`.
 
@@ -163,3 +182,13 @@ On Render:
 
 - API/Client endpoints: `https://<your-service>.onrender.com/`
 - Console: `https://<your-service>.onrender.com/console/`
+
+## Deploy on Cloud Run
+
+Cloud Run deployment scaffolding is included under `backend/nakama/cloudrun/`.
+
+1. Build and push the image with `backend/nakama/Dockerfile.render`.
+2. Create the required secrets (including `nakama-db-address` for shared Postgres).
+3. Render `backend/nakama/cloudrun/service.template.yaml` placeholders and apply with `gcloud run services replace`.
+
+Use `backend/nakama/cloudrun/README.md` for exact commands.
