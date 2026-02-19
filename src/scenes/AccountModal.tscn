@@ -1,12 +1,33 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=10 format=3]
 
-[ext_resource type="Script" path="res://src/scenes/AccountModal.gd" id=1]
-[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id=2]
-[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=3]
+[ext_resource type="Script" path="res://src/scenes/AccountModal.gd" id="1"]
+[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPFrostedPanel.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPHeaderBar.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPSectionHeader.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPButton.tscn" id="6"]
+
+[sub_resource type="StyleBoxFlat" id="1"]
+bg_color = Color(0.05, 0.1, 0.2, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.88, 0.95, 1, 0.34)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+anti_aliasing_size = 1.1
+
+[sub_resource type="StyleBoxFlat" id="2"]
+bg_color = Color(0.06, 0.1, 0.19, 0.42)
+border_width_bottom = 1
+border_color = Color(0.82, 0.92, 1, 0.2)
 
 [node name="AccountModal" type="Control"]
-theme = ExtResource( 2 )
-script = ExtResource( 1 )
+theme = ExtResource("2")
+script = ExtResource("1")
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 1
@@ -14,22 +35,34 @@ mouse_filter = 1
 [node name="Backdrop" type="ColorRect" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.45)
+color = Color(0.02, 0.04, 0.09, 0.62)
 mouse_filter = 0
 
-[node name="Panel" type="PanelContainer" parent="."]
-anchor_left = 0.03
-anchor_top = 0.04
-anchor_right = 0.97
-anchor_bottom = 0.96
-
-[node name="VBox" type="VBoxContainer" parent="Panel"]
-theme_override_constants/separation = 8
+[node name="Panel" parent="." instance=ExtResource("3")]
+anchor_left = 0.04
+anchor_top = 0.03
+anchor_right = 0.96
+anchor_bottom = 0.97
 mouse_filter = 2
 
-[node name="Title" type="Label" parent="Panel/VBox"]
-text = "Account"
-horizontal_alignment = 1
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="TopInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Header" parent="Panel/VBox" instance=ExtResource("4")]
 
 [node name="Status" type="Label" parent="Panel/VBox"]
 text = "Link account with magic link"
@@ -38,43 +71,99 @@ autowrap_mode = 3
 
 [node name="Scroll" type="ScrollContainer" parent="Panel/VBox"]
 size_flags_vertical = 3
+size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="Content" type="VBoxContainer" parent="Panel/VBox/Scroll"]
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 10
 mouse_filter = 2
 
-[node name="Email" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
-placeholder_text = "email@example.com"
+[node name="LinkHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
 
-[node name="SendMagicLink" type="Button" parent="Panel/VBox/Scroll/Content"]
-script = ExtResource( 3 )
+[node name="Email" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 60)
+placeholder_text = "email@example.com"
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("1")
+theme_override_styles/read_only = SubResource("1")
+
+[node name="SendMagicLink" parent="Panel/VBox/Scroll/Content" instance=ExtResource("6")]
 text = "Send Magic Link"
 
-[node name="Username" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
-placeholder_text = "username (3-20 chars)"
+[node name="UsernameHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
 
-[node name="UpdateUsername" type="Button" parent="Panel/VBox/Scroll/Content"]
-script = ExtResource( 3 )
+[node name="Username" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 60)
+placeholder_text = "username (3-20 chars)"
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("1")
+theme_override_styles/read_only = SubResource("1")
+
+[node name="UpdateUsername" parent="Panel/VBox/Scroll/Content" instance=ExtResource("6")]
 text = "Set Username (Free)"
 
-[node name="MergeCode" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
-placeholder_text = "merge code"
+[node name="MergeHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
 
-[node name="CreateMergeCode" type="Button" parent="Panel/VBox/Scroll/Content"]
-script = ExtResource( 3 )
+[node name="MergeCode" type="LineEdit" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 60)
+placeholder_text = "merge code"
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("1")
+theme_override_styles/read_only = SubResource("1")
+
+[node name="CreateMergeCode" parent="Panel/VBox/Scroll/Content" instance=ExtResource("6")]
 text = "Create Merge Code"
 
-[node name="RedeemMergeCode" type="Button" parent="Panel/VBox/Scroll/Content"]
-script = ExtResource( 3 )
+[node name="RedeemMergeCode" parent="Panel/VBox/Scroll/Content" instance=ExtResource("6")]
 text = "Redeem Merge Code"
 
-[node name="Close" type="Button" parent="Panel/VBox"]
-script = ExtResource( 3 )
+[node name="Footer" type="PanelContainer" parent="Panel/VBox"]
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("2")
+
+[node name="Close" parent="Panel/VBox/Footer" instance=ExtResource("6")]
+anchors_preset = 10
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = -34.0
+offset_right = 210.0
+offset_bottom = 34.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "Close"
 
+[node name="BottomInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Title" parent="Panel/VBox/Header" index="1"]
+text = "Account"
+
+[node name="RightSlot" parent="Panel/VBox/Header" index="2"]
+visible = false
+
+[node name="Label" parent="Panel/VBox/Scroll/Content/LinkHeader"]
+size_flags_horizontal = 3
+text = "Link account with magic link"
+horizontal_alignment = 1
+
+[node name="Line" parent="Panel/VBox/Scroll/Content/LinkHeader" index="2"]
+visible = false
+
+[node name="Label" parent="Panel/VBox/Scroll/Content/UsernameHeader"]
+text = "Username"
+
+[node name="Label" parent="Panel/VBox/Scroll/Content/MergeHeader"]
+text = "Merge Accounts"
+
+[connection signal="pressed" from="Panel/VBox/Header/Back" to="." method="_on_close_pressed"]
 [connection signal="pressed" from="Panel/VBox/Scroll/Content/SendMagicLink" to="." method="_on_send_magic_link_pressed"]
 [connection signal="pressed" from="Panel/VBox/Scroll/Content/UpdateUsername" to="." method="_on_update_username_pressed"]
 [connection signal="pressed" from="Panel/VBox/Scroll/Content/CreateMergeCode" to="." method="_on_create_merge_code_pressed"]
 [connection signal="pressed" from="Panel/VBox/Scroll/Content/RedeemMergeCode" to="." method="_on_redeem_merge_code_pressed"]
-[connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]
+[connection signal="pressed" from="Panel/VBox/Footer/Close" to="." method="_on_close_pressed"]

@@ -67,18 +67,8 @@ func _ready() -> void:
 		AdManager.connect("rewarded_powerup_earned", Callable(self, "_on_powerup_rewarded_earned"))
 	if not AdManager.is_connected("rewarded_closed", Callable(self, "_on_powerup_rewarded_closed")):
 		AdManager.connect("rewarded_closed", Callable(self, "_on_powerup_rewarded_closed"))
-	_undo_charges = FeatureFlags.powerup_undo_charges()
-	_remove_color_charges = FeatureFlags.powerup_remove_color_charges()
-	_shuffle_charges = FeatureFlags.powerup_shuffle_charges()
-	await NakamaService.refresh_wallet(false)
-	var wallet_shop: Dictionary = NakamaService.get_shop_state()
-	if not wallet_shop.is_empty():
-		ThemeManager.apply_from_shop_state(wallet_shop)
-		ThemeManager.apply_to_scene(self)
-	var stored_powerups: Dictionary = wallet_shop.get("powerups", {})
-	_undo_charges += int(stored_powerups.get("undo", 0))
-	_remove_color_charges += int(stored_powerups.get("prism", 0))
-	_shuffle_charges += int(stored_powerups.get("shuffle", 0))
+	var use_feature_flag_fallback: bool = not bool(ProjectSettings.get_setting("color_crunch/nakama_enable_client", true))
+	_set_powerup_charges_from_inventory(SaveStore.get_owned_powerups(), use_feature_flag_fallback)
 	if board_frame:
 		board_frame.visible = false
 	if board_glow:
@@ -96,6 +86,14 @@ func _ready() -> void:
 	powerup_flash.visible = false
 	_update_score()
 	_update_powerup_buttons()
+
+	var wallet_result: Dictionary = await NakamaService.refresh_wallet(false)
+	var wallet_shop: Dictionary = NakamaService.get_shop_state()
+	if wallet_result.get("ok", false):
+		if not wallet_shop.is_empty():
+			ThemeManager.apply_from_shop_state(wallet_shop)
+			ThemeManager.apply_to_scene(self)
+
 	_center_board()
 	_play_enter_transition()
 
@@ -330,6 +328,32 @@ func _powerup_button_icon(base_icon: Texture2D, powerup_type: String) -> Texture
 		return ICON_LOADING
 	return base_icon
 
+func _set_powerup_charges_from_inventory(powerups_value: Variant, allow_feature_flag_fallback: bool) -> void:
+	var powerups: Dictionary = _sanitize_powerup_inventory(powerups_value)
+	if allow_feature_flag_fallback and _is_powerup_inventory_empty(powerups):
+		_undo_charges = FeatureFlags.powerup_undo_charges()
+		_remove_color_charges = FeatureFlags.powerup_remove_color_charges()
+		_shuffle_charges = FeatureFlags.powerup_shuffle_charges()
+		return
+	_undo_charges = int(powerups.get("undo", 0))
+	_remove_color_charges = int(powerups.get("prism", 0))
+	_shuffle_charges = int(powerups.get("shuffle", 0))
+
+func _sanitize_powerup_inventory(powerups_value: Variant) -> Dictionary:
+	if typeof(powerups_value) != TYPE_DICTIONARY:
+		return {"undo": 0, "prism": 0, "shuffle": 0}
+	var input: Dictionary = powerups_value as Dictionary
+	return {
+		"undo": max(0, int(input.get("undo", 0))),
+		"prism": max(0, int(input.get("prism", 0))),
+		"shuffle": max(0, int(input.get("shuffle", 0))),
+	}
+
+func _is_powerup_inventory_empty(powerups: Dictionary) -> bool:
+	return int(powerups.get("undo", 0)) <= 0 \
+		and int(powerups.get("prism", 0)) <= 0 \
+		and int(powerups.get("shuffle", 0)) <= 0
+
 func _update_badge(label: Label, charges: int, is_loading: bool) -> void:
 	if label == null:
 		return
@@ -382,7 +406,7 @@ func _finish_run(completed_by_gameplay: bool) -> void:
 	_ending_transition_started = true
 	await _play_end_transition()
 	_run_finished = true
-	var elapsed := max(0, Time.get_unix_time_from_system() - _run_started_at_unix)
+	var elapsed : int = max(0, Time.get_unix_time_from_system() - _run_started_at_unix)
 	NakamaService.track_client_event("gameplay.run_finished", {
 		"score": score,
 		"combo": combo,
@@ -503,4 +527,3 @@ func _center_board() -> void:
 		(view_size.x - board_size.x) * 0.5,
 		top_limit + ((available_height - board_size.y) * 0.5)
 	)
-

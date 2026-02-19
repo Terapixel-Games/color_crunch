@@ -1,0 +1,86 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://src/ui/components/TPButton.tscn" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/arrow_left.tres" id="2"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/star.tres" id="3"]
+
+[sub_resource type="StyleBoxFlat" id="1"]
+bg_color = Color(0.09, 0.14, 0.27, 0.5)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.96, 1, 0.4)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+shadow_color = Color(0.03, 0.07, 0.16, 0.34)
+shadow_size = 4
+anti_aliasing_size = 1.1
+
+[node name="TPHeaderBar" type="HBoxContainer"]
+mouse_filter = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 86)
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Back" parent="." instance=ExtResource("1")]
+custom_minimum_size = Vector2(76, 64)
+size_flags_horizontal = 0
+text = ""
+icon = ExtResource("2")
+expand_icon = true
+icon_alignment = 1
+corner_radius = 0.48
+
+[node name="Title" type="Label" parent="."]
+size_flags_horizontal = 3
+text = "Title"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RightSlot" type="VBoxContainer" parent="."]
+size_flags_horizontal = 8
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 0
+
+[node name="CoinPill" type="PanelContainer" parent="RightSlot"]
+custom_minimum_size = Vector2(156, 52)
+size_flags_horizontal = 8
+mouse_filter = 2
+theme_override_styles/panel = SubResource("1")
+
+[node name="Row" type="HBoxContainer" parent="RightSlot/CoinPill"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 7.0
+offset_right = -12.0
+offset_bottom = -7.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="CoinIcon" type="TextureRect" parent="RightSlot/CoinPill/Row"]
+custom_minimum_size = Vector2(24, 24)
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Balance" type="Label" parent="RightSlot/CoinPill/Row"]
+text = "0"
+vertical_alignment = 1
+
+[node name="RefreshWallet" parent="RightSlot" instance=ExtResource("1")]
+custom_minimum_size = Vector2(156, 48)
+size_flags_horizontal = 8
+tint = Color(0.88, 0.95, 1, 0.12)
+edge_highlight = Color(0.9, 0.96, 1, 0.34)
+corner_radius = 0.48
+text = "Refresh Wallet"

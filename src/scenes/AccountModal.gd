@@ -1,25 +1,49 @@
 extends Control
 
 @onready var status_label: Label = $Panel/VBox/Status
+@onready var backdrop: ColorRect = $Backdrop
+@onready var panel: Control = $Panel
+@onready var panel_vbox: VBoxContainer = $Panel/VBox
+@onready var top_inset: Control = $Panel/VBox/TopInset
+@onready var header_title: Label = $Panel/VBox/Header/Title
+@onready var header_bar: Control = $Panel/VBox/Header
+@onready var scroll_container: ScrollContainer = $Panel/VBox/Scroll
+@onready var scroll_content: Control = $Panel/VBox/Scroll/Content
+@onready var footer_panel: PanelContainer = $Panel/VBox/Footer
+@onready var close_button: Button = $Panel/VBox/Footer/Close
+@onready var bottom_inset: Control = $Panel/VBox/BottomInset
 @onready var email_input: LineEdit = $Panel/VBox/Scroll/Content/Email
 @onready var send_magic_link_button: Button = $Panel/VBox/Scroll/Content/SendMagicLink
+@onready var username_header: Control = $Panel/VBox/Scroll/Content/UsernameHeader
 @onready var merge_code_input: LineEdit = $Panel/VBox/Scroll/Content/MergeCode
 @onready var username_input: LineEdit = $Panel/VBox/Scroll/Content/Username
 @onready var username_button: Button = $Panel/VBox/Scroll/Content/UpdateUsername
+@onready var merge_header: Control = $Panel/VBox/Scroll/Content/MergeHeader
+@onready var merge_create_button: Button = $Panel/VBox/Scroll/Content/CreateMergeCode
+@onready var merge_redeem_button: Button = $Panel/VBox/Scroll/Content/RedeemMergeCode
 
 var _polling_magic_link := false
 var _username_cost := 0
 var _magic_link_token := ""
+var _closing := false
+var _open_tween: Tween
+var _close_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Typography.style_save_streak(self)
+	header_title.text = "Account"
+	_layout_modal()
+	call_deferred("_layout_modal")
+	_refresh_panel_pivot()
+	call_deferred("_refresh_panel_pivot")
+	_play_open_animation()
 	ThemeManager.apply_to_scene(get_tree().current_scene)
 	username_input.text = NakamaService.get_username()
+	_set_merge_section_visible(false)
 	_refresh_account_controls()
 	if not NakamaService.auth_state_changed.is_connected(_on_auth_state_changed):
 		NakamaService.auth_state_changed.connect(_on_auth_state_changed)
-	_refresh_username_policy()
 
 func _on_send_magic_link_pressed() -> void:
 	if NakamaService.is_linked_account():
@@ -93,7 +117,17 @@ func _on_redeem_merge_code_pressed() -> void:
 	status_label.text = "Accounts merged."
 
 func _on_close_pressed() -> void:
-	queue_free()
+	if _closing:
+		return
+	_closing = true
+	if is_instance_valid(_open_tween):
+		_open_tween.kill()
+	_close_tween = create_tween()
+	_close_tween.set_parallel(true)
+	_close_tween.tween_property(panel, "scale", Vector2(0.98, 0.98), 0.14)
+	_close_tween.tween_property(panel, "modulate:a", 0.0, 0.14)
+	_close_tween.tween_property(backdrop, "modulate:a", 0.0, 0.14)
+	_close_tween.finished.connect(queue_free)
 
 func _on_update_username_pressed() -> void:
 	var desired := username_input.text.strip_edges().to_lower()
@@ -167,6 +201,8 @@ func _poll_magic_link_completion(ml_token: String = "") -> void:
 
 func _refresh_account_controls() -> void:
 	var linked := NakamaService.is_linked_account()
+	_set_merge_section_visible(false)
+	_set_username_section_visible(linked)
 	if linked:
 		var linked_email := NakamaService.get_linked_email()
 		if linked_email.is_empty():
@@ -180,11 +216,33 @@ func _refresh_account_controls() -> void:
 			status_label.text = "Logged in as: linked account"
 		email_input.editable = false
 		send_magic_link_button.text = "Logout"
+		_refresh_username_policy()
 	else:
 		email_input.editable = true
 		send_magic_link_button.text = "Send Magic Link"
+		_username_cost = 0
+		username_button.text = "Set Username (Free)"
 		if status_label.text.begins_with("Logged in as:"):
 			status_label.text = "Link account with magic link"
+	call_deferred("_layout_modal")
+
+func _set_username_section_visible(visible: bool) -> void:
+	if username_header != null:
+		username_header.visible = visible
+	if username_input != null:
+		username_input.visible = visible
+	if username_button != null:
+		username_button.visible = visible
+
+func _set_merge_section_visible(visible: bool) -> void:
+	if merge_header != null:
+		merge_header.visible = visible
+	if merge_code_input != null:
+		merge_code_input.visible = visible
+	if merge_create_button != null:
+		merge_create_button.visible = visible
+	if merge_redeem_button != null:
+		merge_redeem_button.visible = visible
 
 func _on_auth_state_changed(_is_authenticated: bool, _user_id: String) -> void:
 	if not is_inside_tree():
@@ -251,3 +309,109 @@ func _safe_email_domain(email: String) -> String:
 	if at_idx < 0:
 		return ""
 	return cleaned.substr(at_idx + 1)
+
+func _notification(what: int) -> void:
+	if what == Control.NOTIFICATION_RESIZED:
+		_layout_modal()
+		_refresh_panel_pivot()
+
+func _layout_modal() -> void:
+	if panel == null or panel_vbox == null:
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var outer_margin: float = clamp(viewport_size.x * 0.04, 18.0, 28.0)
+	var panel_width: float = clamp(viewport_size.x - (outer_margin * 2.0), 420.0, viewport_size.x - 12.0)
+	var max_panel_height: float = clamp(viewport_size.y - (outer_margin * 2.0), 520.0, viewport_size.y - 12.0)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.size = Vector2(panel_width, max_panel_height)
+	panel.position = (viewport_size - panel.size) * 0.5
+
+	var margin_x: float = clamp(panel_width * 0.07, 26.0, 40.0)
+	var panel_inner_width: float = max(280.0, panel_width - (margin_x * 2.0))
+	var content_inset: float = clamp(panel_inner_width * 0.03, 14.0, 24.0)
+	var content_width: float = clamp(panel_inner_width - (content_inset * 2.0), 280.0, panel_inner_width)
+	var inside_edge_padding: float = margin_x + content_inset
+
+	if top_inset != null:
+		top_inset.custom_minimum_size.y = inside_edge_padding
+	if bottom_inset != null:
+		bottom_inset.custom_minimum_size.y = inside_edge_padding
+
+	for path in [
+		"Panel/VBox/Header",
+		"Panel/VBox/Status",
+		"Panel/VBox/Scroll",
+		"Panel/VBox/Scroll/Content",
+		"Panel/VBox/Footer",
+	]:
+		_apply_centered_content_width(path, content_width)
+
+	if footer_panel != null:
+		footer_panel.custom_minimum_size.y = 66.0
+
+	if close_button != null:
+		close_button.size_flags_horizontal = Control.SIZE_FILL
+		close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		close_button.custom_minimum_size = Vector2(0.0, 54.0)
+		close_button.set_anchors_preset(Control.PRESET_FULL_RECT)
+		close_button.offset_left = 0.0
+		close_button.offset_top = 0.0
+		close_button.offset_right = 0.0
+		close_button.offset_bottom = 0.0
+
+	var vbox_separation: float = float(panel_vbox.get_theme_constant("separation"))
+	var non_scroll_height: float = 0.0
+	var visible_vbox_children: int = 0
+	for child in panel_vbox.get_children():
+		var control := child as Control
+		if control == null or not control.visible:
+			continue
+		visible_vbox_children += 1
+		if control == scroll_container:
+			continue
+		non_scroll_height += control.get_combined_minimum_size().y
+
+	var scroll_content_height: float = 0.0
+	if scroll_content != null:
+		scroll_content_height = scroll_content.get_combined_minimum_size().y
+	if scroll_container != null:
+		scroll_container.custom_minimum_size.y = 0.0
+
+	var gap_count: int = max(0, visible_vbox_children - 1)
+	var inner_height_target: float = non_scroll_height + scroll_content_height + (vbox_separation * float(gap_count))
+	var target_panel_height: float = inner_height_target
+	panel.size = Vector2(panel_width, min(target_panel_height, max_panel_height))
+	panel.position = (viewport_size - panel.size) * 0.5
+
+func _apply_centered_content_width(path: String, width: float) -> void:
+	var control := get_node_or_null(path) as Control
+	if control == null:
+		return
+	control.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	control.custom_minimum_size.x = width
+
+func _refresh_panel_pivot() -> void:
+	if panel == null:
+		return
+	if panel.size.x <= 0.0 or panel.size.y <= 0.0:
+		return
+	panel.pivot_offset = panel.size * 0.5
+
+func _play_open_animation() -> void:
+	panel.scale = Vector2(0.98, 0.98)
+	panel.modulate.a = 0.0
+	backdrop.modulate.a = 0.0
+	_open_tween = create_tween()
+	_open_tween.set_parallel(true)
+	_open_tween.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_open_tween.tween_property(panel, "modulate:a", 1.0, 0.18)
+	_open_tween.tween_property(backdrop, "modulate:a", 1.0, 0.18)
+
+func _exit_tree() -> void:
+	if is_instance_valid(_open_tween):
+		_open_tween.kill()
+	if is_instance_valid(_close_tween):
+		_close_tween.kill()

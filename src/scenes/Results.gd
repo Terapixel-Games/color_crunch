@@ -9,6 +9,10 @@ extends Control
 @onready var coins_earned_label: Label = $UI/VBox/CoinsEarned
 @onready var coin_balance_label: Label = $UI/VBox/CoinBalance
 @onready var double_reward_button: Button = $UI/VBox/DoubleReward
+@onready var panel: Control = $UI/Panel
+@onready var box: VBoxContainer = $UI/VBox
+@onready var play_again_button: Button = $UI/VBox/PlayAgain
+@onready var menu_button: Button = $UI/VBox/Menu
 
 var _base_reward_claimed: bool = false
 var _double_reward_pending: bool = false
@@ -21,6 +25,8 @@ func _ready() -> void:
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_results(self)
 	ThemeManager.apply_to_scene(self)
+	_layout_results()
+	call_deferred("_layout_results")
 	_refresh_intro_pivots()
 	_update_labels()
 	_bind_online_signals()
@@ -53,12 +59,14 @@ func _update_labels() -> void:
 		coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
 	else:
 		coins_earned_label.text = "Coins earned: pending"
+	_layout_results()
 
 func _on_play_again_pressed() -> void:
 	AdManager.maybe_show_interstitial()
 	RunManager.start_game()
 
 func _on_menu_pressed() -> void:
+	AdManager.maybe_show_interstitial()
 	RunManager.goto_menu()
 
 func _play_intro() -> void:
@@ -80,12 +88,46 @@ func _play_intro() -> void:
 	t.tween_property(menu, "modulate:a", 1.0, 0.16)
 
 func _refresh_intro_pivots() -> void:
-	var panel: Control = $UI/Panel
-	var box: Control = $UI/VBox
 	if panel:
 		panel.pivot_offset = panel.size * 0.5
 	if box:
 		box.pivot_offset = box.size * 0.5
+
+func _layout_results() -> void:
+	if panel == null or box == null:
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var panel_size: Vector2 = Vector2(
+		clamp(viewport_size.x * 0.82, 520.0, viewport_size.x - 34.0),
+		clamp(viewport_size.y * 0.68, 980.0, viewport_size.y - 120.0)
+	)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = (viewport_size - panel_size) * 0.5
+	panel.size = panel_size
+
+	var margin_x: float = clamp(panel_size.x * 0.045, 18.0, 36.0)
+	var margin_y: float = clamp(panel_size.y * 0.04, 16.0, 40.0)
+	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
+	var separation: int = int(clamp(round(content_size.y * 0.012), 10.0, 20.0))
+	box.add_theme_constant_override("separation", separation)
+
+	var secondary_button_height: float = clamp(content_size.y * 0.07, 70.0, 88.0)
+	var primary_button_height: float = clamp(content_size.y * 0.09, 88.0, 116.0)
+	double_reward_button.custom_minimum_size.y = secondary_button_height
+	if play_again_button:
+		play_again_button.custom_minimum_size.y = primary_button_height
+	if menu_button:
+		menu_button.custom_minimum_size.y = primary_button_height
+
+	box.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	box.position = panel.position + Vector2(
+		(panel_size.x - content_size.x) * 0.5,
+		(panel_size.y - content_size.y) * 0.5
+	)
+	box.size = content_size
 
 func _bind_online_signals() -> void:
 	if not NakamaService.online_state_changed.is_connected(_on_online_state_changed):
@@ -191,4 +233,5 @@ func _mode_label() -> String:
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_results(self)
+		_layout_results()
 		_refresh_intro_pivots()

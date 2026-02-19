@@ -15,6 +15,11 @@ class_name GlassPanel
 @export var chromatic_strength := 0.5
 
 func _ready() -> void:
+	if DisplayServer.get_name() == "headless":
+		# Keep tests stable on headless runners by skipping shader setup.
+		material = null
+		color = tint
+		return
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/ui/LiquidGlassButton.gdshader")
 	mat.set_shader_parameter("blur", blur_radius)

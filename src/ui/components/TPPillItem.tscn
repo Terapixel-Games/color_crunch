@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id="1"]
+
+[node name="TPPillItem" type="Button"]
+custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+mouse_filter = 0
+script = ExtResource("1")
+text = "Powerup"
+icon_alignment = 0
+expand_icon = true
+corner_radius = 0.5

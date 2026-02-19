@@ -23,3 +23,13 @@
 - For modal layouts, verify both mobile portrait and desktop landscape so CTA buttons stay fully inside the panel and centered.
 - Keep button interaction tests with both hover and click behavior; hover-only success can hide input routing regressions.
 - Prefer atlas sprite-sheet icons over unicode glyph text for controls (`Pause`, arrows, powerups) to avoid font/render inconsistencies across devices.
+
+## Modal Layout Contract
+- Build modals with container layout only: `Backdrop` + frosted `Panel` + main `VBox`.
+- Use explicit `TopInset` and `BottomInset` controls inside the modal `VBox`; do not rely on container offsets for vertical padding.
+- Enforce equal effective inside spacing on all sides:
+  - side inset = panel side margin + content inset
+  - top inset = bottom inset = side inset
+- Modal panel height must shrink to content + insets, capped by viewport height; avoid fixed tall panel heights.
+- If content exceeds cap, only the modal body scrolls (`ScrollContainer` expands; header/footer stay visible).
+- Footer action buttons (for example `Close`, `Refresh Wallet`) must stay inside the glass panel.

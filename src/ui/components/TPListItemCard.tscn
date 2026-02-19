@@ -1,0 +1,67 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://src/ui/components/TPButton.tscn" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="1"]
+bg_color = Color(0.05, 0.09, 0.18, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.96, 1, 0.28)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0.03, 0.07, 0.14, 0.36)
+shadow_size = 6
+anti_aliasing_size = 1.1
+
+[node name="TPListItemCard" type="PanelContainer"]
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("1")
+
+[node name="Margin" type="MarginContainer" parent="."]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 11
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 11
+
+[node name="Row" type="HBoxContainer" parent="Margin"]
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 24
+alignment = 0
+
+[node name="Icon" type="TextureRect" parent="Margin/Row"]
+custom_minimum_size = Vector2(46, 46)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Texts" type="VBoxContainer" parent="Margin/Row"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="Margin/Row/Texts"]
+text = "Title"
+vertical_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/Row/Texts"]
+text = "Subtitle"
+vertical_alignment = 1
+
+[node name="ActionButton" parent="Margin/Row" instance=ExtResource("1")]
+custom_minimum_size = Vector2(116, 52)
+size_flags_horizontal = 0
+size_flags_vertical = 4
+alignment = 1
+text = "Buy"
+
+[node name="RightGap" type="Control" parent="Margin/Row"]
+custom_minimum_size = Vector2(8, 0)
+mouse_filter = 2

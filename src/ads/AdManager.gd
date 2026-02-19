@@ -62,7 +62,6 @@ func _bind_provider() -> void:
 
 func on_game_finished() -> void:
 	SaveStore.increment_games_played()
-	maybe_show_interstitial()
 
 func maybe_show_interstitial() -> void:
 	var games := int(SaveStore.data["games_played"])
@@ -219,6 +218,5 @@ func _ensure_provider_available() -> void:
 		return
 	provider = MockAdProviderScript.new()
 	_bind_provider()
-
 
 

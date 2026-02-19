@@ -35,6 +35,10 @@ func _ready() -> void:
 	_last_disabled = disabled
 	_sync_glass_state()
 
+func _can_use_glass_shader() -> bool:
+	# Headless test runs can crash in some environments when creating UI shaders.
+	return DisplayServer.get_name() != "headless"
+
 func _process(_delta: float) -> void:
 	if _last_disabled != disabled:
 		_last_disabled = disabled
@@ -90,6 +94,11 @@ func _apply_style_overrides() -> void:
 	add_theme_constant_override("outline_size", 2)
 
 func _ensure_glass_layer() -> void:
+	if not _can_use_glass_shader():
+		var existing: ColorRect = get_node_or_null("LiquidGlassLayer") as ColorRect
+		if existing:
+			existing.queue_free()
+		return
 	var layer: ColorRect = get_node_or_null("LiquidGlassLayer") as ColorRect
 	if layer == null:
 		layer = ColorRect.new()
@@ -151,7 +160,7 @@ func _apply_shader_profile(mat: ShaderMaterial, target_tint: Color, target_edge:
 	mat.set_shader_parameter("chromatic_strength", chromatic_strength)
 
 func _on_button_down() -> void:
-	_animate_scale(_base_scale * Vector2(0.965, 0.965), 0.08)
+	_animate_scale(_base_scale * Vector2(0.98, 0.98), 0.08)
 
 func _on_button_up() -> void:
 	_animate_scale(_base_scale, 0.12)
@@ -160,5 +169,5 @@ func _animate_scale(target: Vector2, duration: float) -> void:
 	if is_instance_valid(_press_tween):
 		_press_tween.kill()
 	_press_tween = create_tween()
-	_press_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_press_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_press_tween.tween_property(self, "scale", target, duration)

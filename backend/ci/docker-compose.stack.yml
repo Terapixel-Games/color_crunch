@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  terapixel-platform:
+    build:
+      context: .
+      dockerfile: backend/ci/terapixel-platform/Dockerfile
+    environment:
+      PORT: "8080"
+      DB_PATH: /data/terapixel-platform.db
+      TPX_GAME_ID: color_crunch
+      INTERNAL_SERVICE_KEY: ci-internal-key
+    ports:
+      - "8080:8080"
+    volumes:
+      - tpx-platform-data:/data
+
+  cockroachdb:
+    image: cockroachdb/cockroach:v23.2.5
+    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/
+    restart: unless-stopped
+    ports:
+      - "26257:26257"
+
+  nakama:
+    image: heroiclabs/nakama:3.20.0
+    restart: unless-stopped
+    depends_on:
+      - cockroachdb
+      - terapixel-platform
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+    command:
+      - >
+        /nakama/nakama migrate up --database.address root@cockroachdb:26257 &&
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address root@cockroachdb:26257
+    volumes:
+      - ./backend/nakama/local.ci.yml:/nakama/data/local.yml:ro
+      - ./backend/nakama/modules:/nakama/data/modules:ro
+    ports:
+      - "7350:7350"
+      - "7351:7351"
+
+  godot-smoke:
+    build:
+      context: .
+      dockerfile: backend/ci/godot/Dockerfile
+      args:
+        GODOT_VERSION: "4.5.1"
+        GODOT_STATUS: "stable"
+    depends_on:
+      - nakama
+      - terapixel-platform
+    working_dir: /workspace
+    environment:
+      COLOR_CRUNCH_NAKAMA_BASE_URL: http://nakama:7350
+      COLOR_CRUNCH_NAKAMA_SERVER_KEY: colorcrunch-dev-key
+    volumes:
+      - ./:/workspace
+    command: ["/bin/bash", "/workspace/backend/ci/godot/run-smoke.sh"]
+
+volumes:
+  tpx-platform-data:

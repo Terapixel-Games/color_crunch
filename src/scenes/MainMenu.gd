@@ -41,8 +41,10 @@ func _ready() -> void:
 	_populate_track_options()
 	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
 		NakamaService.wallet_updated.connect(_on_wallet_updated)
+	start_button.disabled = true
 	await NakamaService.refresh_wallet(false)
 	_apply_wallet_to_ui(NakamaService.get_wallet())
+	start_button.disabled = false
 
 func _process(delta: float) -> void:
 	if FeatureFlags.is_visual_test_mode():
@@ -66,30 +68,54 @@ func _layout_menu() -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
-	# Keep menu panel centered in viewport coordinates for stable desktop/mobile alignment.
-	var panel_size: Vector2 = Vector2(
-		clamp(viewport_size.x * 0.76, 520.0, viewport_size.x - 34.0),
-		clamp(viewport_size.y * 0.60, 520.0, viewport_size.y - 140.0)
-	)
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	panel.position = (viewport_size - panel_size) * 0.5
-	panel.size = panel_size
+	var outer_margin: float = clamp(viewport_size.x * 0.04, 18.0, 28.0)
+	var available_width: float = max(280.0, viewport_size.x - (outer_margin * 2.0))
+	var available_height: float = max(320.0, viewport_size.y - (outer_margin * 2.0))
+	var min_panel_width: float = min(520.0, available_width)
+	var panel_width: float = clamp(viewport_size.x * 0.76, min_panel_width, available_width)
+	var max_panel_height: float = available_height
 
-	var margin_x: float = panel_size.x * 0.05
-	var margin_y: float = panel_size.y * 0.05
-	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
+	# Match modal spacing behavior: effective top/bottom spacing equals side spacing.
+	var margin_x: float = clamp(panel_width * 0.05, 22.0, 34.0)
+	var panel_inner_width: float = max(280.0, panel_width - (margin_x * 2.0))
+	var content_inset: float = clamp(panel_inner_width * 0.03, 12.0, 20.0)
+	var inside_edge_padding: float = margin_x + content_inset
+	var content_width: float = max(220.0, panel_width - (inside_edge_padding * 2.0))
+
 	var carousel_sep: int = track_carousel.get_theme_constant("separation")
 	var side_buttons_width: float = track_prev.get_combined_minimum_size().x + track_next.get_combined_minimum_size().x + float(carousel_sep * 2)
-	track_name_host.custom_minimum_size.x = max(120.0, content_size.x - side_buttons_width)
+	track_name_host.custom_minimum_size.x = max(120.0, content_width - side_buttons_width)
 
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	track_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	track_carousel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_fit_label_font_to_width(title_label, content_size.x, 34)
+	_fit_label_font_to_width(title_label, content_width, 34)
+	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.09, 86.0, 118.0)
+
+	var menu_sep: float = float(menu_box.get_theme_constant("separation"))
+	var content_height: float = 0.0
+	var visible_children: int = 0
+	for child in menu_box.get_children():
+		var control := child as Control
+		if control == null or not control.visible:
+			continue
+		visible_children += 1
+		content_height += control.get_combined_minimum_size().y
+	var gap_count: int = max(0, visible_children - 1)
+	content_height += menu_sep * float(gap_count)
+
+	var min_panel_height: float = min(320.0, max_panel_height)
+	var panel_height: float = clamp(content_height + (inside_edge_padding * 2.0), min_panel_height, max_panel_height)
+	var panel_size: Vector2 = Vector2(panel_width, panel_height)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = (viewport_size - panel_size) * 0.5
+	panel.size = panel_size
+
+	var content_size: Vector2 = Vector2(content_width, max(120.0, panel_height - (inside_edge_padding * 2.0)))
 
 	menu_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	menu_box.position = panel.position + Vector2((panel_size.x - content_size.x) * 0.5, (panel_size.y - content_size.y) * 0.5)
+	menu_box.position = panel.position + Vector2(inside_edge_padding, inside_edge_padding)
 	menu_box.size = content_size
 
 	_refresh_title_pivots()

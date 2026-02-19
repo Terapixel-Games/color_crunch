@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[node name="TPSectionHeader" type="HBoxContainer"]
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="LeftInset" type="Control" parent="."]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="."]
+text = "Section"
+vertical_alignment = 1
+
+[node name="Line" type="HSeparator" parent="."]
+size_flags_horizontal = 3
+
+[node name="RightInset" type="Control" parent="."]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2

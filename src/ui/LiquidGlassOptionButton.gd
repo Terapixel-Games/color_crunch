@@ -27,6 +27,10 @@ func _ready() -> void:
 	_last_disabled = disabled
 	_sync_glass_state()
 
+func _can_use_glass_shader() -> bool:
+	# Headless test runs can crash in some environments when creating UI shaders.
+	return DisplayServer.get_name() != "headless"
+
 func _process(_delta: float) -> void:
 	if _last_disabled != disabled:
 		_last_disabled = disabled
@@ -71,6 +75,11 @@ func _apply_style_overrides() -> void:
 	add_theme_constant_override("outline_size", 2)
 
 func _ensure_glass_layer() -> void:
+	if not _can_use_glass_shader():
+		var existing: ColorRect = get_node_or_null("LiquidGlassLayer") as ColorRect
+		if existing:
+			existing.queue_free()
+		return
 	var layer: ColorRect = get_node_or_null("LiquidGlassLayer") as ColorRect
 	if layer == null:
 		layer = ColorRect.new()

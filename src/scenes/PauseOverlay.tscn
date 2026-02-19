@@ -24,28 +24,38 @@ anchor_right = 0.87
 anchor_bottom = 0.72
 color = Color(0.03, 0.07, 0.15, 0.68)
 
-[node name="VBox" type="VBoxContainer" parent="."]
-anchor_left = 0.22
-anchor_top = 0.33
-anchor_right = 0.78
-anchor_bottom = 0.67
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 alignment = 1
 theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="VBox"]
+[node name="TopInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Panel/VBox"]
 text = "Paused"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 48
 
-[node name="Resume" type="Button" parent="VBox"]
+[node name="Resume" type="Button" parent="Panel/VBox"]
 script = ExtResource( 4 )
 text = "Resume"
 custom_minimum_size = Vector2(0, 102)
 
-[node name="Quit" type="Button" parent="VBox"]
+[node name="Quit" type="Button" parent="Panel/VBox"]
 script = ExtResource( 4 )
 text = "Quit"
 custom_minimum_size = Vector2(0, 102)
 
-[connection signal="pressed" from="VBox/Resume" to="." method="_on_resume_pressed"]
-[connection signal="pressed" from="VBox/Quit" to="." method="_on_quit_pressed"]
+[node name="BottomInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[connection signal="pressed" from="Panel/VBox/Resume" to="." method="_on_resume_pressed"]
+[connection signal="pressed" from="Panel/VBox/Quit" to="." method="_on_quit_pressed"]

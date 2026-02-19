@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id="1"]
+
+[node name="TPButton" type="Button"]
+custom_minimum_size = Vector2(0, 64)
+size_flags_horizontal = 3
+size_flags_vertical = 0
+mouse_filter = 0
+script = ExtResource("1")
+text = "Button"
+corner_radius = 0.36

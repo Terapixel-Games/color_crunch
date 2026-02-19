@@ -37,7 +37,7 @@ mouse_filter = 2
 
 [node name="Panel" type="ColorRect" parent="Center"]
 script = ExtResource( 2 )
-custom_minimum_size = Vector2(620, 760)
+custom_minimum_size = Vector2(520, 420)
 layout_mode = 2
 mouse_filter = 2
 color = Color(0.03, 0.07, 0.15, 0.68)
@@ -47,15 +47,20 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 48.0
-offset_top = 52.0
-offset_right = -48.0
-offset_bottom = -52.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 alignment = 1
 theme_override_constants/separation = 18
+
+[node name="TopInset" type="Control" parent="Center/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
 
 [node name="Title" type="Label" parent="Center/Panel/VBox"]
 layout_mode = 2
@@ -88,6 +93,11 @@ size_flags_horizontal = 3
 mouse_filter = 0
 text = "Not Now"
 custom_minimum_size = Vector2(0, 102)
+
+[node name="BottomInset" type="Control" parent="Center/Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
 
 [connection signal="pressed" from="Center/Panel/VBox/SaveButton" to="." method="_on_save_pressed"]
 [connection signal="pressed" from="Center/Panel/VBox/Close" to="." method="_on_close_pressed"]

@@ -1,12 +1,31 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=18 format=3]
 
-[ext_resource type="Script" path="res://src/scenes/ShopModal.gd" id=1]
-[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id=2]
-[ext_resource type="Script" path="res://src/ui/LiquidGlassButton.gd" id=3]
+[ext_resource type="Script" path="res://src/scenes/ShopModal.gd" id="1"]
+[ext_resource type="Theme" path="res://src/ui/UiTheme.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPFrostedPanel.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPHeaderBar.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPSectionHeader.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPListItemCard.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://src/ui/components/TPButton.tscn" id="8"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/star.tres" id="9"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_prism.tres" id="10"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_undo.tres" id="11"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/powerup_hint.tres" id="13"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/ad_video.tres" id="14"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/coin_26.png" id="15"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/coin_27.png" id="16"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/coin_28.png" id="17"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/coin_29.png" id="18"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/coin_30.png" id="19"]
+
+[sub_resource type="StyleBoxFlat" id="1"]
+bg_color = Color(0.06, 0.1, 0.19, 0.42)
+border_width_bottom = 1
+border_color = Color(0.82, 0.92, 1, 0.2)
 
 [node name="ShopModal" type="Control"]
-theme = ExtResource( 2 )
-script = ExtResource( 1 )
+theme = ExtResource("2")
+script = ExtResource("1")
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 1
@@ -14,125 +33,336 @@ mouse_filter = 1
 [node name="Backdrop" type="ColorRect" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.45)
+color = Color(0.02, 0.04, 0.09, 0.62)
 mouse_filter = 0
 
-[node name="Panel" type="PanelContainer" parent="."]
-anchor_left = 0.02
+[node name="Panel" parent="." instance=ExtResource("3")]
+anchor_left = 0.04
 anchor_top = 0.03
-anchor_right = 0.98
+anchor_right = 0.96
 anchor_bottom = 0.97
-
-[node name="VBox" type="VBoxContainer" parent="Panel"]
-theme_override_constants/separation = 8
 mouse_filter = 2
 
-[node name="Title" type="Label" parent="Panel/VBox"]
-text = "Shop"
-horizontal_alignment = 1
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="TopInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Header" parent="Panel/VBox" instance=ExtResource("4")]
+
+[node name="Back" parent="Panel/VBox/Header" index="0"]
+custom_minimum_size = Vector2(104, 64)
+icon_alignment = 1
+
+[node name="CoinPill" parent="Panel/VBox/Header/RightSlot" index="0"]
+custom_minimum_size = Vector2(104, 52)
+
+[node name="RefreshWallet" parent="Panel/VBox/Header/RightSlot" index="1"]
+visible = false
+mouse_filter = 2
 
 [node name="Status" type="Label" parent="Panel/VBox"]
 text = "Buy themes, powerups, and coins"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Coins" type="Label" parent="Panel/VBox"]
-text = "Coins: 0"
-horizontal_alignment = 1
+[node name="HeaderDivider" type="HSeparator" parent="Panel/VBox"]
+modulate = Color(1, 1, 1, 0.28)
+mouse_filter = 2
 
 [node name="Scroll" type="ScrollContainer" parent="Panel/VBox"]
 size_flags_vertical = 3
+size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="Content" type="VBoxContainer" parent="Panel/VBox/Scroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+mouse_filter = 2
+
+[node name="CoinPacksHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
+
+[node name="CoinPacksTopGap" type="Control" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 8)
+mouse_filter = 2
+
+[node name="CoinPacks" type="VBoxContainer" parent="Panel/VBox/Scroll/Content"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 mouse_filter = 2
 
-[node name="CoinPacksLabel" type="Label" parent="Panel/VBox/Scroll/Content"]
-text = "Coin Packs"
+[node name="Pack0" parent="Panel/VBox/Scroll/Content/CoinPacks" instance=ExtResource("6")]
 
-[node name="CoinPacks" type="VBoxContainer" parent="Panel/VBox/Scroll/Content"]
-theme_override_constants/separation = 6
+[node name="Pack1" parent="Panel/VBox/Scroll/Content/CoinPacks" instance=ExtResource("6")]
 
-[node name="Pack0" type="Button" parent="Panel/VBox/Scroll/Content/CoinPacks"]
-script = ExtResource( 3 )
-text = "Pack0"
+[node name="Pack2" parent="Panel/VBox/Scroll/Content/CoinPacks" instance=ExtResource("6")]
 
-[node name="Pack1" type="Button" parent="Panel/VBox/Scroll/Content/CoinPacks"]
-script = ExtResource( 3 )
-text = "Pack1"
+[node name="Pack3" parent="Panel/VBox/Scroll/Content/CoinPacks" instance=ExtResource("6")]
 
-[node name="Pack2" type="Button" parent="Panel/VBox/Scroll/Content/CoinPacks"]
-script = ExtResource( 3 )
-text = "Pack2"
+[node name="Pack4" parent="Panel/VBox/Scroll/Content/CoinPacks" instance=ExtResource("6")]
 
-[node name="Pack3" type="Button" parent="Panel/VBox/Scroll/Content/CoinPacks"]
-script = ExtResource( 3 )
-text = "Pack3"
+[node name="ThemesHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
 
-[node name="Pack4" type="Button" parent="Panel/VBox/Scroll/Content/CoinPacks"]
-script = ExtResource( 3 )
-text = "Pack4"
-
-[node name="RefreshWallet" type="Button" parent="Panel/VBox/Scroll/Content"]
-script = ExtResource( 3 )
-text = "Refresh Wallet"
+[node name="ThemesTopGap" type="Control" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 8)
+mouse_filter = 2
 
 [node name="Themes" type="VBoxContainer" parent="Panel/VBox/Scroll/Content"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+mouse_filter = 2
 
-[node name="Owned" type="Label" parent="Panel/VBox/Scroll/Content/Themes"]
-text = "Owned themes: default"
-autowrap_mode = 3
+[node name="ThemeDefault" parent="Panel/VBox/Scroll/Content/Themes" instance=ExtResource("6")]
 
-[node name="BuyNeon" type="Button" parent="Panel/VBox/Scroll/Content/Themes"]
-script = ExtResource( 3 )
-text = "Buy Neon (1500)"
+[node name="ThemeNeon" parent="Panel/VBox/Scroll/Content/Themes" instance=ExtResource("6")]
+mouse_filter = 1
 
-[node name="PreviewNeon" type="Button" parent="Panel/VBox/Scroll/Content/Themes"]
-script = ExtResource( 3 )
-text = "Preview Neon"
+[node name="Margin" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon" index="0"]
+offset_top = 12.0
+offset_right = -20.0
+offset_bottom = -12.0
+mouse_filter = 2
 
-[node name="EquipDefault" type="Button" parent="Panel/VBox/Scroll/Content/Themes"]
-script = ExtResource( 3 )
-text = "Equip Default"
+[node name="PowerupsHeader" parent="Panel/VBox/Scroll/Content" instance=ExtResource("5")]
 
-[node name="EquipNeon" type="Button" parent="Panel/VBox/Scroll/Content/Themes"]
-script = ExtResource( 3 )
-text = "Equip Neon"
-
-[node name="UnlockNeonAd" type="Button" parent="Panel/VBox/Scroll/Content/Themes"]
-script = ExtResource( 3 )
-text = "Ad Unlock Neon (24h)"
-
-[node name="PowerupsLabel" type="Label" parent="Panel/VBox/Scroll/Content"]
-text = "Powerups"
+[node name="PowerupsTopGap" type="Control" parent="Panel/VBox/Scroll/Content"]
+custom_minimum_size = Vector2(0, 8)
+mouse_filter = 2
 
 [node name="Powerups" type="VBoxContainer" parent="Panel/VBox/Scroll/Content"]
+size_flags_horizontal = 3
 theme_override_constants/separation = 6
+mouse_filter = 2
 
-[node name="BuyUndo" type="Button" parent="Panel/VBox/Scroll/Content/Powerups"]
-script = ExtResource( 3 )
-text = "Undo (120)"
+[node name="BuyUndo" parent="Panel/VBox/Scroll/Content/Powerups" instance=ExtResource("6")]
 
-[node name="BuyPrism" type="Button" parent="Panel/VBox/Scroll/Content/Powerups"]
-script = ExtResource( 3 )
-text = "Prism (180)"
+[node name="BuyPrism" parent="Panel/VBox/Scroll/Content/Powerups" instance=ExtResource("6")]
 
-[node name="BuyShuffle" type="Button" parent="Panel/VBox/Scroll/Content/Powerups"]
-script = ExtResource( 3 )
-text = "Shuffle (140)"
+[node name="BuyShuffle" parent="Panel/VBox/Scroll/Content/Powerups" instance=ExtResource("6")]
 
-[node name="Close" type="Button" parent="Panel/VBox"]
-script = ExtResource( 3 )
+[node name="Footer" type="PanelContainer" parent="Panel/VBox"]
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("1")
+
+[node name="Actions" type="VBoxContainer" parent="Panel/VBox/Footer"]
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="RefreshWallet" parent="Panel/VBox/Footer/Actions" instance=ExtResource("8")]
+custom_minimum_size = Vector2(0, 48)
+size_flags_horizontal = 3
+tint = Color(0.88, 0.95, 1, 0.12)
+edge_highlight = Color(0.9, 0.96, 1, 0.34)
+corner_radius = 0.48
+text = "Refresh Wallet"
+
+[node name="Close" parent="Panel/VBox/Footer/Actions" instance=ExtResource("8")]
+custom_minimum_size = Vector2(0, 54)
+size_flags_horizontal = 3
 text = "Close"
 
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/BuyNeon" to="." method="_on_buy_neon_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/PreviewNeon" to="." method="_on_preview_neon_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/EquipDefault" to="." method="_on_equip_default_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/EquipNeon" to="." method="_on_equip_neon_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/UnlockNeonAd" to="." method="_on_unlock_neon_ad_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyUndo" to="." method="_on_buy_undo_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyPrism" to="." method="_on_buy_prism_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyShuffle" to="." method="_on_buy_shuffle_pressed"]
-[connection signal="pressed" from="Panel/VBox/Scroll/Content/RefreshWallet" to="." method="_on_refresh_wallet_pressed"]
-[connection signal="pressed" from="Panel/VBox/Close" to="." method="_on_close_pressed"]
+[node name="BottomInset" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 0)
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Panel/VBox/Scroll/Content/CoinPacksHeader"]
+text = "Coin Packs"
+
+[node name="Label" type="Label" parent="Panel/VBox/Scroll/Content/ThemesHeader"]
+text = "Themes"
+
+[node name="Label" type="Label" parent="Panel/VBox/Scroll/Content/PowerupsHeader"]
+text = "Powerups"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack0/Margin/Row" index="0"]
+texture = ExtResource("15")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack0/Margin/Row/Texts" index="0"]
+text = "500"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack0/Margin/Row/Texts" index="1"]
+text = "$0.99"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack0/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack1/Margin/Row" index="0"]
+texture = ExtResource("16")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack1/Margin/Row/Texts" index="0"]
+text = "1200"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack1/Margin/Row/Texts" index="1"]
+text = "$1.99"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack1/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack2/Margin/Row" index="0"]
+texture = ExtResource("17")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack2/Margin/Row/Texts" index="0"]
+text = "3000"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack2/Margin/Row/Texts" index="1"]
+text = "$4.99"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack2/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack3/Margin/Row" index="0"]
+texture = ExtResource("18")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack3/Margin/Row/Texts" index="0"]
+text = "7500"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack3/Margin/Row/Texts" index="1"]
+text = "$9.99"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack3/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack4/Margin/Row" index="0"]
+texture = ExtResource("19")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack4/Margin/Row/Texts" index="0"]
+text = "20000"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack4/Margin/Row/Texts" index="1"]
+text = "$19.99"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/CoinPacks/Pack4/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row" index="0"]
+texture = ExtResource("9")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row/Texts" index="0"]
+text = "Default"
+
+[node name="Row" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin" index="0"]
+theme_override_constants/separation = 8
+
+[node name="Texts" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row" index="1"]
+size_flags_horizontal = 3
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row/Texts" index="1"]
+text = "Equip"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row" index="2"]
+custom_minimum_size = Vector2(108, 48)
+size_flags_horizontal = 0
+text = "Equip"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row" index="0"]
+texture = ExtResource("10")
+mouse_filter = 2
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/Texts" index="0"]
+text = "Prism"
+mouse_filter = 2
+
+[node name="Row" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin" index="0"]
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row" index="2"]
+visible = false
+custom_minimum_size = Vector2(0, 0)
+size_flags_horizontal = 0
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="Texts" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row" index="1"]
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/Texts" index="1"]
+text = "Equip"
+mouse_filter = 2
+
+[node name="ThemeNeonActions" type="HBoxContainer" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row"]
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/ThemeNeonActions" instance=ExtResource("8")]
+custom_minimum_size = Vector2(88, 48)
+size_flags_horizontal = 0
+text = "Buy"
+
+[node name="UnlockNeonAd" parent="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/ThemeNeonActions" instance=ExtResource("8")]
+custom_minimum_size = Vector2(88, 48)
+size_flags_horizontal = 0
+icon = ExtResource("14")
+expand_icon = true
+icon_max_width = 22
+icon_alignment = 0
+text = "Ad 24h"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row" index="0"]
+texture = ExtResource("11")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row/Texts" index="0"]
+text = "Undo"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row/Texts" index="1"]
+text = "Owned: 0 | 120 coins"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/Powerups/BuyPrism/Margin/Row" index="0"]
+texture = ExtResource("10")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/Powerups/BuyPrism/Margin/Row/Texts" index="0"]
+text = "Prism"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/Powerups/BuyPrism/Margin/Row/Texts" index="1"]
+text = "Owned: 0 | 180 coins"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Powerups/BuyPrism/Margin/Row" index="2"]
+text = "Buy"
+
+[node name="Icon" parent="Panel/VBox/Scroll/Content/Powerups/BuyShuffle/Margin/Row" index="0"]
+texture = ExtResource("13")
+
+[node name="Title" parent="Panel/VBox/Scroll/Content/Powerups/BuyShuffle/Margin/Row/Texts" index="0"]
+text = "Hint"
+
+[node name="Subtitle" parent="Panel/VBox/Scroll/Content/Powerups/BuyShuffle/Margin/Row/Texts" index="1"]
+text = "Owned: 0 | 140 coins"
+
+[node name="ActionButton" parent="Panel/VBox/Scroll/Content/Powerups/BuyShuffle/Margin/Row" index="2"]
+text = "Buy"
+
+[connection signal="pressed" from="Panel/VBox/Header/Back" to="." method="_on_close_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CoinPacks/Pack0/Margin/Row/ActionButton" to="." method="_on_coin_pack_pressed" binds= [0]]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CoinPacks/Pack1/Margin/Row/ActionButton" to="." method="_on_coin_pack_pressed" binds= [1]]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CoinPacks/Pack2/Margin/Row/ActionButton" to="." method="_on_coin_pack_pressed" binds= [2]]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CoinPacks/Pack3/Margin/Row/ActionButton" to="." method="_on_coin_pack_pressed" binds= [3]]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/CoinPacks/Pack4/Margin/Row/ActionButton" to="." method="_on_coin_pack_pressed" binds= [4]]
+[connection signal="pressed" from="Panel/VBox/Footer/Actions/RefreshWallet" to="." method="_on_refresh_wallet_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/ThemeDefault/Margin/Row/ActionButton" to="." method="_on_equip_default_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/ThemeNeonActions/ActionButton" to="." method="_on_theme_neon_action_pressed"]
+[connection signal="gui_input" from="Panel/VBox/Scroll/Content/Themes/ThemeNeon" to="." method="_on_theme_neon_row_gui_input"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Themes/ThemeNeon/Margin/Row/ThemeNeonActions/UnlockNeonAd" to="." method="_on_unlock_neon_ad_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyUndo/Margin/Row/ActionButton" to="." method="_on_buy_undo_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyPrism/Margin/Row/ActionButton" to="." method="_on_buy_prism_pressed"]
+[connection signal="pressed" from="Panel/VBox/Scroll/Content/Powerups/BuyShuffle/Margin/Row/ActionButton" to="." method="_on_buy_shuffle_pressed"]
+[connection signal="pressed" from="Panel/VBox/Footer/Actions/Close" to="." method="_on_close_pressed"]
