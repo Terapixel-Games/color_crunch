@@ -50,7 +50,7 @@ func test_audio_track_overlay_emits_track_selected_signal() -> void:
 		result["index"] = index
 	)
 
-	var selector: TrackSelectorControl = overlay.get_node("Center/Panel/Margin/VBox/TrackSelector") as TrackSelectorControl
+	var selector: Control = overlay.get_node("Center/Panel/Margin/VBox/TrackSelector") as Control
 	selector.emit_signal("track_changed", "Neon Drift", 1)
 	await get_tree().process_frame
 
