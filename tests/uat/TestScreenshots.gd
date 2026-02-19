@@ -29,8 +29,9 @@ func test_results_scene_smoke() -> void:
 	RunManager.last_score = 512
 	SaveStore.data["high_score"] = 1024
 	var scene := await _load_scene("res://src/scenes/Results.tscn")
-	assert_that(scene.get_node_or_null("UI/VBox/Title")).is_not_null()
-	assert_that((scene.get_node("UI/VBox/Title") as Label).text).is_equal("Color Crunch")
+	assert_that(scene.get_node_or_null("UI/Panel/Scroll")).is_not_null()
+	assert_that(scene.get_node_or_null("UI/Panel/Scroll/VBox/Title")).is_not_null()
+	assert_that((scene.get_node("UI/Panel/Scroll/VBox/Title") as Label).text).is_equal("Color Crunch")
 	scene.queue_free()
 
 func _load_scene(path: String) -> Node:

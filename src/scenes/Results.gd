@@ -1,18 +1,19 @@
 extends Control
 
-@onready var score_label: Label = $UI/VBox/Score
-@onready var mode_badge_label: Label = $UI/VBox/ModeBadge
-@onready var best_label: Label = $UI/VBox/Best
-@onready var streak_label: Label = $UI/VBox/Streak
-@onready var online_status_label: Label = $UI/VBox/OnlineStatus
-@onready var leaderboard_label: Label = $UI/VBox/Leaderboard
-@onready var coins_earned_label: Label = $UI/VBox/CoinsEarned
-@onready var coin_balance_label: Label = $UI/VBox/CoinBalance
-@onready var double_reward_button: Button = $UI/VBox/DoubleReward
+@onready var score_label: Label = $UI/Panel/Scroll/VBox/Score
+@onready var mode_badge_label: Label = $UI/Panel/Scroll/VBox/ModeBadge
+@onready var best_label: Label = $UI/Panel/Scroll/VBox/Best
+@onready var streak_label: Label = $UI/Panel/Scroll/VBox/Streak
+@onready var online_status_label: Label = $UI/Panel/Scroll/VBox/OnlineStatus
+@onready var leaderboard_label: Label = $UI/Panel/Scroll/VBox/Leaderboard
+@onready var coins_earned_label: Label = $UI/Panel/Scroll/VBox/CoinsEarned
+@onready var coin_balance_label: Label = $UI/Panel/Scroll/VBox/CoinBalance
+@onready var double_reward_button: Button = $UI/Panel/Scroll/VBox/DoubleReward
 @onready var panel: Control = $UI/Panel
-@onready var box: VBoxContainer = $UI/VBox
-@onready var play_again_button: Button = $UI/VBox/PlayAgain
-@onready var menu_button: Button = $UI/VBox/Menu
+@onready var scroll: ScrollContainer = $UI/Panel/Scroll
+@onready var box: VBoxContainer = $UI/Panel/Scroll/VBox
+@onready var play_again_button: Button = $UI/Panel/Scroll/VBox/PlayAgain
+@onready var menu_button: Button = $UI/Panel/Scroll/VBox/Menu
 
 var _base_reward_claimed: bool = false
 var _double_reward_pending: bool = false
@@ -72,18 +73,18 @@ func _on_menu_pressed() -> void:
 func _play_intro() -> void:
 	var ui: CanvasItem = $UI
 	var panel: CanvasItem = $UI/Panel
-	var box: CanvasItem = $UI/VBox
-	var play_again: CanvasItem = $UI/VBox/PlayAgain
-	var menu: CanvasItem = $UI/VBox/Menu
+	var box_item: CanvasItem = box
+	var play_again: CanvasItem = play_again_button
+	var menu: CanvasItem = menu_button
 	ui.modulate.a = 0.0
 	panel.scale = Vector2(0.9, 0.9)
-	box.scale = Vector2(0.95, 0.95)
+	box_item.scale = Vector2(0.95, 0.95)
 	play_again.modulate.a = 0.0
 	menu.modulate.a = 0.0
 	var t := create_tween()
 	t.tween_property(ui, "modulate:a", 1.0, 0.28)
 	t.parallel().tween_property(panel, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(box, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(box_item, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(play_again, "modulate:a", 1.0, 0.16)
 	t.tween_property(menu, "modulate:a", 1.0, 0.16)
 
@@ -94,15 +95,19 @@ func _refresh_intro_pivots() -> void:
 		box.pivot_offset = box.size * 0.5
 
 func _layout_results() -> void:
-	if panel == null or box == null:
+	if panel == null or scroll == null or box == null:
 		return
 	var viewport_size: Vector2 = get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
+	var max_panel_width: float = max(320.0, viewport_size.x - 34.0)
+	var min_panel_width: float = min(520.0, max_panel_width)
+	var max_panel_height: float = max(280.0, viewport_size.y - 40.0)
+	var min_panel_height: float = min(460.0, max_panel_height)
 	var panel_size: Vector2 = Vector2(
-		clamp(viewport_size.x * 0.82, 520.0, viewport_size.x - 34.0),
-		clamp(viewport_size.y * 0.68, 980.0, viewport_size.y - 120.0)
+		clamp(viewport_size.x * 0.82, min_panel_width, max_panel_width),
+		clamp(viewport_size.y * 0.72, min_panel_height, max_panel_height)
 	)
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.position = (viewport_size - panel_size) * 0.5
@@ -122,12 +127,16 @@ func _layout_results() -> void:
 	if menu_button:
 		menu_button.custom_minimum_size.y = primary_button_height
 
+	scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	scroll.position = Vector2(margin_x, margin_y)
+	scroll.size = content_size
+
 	box.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	box.position = panel.position + Vector2(
-		(panel_size.x - content_size.x) * 0.5,
-		(panel_size.y - content_size.y) * 0.5
-	)
-	box.size = content_size
+	box.position = Vector2.ZERO
+	box.size = Vector2(content_size.x, content_size.y)
+	box.custom_minimum_size = Vector2(content_size.x, 0.0)
+	var content_min_height: float = box.get_combined_minimum_size().y
+	box.custom_minimum_size.y = max(content_size.y, content_min_height)
 
 func _bind_online_signals() -> void:
 	if not NakamaService.online_state_changed.is_connected(_on_online_state_changed):

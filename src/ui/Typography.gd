@@ -100,21 +100,24 @@ func style_game(scene: Control) -> void:
 	style_label(scene.get_node_or_null("UI/Powerups/Shuffle/Badge"), 28.0, WEIGHT_SEMIBOLD)
 
 func style_results(scene: Control) -> void:
-	style_label(scene.get_node_or_null("UI/VBox/Title"), 62.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("UI/VBox/Score"), 64.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("UI/VBox/ModeBadge"), 20.0, WEIGHT_SEMIBOLD, true)
-	style_label(scene.get_node_or_null("UI/VBox/Best"), 34.0, WEIGHT_BOLD, false)
-	style_label(scene.get_node_or_null("UI/VBox/Streak"), 34.0, WEIGHT_BOLD, false)
-	style_label(scene.get_node_or_null("UI/VBox/OnlineStatus"), 30.0, WEIGHT_BOLD, false)
-	var leaderboard := scene.get_node_or_null("UI/VBox/Leaderboard")
+	var base_path := "UI/Panel/Scroll/VBox"
+	if scene.get_node_or_null("%s/Title" % base_path) == null:
+		base_path = "UI/VBox"
+	style_label(scene.get_node_or_null("%s/Title" % base_path), 62.0, WEIGHT_BOLD)
+	style_label(scene.get_node_or_null("%s/Score" % base_path), 64.0, WEIGHT_BOLD)
+	style_label(scene.get_node_or_null("%s/ModeBadge" % base_path), 20.0, WEIGHT_SEMIBOLD, true)
+	style_label(scene.get_node_or_null("%s/Best" % base_path), 34.0, WEIGHT_BOLD, false)
+	style_label(scene.get_node_or_null("%s/Streak" % base_path), 34.0, WEIGHT_BOLD, false)
+	style_label(scene.get_node_or_null("%s/OnlineStatus" % base_path), 30.0, WEIGHT_BOLD, false)
+	var leaderboard := scene.get_node_or_null("%s/Leaderboard" % base_path)
 	style_label(leaderboard, 28.0, WEIGHT_SEMIBOLD, false)
-	style_label(scene.get_node_or_null("UI/VBox/CoinsEarned"), 26.0, WEIGHT_BOLD, false)
-	style_label(scene.get_node_or_null("UI/VBox/CoinBalance"), 24.0, WEIGHT_SEMIBOLD, false)
+	style_label(scene.get_node_or_null("%s/CoinsEarned" % base_path), 26.0, WEIGHT_BOLD, false)
+	style_label(scene.get_node_or_null("%s/CoinBalance" % base_path), 24.0, WEIGHT_SEMIBOLD, false)
 	if leaderboard != null:
 		leaderboard.add_theme_constant_override("line_spacing", max(2, int(round(6.0 * scale_factor()))))
-	style_button(scene.get_node_or_null("UI/VBox/DoubleReward"), 24.0, WEIGHT_SEMIBOLD)
-	style_button(scene.get_node_or_null("UI/VBox/PlayAgain"), 36.0, WEIGHT_BOLD)
-	style_button(scene.get_node_or_null("UI/VBox/Menu"), 36.0, WEIGHT_BOLD)
+	style_button(scene.get_node_or_null("%s/DoubleReward" % base_path), 24.0, WEIGHT_SEMIBOLD)
+	style_button(scene.get_node_or_null("%s/PlayAgain" % base_path), 36.0, WEIGHT_BOLD)
+	style_button(scene.get_node_or_null("%s/Menu" % base_path), 36.0, WEIGHT_BOLD)
 
 func style_pause_overlay(scene: Control) -> void:
 	style_label(scene.get_node_or_null("VBox/Title"), SIZE_MODAL_TITLE, WEIGHT_BOLD)

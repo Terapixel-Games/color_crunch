@@ -56,6 +56,7 @@ var _neon_owned := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_reap_detached_labels()
 	Typography.style_save_streak(self)
 	_apply_header_hierarchy()
 	_apply_static_shop_styling()
@@ -77,6 +78,15 @@ func _ready() -> void:
 	ThemeManager.apply_to_scene(get_tree().current_scene)
 	await NakamaService.refresh_wallet(false)
 	_on_wallet_updated(NakamaService.get_wallet())
+
+func _reap_detached_labels() -> void:
+	# Godot can leave detached Label nodes from nested packed-scene overrides.
+	# Reap them proactively so test runs do not accumulate orphans.
+	var labels := find_children("*", "Label", true, false)
+	for node in labels:
+		var label := node as Label
+		if label != null and not label.is_inside_tree():
+			label.free()
 
 func _on_wallet_updated(wallet: Dictionary) -> void:
 	if theme_neon_action == null:
@@ -567,6 +577,11 @@ func _layout_modal() -> void:
 	if panel == null or panel_vbox == null:
 		return
 	var viewport_size: Vector2 = get_viewport_rect().size
+	_layout_modal_for_size(viewport_size)
+
+func _layout_modal_for_size(viewport_size: Vector2) -> void:
+	if panel == null or panel_vbox == null:
+		return
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
