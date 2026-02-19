@@ -7,8 +7,9 @@ func before() -> void:
 
 func test_main_menu_scene_smoke() -> void:
 	var scene := await _load_scene("res://src/scenes/MainMenu.tscn")
-	assert_that(scene.get_node_or_null("UI/VBox/Title")).is_not_null()
-	assert_that((scene.get_node("UI/VBox/Title") as Label).text).is_equal("Color Crunch")
+	var title := scene.get_node_or_null("UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title") as Label
+	assert_that(title).is_not_null()
+	assert_that(title.text).is_equal("Color Crunch")
 	scene.queue_free()
 
 func test_game_scene_smoke_and_merge_scores() -> void:

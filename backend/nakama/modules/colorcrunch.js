@@ -12,12 +12,22 @@ var MAGIC_LINK_STATUS_KEY = "magic_link_status";
 var MAGIC_LINK_PENDING_KEY = "magic_link_pending";
 var MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX = "magic_link_email_lookup_";
 var MAGIC_LINK_PROFILE_LOOKUP_KEY_PREFIX = "magic_link_profile_lookup_";
+var MAGIC_LINK_NOTIFY_REPLAY_KEY = "magic_link_notify_replay";
+var EMAIL_MAX_LENGTH = 320;
+var MAGIC_LINK_TOKEN_MAX_LENGTH = 512;
 var SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 var USERNAME_STATE_KEY = "username_state";
 var USERNAME_AUDIT_KEY = "username_audit";
+var RUN_HISTORY_KEY = "run_history";
 var DEFAULT_USERNAME_CHANGE_COST_COINS = 300;
 var DEFAULT_USERNAME_CHANGE_COOLDOWN_SECONDS = 300;
 var DEFAULT_USERNAME_CHANGE_MAX_PER_DAY = 3;
+var DEFAULT_MAGIC_LINK_NOTIFY_MAX_SKEW_SECONDS = 600;
+var DEFAULT_SHOP_MAX_PURCHASE_QUANTITY = 20;
+var DEFAULT_MAX_RUN_REWARDS_PER_DAY = 20;
+var MAX_RUN_HISTORY_ENTRIES = 200;
+var MAX_MAGIC_LINK_NOTIFY_REPLAY_ENTRIES = 2048;
+var MAX_RUN_REWARD_COINS = 250;
 var DEFAULT_BLOCKED_USERNAME_TOKENS = [
   "admin",
   "moderator",
@@ -77,6 +87,10 @@ var MODULE_CONFIG = {
   usernameChangeCooldownSeconds: DEFAULT_USERNAME_CHANGE_COOLDOWN_SECONDS,
   usernameChangeMaxPerDay: DEFAULT_USERNAME_CHANGE_MAX_PER_DAY,
   magicLinkNotifySecret: "",
+  magicLinkNotifyRequireTimestamp: true,
+  magicLinkNotifyMaxSkewSeconds: DEFAULT_MAGIC_LINK_NOTIFY_MAX_SKEW_SECONDS,
+  shopMaxPurchaseQuantity: DEFAULT_SHOP_MAX_PURCHASE_QUANTITY,
+  maxRunRewardsPerDay: DEFAULT_MAX_RUN_REWARDS_PER_DAY,
   usernameChangeCostCoins: DEFAULT_USERNAME_CHANGE_COST_COINS,
   blockedUsernameTokens: DEFAULT_BLOCKED_USERNAME_TOKENS,
   gameId: DEFAULT_GAME_ID,
@@ -168,6 +182,19 @@ function loadConfig(ctx) {
       DEFAULT_USERNAME_CHANGE_MAX_PER_DAY
     ),
     magicLinkNotifySecret: env.TPX_MAGIC_LINK_NOTIFY_SECRET || "",
+    magicLinkNotifyRequireTimestamp: toBool(env.TPX_MAGIC_LINK_NOTIFY_REQUIRE_TIMESTAMP, true),
+    magicLinkNotifyMaxSkewSeconds: Math.max(
+      30,
+      toInt(env.TPX_MAGIC_LINK_NOTIFY_MAX_SKEW_SECONDS, DEFAULT_MAGIC_LINK_NOTIFY_MAX_SKEW_SECONDS)
+    ),
+    shopMaxPurchaseQuantity: Math.max(
+      1,
+      Math.min(100, toInt(env.TPX_SHOP_MAX_PURCHASE_QUANTITY, DEFAULT_SHOP_MAX_PURCHASE_QUANTITY))
+    ),
+    maxRunRewardsPerDay: Math.max(
+      1,
+      Math.min(200, toInt(env.TPX_MAX_RUN_REWARDS_PER_DAY, DEFAULT_MAX_RUN_REWARDS_PER_DAY))
+    ),
     usernameChangeCostCoins: toInt(
       env.TPX_USERNAME_CHANGE_COST_COINS,
       DEFAULT_USERNAME_CHANGE_COST_COINS
@@ -401,6 +428,9 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
   );
 
   writePlayerHighScore(nk, ctx.userId, record);
+  if (runId) {
+    recordRunSubmission(nk, ctx.userId, runId, score, mode);
+  }
 
   publishPlatformEvent(
     nk,
@@ -647,15 +677,41 @@ function rpcWalletClaimRunReward(ctx, logger, nk, payload) {
   assertAuthenticated(ctx);
   assertIapConfigured("wallet reward claim");
   var data = parsePayload(payload);
-  var runId = String(data.run_id || "").trim();
+  var runId = normalizeRunId(data.run_id || "");
   if (!runId) {
     throw new Error("run_id is required");
   }
-  var completedByGameplay = Boolean(data.completed_by_gameplay);
-  var score = toInt(data.score, 0);
-  var streakDays = toInt(data.streak_days, 0);
-  var doubleReward = Boolean(data.double_reward);
-  var reward = calculateRunReward(score, streakDays, completedByGameplay, doubleReward);
+  var now = Math.floor(Date.now() / 1000);
+  var runHistory = readRunHistory(nk, ctx.userId);
+  var runEntry = findRunHistoryEntry(runHistory, runId);
+  if (!runEntry) {
+    return JSON.stringify({
+      granted: false,
+      rewardCoins: 0,
+      coinBalance: extractCoinBalance(fetchCachedEntitlements(nk, ctx.userId), MODULE_CONFIG.gameId),
+      reason: "unknown_run_id",
+    });
+  }
+  if (toInt(runEntry.rewardClaimedAt, 0) > 0) {
+    return JSON.stringify({
+      granted: false,
+      rewardCoins: 0,
+      coinBalance: extractCoinBalance(fetchCachedEntitlements(nk, ctx.userId), MODULE_CONFIG.gameId),
+      reason: "already_claimed",
+      deduplicated: true,
+    });
+  }
+  var claimedCount = countRunRewardsClaimedSince(runHistory, now - 86400);
+  if (claimedCount >= MODULE_CONFIG.maxRunRewardsPerDay) {
+    return JSON.stringify({
+      granted: false,
+      rewardCoins: 0,
+      coinBalance: extractCoinBalance(fetchCachedEntitlements(nk, ctx.userId), MODULE_CONFIG.gameId),
+      reason: "daily_limit_reached",
+    });
+  }
+  var authoritativeScore = Math.max(0, toInt(runEntry.score, 0));
+  var reward = calculateRunReward(authoritativeScore, 0, true, false);
   if (reward <= 0) {
     return JSON.stringify({
       granted: false,
@@ -672,6 +728,7 @@ function rpcWalletClaimRunReward(ctx, logger, nk, payload) {
     "run_reward:" + ctx.userId + ":" + runId
   );
   persistIapSnapshot(nk, ctx.userId, adjust.entitlements || {});
+  markRunRewardClaimed(nk, ctx.userId, runId, now, reward);
   return JSON.stringify({
     granted: true,
     rewardCoins: reward,
@@ -688,7 +745,7 @@ function rpcShopPurchaseTheme(ctx, logger, nk, payload) {
   if (!themeId) {
     throw new Error("theme_id is required");
   }
-  var cost = toInt(data.cost_coins, toInt(THEME_COSTS[themeId], 0));
+  var cost = toInt(THEME_COSTS[themeId], 0);
   if (cost <= 0) {
     throw new Error("invalid theme cost");
   }
@@ -776,11 +833,16 @@ function rpcShopPurchasePowerup(ctx, logger, nk, payload) {
   if (qty <= 0) {
     qty = 1;
   }
-  var unitCost = toInt(data.cost_coins, toInt(POWERUP_COSTS[powerupType], 0));
+  var maxQty = Math.max(1, toInt(MODULE_CONFIG.shopMaxPurchaseQuantity, DEFAULT_SHOP_MAX_PURCHASE_QUANTITY));
+  if (qty > maxQty) {
+    throw new Error("quantity exceeds max allowed");
+  }
+  var unitCost = toInt(POWERUP_COSTS[powerupType], 0);
   if (unitCost <= 0) {
     throw new Error("invalid powerup cost");
   }
   var totalCost = unitCost * qty;
+  var purchaseId = sanitizeIdempotencyFragment(data.purchase_id || "", 64);
   var idempotency =
     "powerup_purchase:" +
     ctx.userId +
@@ -789,7 +851,7 @@ function rpcShopPurchasePowerup(ctx, logger, nk, payload) {
     ":" +
     String(qty) +
     ":" +
-    String(data.purchase_id || "").trim();
+    purchaseId;
   var adjust = adjustCoinsPlatform(
     ctx,
     nk,
@@ -843,9 +905,9 @@ function rpcShopConsumePowerup(ctx, logger, nk, payload) {
 function rpcAccountMagicLinkStart(ctx, logger, nk, payload) {
   assertAuthenticated(ctx);
   var data = parsePayload(payload);
-  var email = String(data.email || "").trim().toLowerCase();
+  var email = sanitizeEmailAddress(data.email || "");
   if (!email) {
-    throw new Error("email is required");
+    throw new Error("valid email is required");
   }
   var startUrl =
     MODULE_CONFIG.accountMagicLinkStartUrl ||
@@ -881,7 +943,7 @@ function rpcAccountMagicLinkStart(ctx, logger, nk, payload) {
 function rpcAccountMagicLinkComplete(ctx, logger, nk, payload) {
   assertAuthenticated(ctx);
   var data = parsePayload(payload);
-  var token = String(data.ml_token || data.magic_link_token || "").trim();
+  var token = sanitizeMagicLinkToken(data.ml_token || data.magic_link_token || "");
   if (!token) {
     throw new Error("ml_token is required");
   }
@@ -922,7 +984,10 @@ function rpcAccountMagicLinkStatus(ctx, logger, nk, payload) {
     clearMagicLinkStatus(nk, ctx.userId);
     clearMagicLinkPending(nk, ctx.userId);
     if (status.email) {
-      clearMagicLinkLookupByEmail(nk, String(status.email || "").trim().toLowerCase());
+      var statusEmail = sanitizeEmailAddress(status.email || "");
+      if (statusEmail) {
+        clearMagicLinkLookupByEmail(nk, statusEmail);
+      }
     }
   }
   return JSON.stringify({
@@ -958,11 +1023,22 @@ function rpcAccountMagicLinkNotify(ctx, logger, nk, payload) {
     throw new Error("magic link notify secret is not configured (set TPX_MAGIC_LINK_NOTIFY_SECRET)");
   }
   var providedSecret = String(data.secret || "").trim();
-  if (!providedSecret || providedSecret !== expectedSecret) {
+  if (!providedSecret || !secureEquals(providedSecret, expectedSecret)) {
     logger.warn("magic_link_notify rejected: invalid secret. payload=%s", summarizeMagicLinkNotifyPayload(data));
     throw new Error("invalid notify secret");
   }
-  var incomingEmail = String(data.email || "").trim().toLowerCase();
+  var replayValidation = validateMagicLinkNotifyReplay(nk, data);
+  if (!replayValidation.ok) {
+    throw new Error(replayValidation.error || "invalid notify request");
+  }
+  var incomingEmail = "";
+  var rawNotifyEmail = String(data.email || "").trim();
+  if (rawNotifyEmail) {
+    incomingEmail = sanitizeEmailAddress(rawNotifyEmail);
+    if (!incomingEmail) {
+      throw new Error("valid email is required");
+    }
+  }
   var resolved = resolveMagicLinkNotifyTarget(nk, data, incomingEmail);
   var userId = resolved.userId;
   if (!userId) {
@@ -1672,6 +1748,7 @@ function calculateRunReward(score, streakDays, completedByGameplay, doubleReward
   if (doubleReward) {
     reward *= 2;
   }
+  reward = Math.min(MAX_RUN_REWARD_COINS, reward);
   return Math.max(0, reward);
 }
 
@@ -1727,18 +1804,15 @@ function writeShopState(nk, userId, state) {
 }
 
 function magicLinkLookupKeyByEmail(email) {
-  var normalized = String(email || "").trim().toLowerCase();
+  var normalized = sanitizeEmailAddress(email || "");
   if (!normalized) {
     return "";
   }
-  var safe = normalized.replace(/[^a-z0-9_-]/g, "_");
-  if (!safe) {
+  var digest = stableHashHex(normalized);
+  if (!digest) {
     return "";
   }
-  if (safe.length > 96) {
-    safe = safe.substring(0, 96);
-  }
-  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + safe;
+  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + digest;
 }
 
 function magicLinkLookupKeyByProfile(profileId) {
@@ -1757,7 +1831,12 @@ function magicLinkLookupKeyByProfile(profileId) {
 }
 
 function writeMagicLinkLookupByEmail(nk, email, userId) {
-  var key = magicLinkLookupKeyByEmail(email);
+  var normalizedEmail = sanitizeEmailAddress(email || "");
+  if (!normalizedEmail) {
+    return;
+  }
+  clearMagicLinkLookupByEmail(nk, normalizedEmail);
+  var key = magicLinkLookupKeyByEmail(normalizedEmail);
   if (!key) {
     return;
   }
@@ -1767,7 +1846,7 @@ function writeMagicLinkLookupByEmail(nk, email, userId) {
       key: key,
       userId: SYSTEM_USER_ID,
       value: {
-        email: String(email || "").trim().toLowerCase(),
+        email: normalizedEmail,
         userId: String(userId || "").trim(),
         updatedAt: Math.floor(Date.now() / 1000),
       },
@@ -1799,19 +1878,18 @@ function writeMagicLinkLookupByProfile(nk, profileId, userId) {
 }
 
 function readMagicLinkLookupByEmail(nk, email) {
-  var key = magicLinkLookupKeyByEmail(email);
-  if (!key) {
+  var normalized = sanitizeEmailAddress(email || "");
+  if (!normalized) {
     return "";
   }
-  var storage = nk.storageRead([
-    {
-      collection: ACCOUNT_COLLECTION,
-      key: key,
-      userId: SYSTEM_USER_ID,
-    },
-  ]);
-  if (storage && storage.length > 0 && storage[0].value) {
-    return String(storage[0].value.userId || "").trim();
+  var key = magicLinkLookupKeyByEmail(normalized);
+  var byNewKey = readMagicLinkLookupUserIdByKey(nk, key);
+  if (byNewKey) {
+    return byNewKey;
+  }
+  var legacyKey = legacyMagicLinkLookupKeyByEmail(normalized);
+  if (legacyKey && legacyKey !== key) {
+    return readMagicLinkLookupUserIdByKey(nk, legacyKey);
   }
   return "";
 }
@@ -1835,17 +1913,16 @@ function readMagicLinkLookupByProfile(nk, profileId) {
 }
 
 function clearMagicLinkLookupByEmail(nk, email) {
-  var key = magicLinkLookupKeyByEmail(email);
-  if (!key) {
+  var normalized = sanitizeEmailAddress(email || "");
+  if (!normalized) {
     return;
   }
-  nk.storageDelete([
-    {
-      collection: ACCOUNT_COLLECTION,
-      key: key,
-      userId: SYSTEM_USER_ID,
-    },
-  ]);
+  var key = magicLinkLookupKeyByEmail(normalized);
+  deleteMagicLinkLookupByKey(nk, key);
+  var legacyKey = legacyMagicLinkLookupKeyByEmail(normalized);
+  if (legacyKey && legacyKey !== key) {
+    deleteMagicLinkLookupByKey(nk, legacyKey);
+  }
 }
 
 function readMagicLinkStatus(nk, userId) {
@@ -1906,6 +1983,114 @@ function clearMagicLinkStatus(nk, userId) {
       userId: userId,
     },
   ]);
+}
+
+function readRunHistory(nk, userId) {
+  var storage = nk.storageRead([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: RUN_HISTORY_KEY,
+      userId: userId,
+    },
+  ]);
+  if (storage && storage.length > 0 && storage[0].value && Array.isArray(storage[0].value.entries)) {
+    return storage[0].value.entries;
+  }
+  return [];
+}
+
+function writeRunHistory(nk, userId, entries) {
+  nk.storageWrite([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: RUN_HISTORY_KEY,
+      userId: userId,
+      value: {
+        entries: entries || [],
+      },
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+}
+
+function recordRunSubmission(nk, userId, runId, score, mode) {
+  var normalizedRunId = normalizeRunId(runId);
+  if (!normalizedRunId) {
+    return;
+  }
+  var now = Math.floor(Date.now() / 1000);
+  var entries = readRunHistory(nk, userId);
+  var previous = null;
+  var nextEntries = [];
+  for (var i = 0; i < entries.length; i++) {
+    var row = entries[i];
+    if (row && normalizeRunId(row.runId || "") === normalizedRunId) {
+      previous = row;
+      continue;
+    }
+    if (row && typeof row === "object") {
+      nextEntries.push(row);
+    }
+  }
+  nextEntries.unshift({
+    runId: normalizedRunId,
+    score: Math.max(0, toInt(score, 0)),
+    mode: normalizeLeaderboardMode(mode),
+    submittedAt: now,
+    rewardClaimedAt: previous ? Math.max(0, toInt(previous.rewardClaimedAt, 0)) : 0,
+    rewardCoins: previous ? Math.max(0, toInt(previous.rewardCoins, 0)) : 0,
+  });
+  if (nextEntries.length > MAX_RUN_HISTORY_ENTRIES) {
+    nextEntries = nextEntries.slice(0, MAX_RUN_HISTORY_ENTRIES);
+  }
+  writeRunHistory(nk, userId, nextEntries);
+}
+
+function findRunHistoryEntry(entries, runId) {
+  var normalizedRunId = normalizeRunId(runId);
+  if (!normalizedRunId || !Array.isArray(entries)) {
+    return null;
+  }
+  for (var i = 0; i < entries.length; i++) {
+    var row = entries[i];
+    if (row && normalizeRunId(row.runId || "") === normalizedRunId) {
+      return row;
+    }
+  }
+  return null;
+}
+
+function countRunRewardsClaimedSince(entries, sinceUnix) {
+  if (!Array.isArray(entries)) {
+    return 0;
+  }
+  var count = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var claimedAt = Math.max(0, toInt(entries[i] && entries[i].rewardClaimedAt, 0));
+    if (claimedAt >= sinceUnix) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function markRunRewardClaimed(nk, userId, runId, claimedAt, rewardCoins) {
+  var normalizedRunId = normalizeRunId(runId);
+  if (!normalizedRunId) {
+    return;
+  }
+  var entries = readRunHistory(nk, userId);
+  for (var i = 0; i < entries.length; i++) {
+    var row = entries[i];
+    if (!row || normalizeRunId(row.runId || "") !== normalizedRunId) {
+      continue;
+    }
+    row.rewardClaimedAt = Math.max(0, toInt(claimedAt, Math.floor(Date.now() / 1000)));
+    row.rewardCoins = Math.max(0, toInt(rewardCoins, 0));
+    break;
+  }
+  writeRunHistory(nk, userId, entries);
 }
 
 function readUsernameState(nk, userId, fallbackUsername) {
@@ -2006,6 +2191,76 @@ function readUsernameAudit(nk, userId) {
     return storage[0].value.entries;
   }
   return [];
+}
+
+function sanitizeEmailAddress(input) {
+  var value = String(input || "").trim().toLowerCase();
+  if (!value || value.length > EMAIL_MAX_LENGTH) {
+    return "";
+  }
+  if (/\s/.test(value)) {
+    return "";
+  }
+  var atIndex = value.indexOf("@");
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf("@") || atIndex >= value.length - 1) {
+    return "";
+  }
+  var localPart = value.substring(0, atIndex);
+  var domainPart = value.substring(atIndex + 1);
+  if (!isValidEmailLocalPart(localPart)) {
+    return "";
+  }
+  if (!isValidEmailDomainPart(domainPart)) {
+    return "";
+  }
+  return value;
+}
+
+function isValidEmailLocalPart(localPart) {
+  if (!localPart || localPart.length > 64) {
+    return false;
+  }
+  if (localPart[0] === "." || localPart[localPart.length - 1] === "." || localPart.indexOf("..") >= 0) {
+    return false;
+  }
+  return /^[a-z0-9!#$%&'*+/=?^_`{|}~.-]+$/.test(localPart);
+}
+
+function isValidEmailDomainPart(domainPart) {
+  if (!domainPart || domainPart.length > 255) {
+    return false;
+  }
+  if (domainPart[0] === "." || domainPart[domainPart.length - 1] === ".") {
+    return false;
+  }
+  var labels = domainPart.split(".");
+  if (labels.length < 2) {
+    return false;
+  }
+  for (var i = 0; i < labels.length; i++) {
+    var label = labels[i];
+    if (!label || label.length > 63) {
+      return false;
+    }
+    if (label[0] === "-" || label[label.length - 1] === "-") {
+      return false;
+    }
+    if (!/^[a-z0-9-]+$/.test(label)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sanitizeMagicLinkToken(value) {
+  var token = String(value || "").trim();
+  if (!token || token.length > MAGIC_LINK_TOKEN_MAX_LENGTH) {
+    return "";
+  }
+  if (!/^[A-Za-z0-9._~+/=-]+$/.test(token)) {
+    return "";
+  }
+  return token;
 }
 
 function sanitizeRequestedUsername(input) {
@@ -2211,10 +2466,221 @@ function normalizeRunId(value) {
   if (!runId) {
     return "";
   }
+  if (!/^[A-Za-z0-9._:-]+$/.test(runId)) {
+    return "";
+  }
   if (runId.length > 128) {
     runId = runId.substring(0, 128);
   }
   return runId;
+}
+
+function sanitizeIdempotencyFragment(value, maxLength) {
+  var raw = String(value || "").trim();
+  if (!raw) {
+    return "none";
+  }
+  var out = raw.replace(/[^A-Za-z0-9._:-]/g, "_");
+  var limit = Math.max(8, toInt(maxLength, 64));
+  if (out.length > limit) {
+    out = out.substring(0, limit);
+  }
+  if (!out) {
+    return "none";
+  }
+  return out;
+}
+
+function stableHashHex(input) {
+  var text = String(input || "");
+  if (!text) {
+    return "";
+  }
+  var h1 = fnv1a32(text, 2166136261);
+  var h2 = fnv1a32(text, 2166136261 ^ 0x9e3779b9);
+  return toHex32(h1) + toHex32(h2);
+}
+
+function fnv1a32(text, seed) {
+  var hash = seed >>> 0;
+  for (var i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function toHex32(value) {
+  var out = (value >>> 0).toString(16);
+  while (out.length < 8) {
+    out = "0" + out;
+  }
+  return out;
+}
+
+function legacyMagicLinkLookupKeyByEmail(email) {
+  var normalized = sanitizeEmailAddress(email || "");
+  if (!normalized) {
+    return "";
+  }
+  var safe = normalized.replace(/[^a-z0-9_-]/g, "_");
+  if (!safe) {
+    return "";
+  }
+  if (safe.length > 96) {
+    safe = safe.substring(0, 96);
+  }
+  return MAGIC_LINK_EMAIL_LOOKUP_KEY_PREFIX + safe;
+}
+
+function readMagicLinkLookupUserIdByKey(nk, key) {
+  if (!key) {
+    return "";
+  }
+  var storage = nk.storageRead([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+      userId: SYSTEM_USER_ID,
+    },
+  ]);
+  if (storage && storage.length > 0 && storage[0].value) {
+    return String(storage[0].value.userId || "").trim();
+  }
+  return "";
+}
+
+function deleteMagicLinkLookupByKey(nk, key) {
+  if (!key) {
+    return;
+  }
+  nk.storageDelete([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: key,
+      userId: SYSTEM_USER_ID,
+    },
+  ]);
+}
+
+function secureEquals(left, right) {
+  var a = String(left || "");
+  var b = String(right || "");
+  var mismatch = a.length === b.length ? 0 : 1;
+  var len = Math.max(a.length, b.length);
+  for (var i = 0; i < len; i++) {
+    var charA = i < a.length ? a.charCodeAt(i) : 0;
+    var charB = i < b.length ? b.charCodeAt(i) : 0;
+    mismatch |= charA ^ charB;
+  }
+  return mismatch === 0;
+}
+
+function validateMagicLinkNotifyReplay(nk, data) {
+  if (!MODULE_CONFIG.magicLinkNotifyRequireTimestamp) {
+    return { ok: true };
+  }
+  var requestId = normalizeReplayRequestId(
+    data.request_id || data.requestId || data.event_id || data.eventId || data.nonce || ""
+  );
+  if (!requestId) {
+    return { ok: false, error: "request_id is required" };
+  }
+  var sentAt = toInt(data.sent_at || data.sentAt || data.timestamp || data.ts, 0);
+  if (sentAt <= 0) {
+    return { ok: false, error: "sent_at is required" };
+  }
+  var now = Math.floor(Date.now() / 1000);
+  var maxSkew = Math.max(
+    30,
+    toInt(MODULE_CONFIG.magicLinkNotifyMaxSkewSeconds, DEFAULT_MAGIC_LINK_NOTIFY_MAX_SKEW_SECONDS)
+  );
+  if (Math.abs(now - sentAt) > maxSkew) {
+    return { ok: false, error: "stale notify request" };
+  }
+  var state = readMagicLinkNotifyReplayState(nk);
+  var entries = state.entries || {};
+  var minAllowed = now - maxSkew;
+  var keys = Object.keys(entries);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (toInt(entries[key], 0) < minAllowed) {
+      delete entries[key];
+    }
+  }
+  if (entries[requestId]) {
+    return { ok: false, error: "duplicate notify request" };
+  }
+  entries[requestId] = sentAt;
+  state.entries = trimReplayEntries(entries, MAX_MAGIC_LINK_NOTIFY_REPLAY_ENTRIES);
+  writeMagicLinkNotifyReplayState(nk, state);
+  return { ok: true };
+}
+
+function normalizeReplayRequestId(value) {
+  var out = String(value || "").trim().toLowerCase();
+  if (!out) {
+    return "";
+  }
+  if (!/^[a-z0-9._:-]+$/.test(out)) {
+    return "";
+  }
+  if (out.length > 96) {
+    out = out.substring(0, 96);
+  }
+  return out;
+}
+
+function readMagicLinkNotifyReplayState(nk) {
+  var storage = nk.storageRead([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: MAGIC_LINK_NOTIFY_REPLAY_KEY,
+      userId: SYSTEM_USER_ID,
+    },
+  ]);
+  if (storage && storage.length > 0 && storage[0].value && storage[0].value.entries) {
+    return {
+      entries: storage[0].value.entries,
+    };
+  }
+  return { entries: {} };
+}
+
+function writeMagicLinkNotifyReplayState(nk, state) {
+  nk.storageWrite([
+    {
+      collection: ACCOUNT_COLLECTION,
+      key: MAGIC_LINK_NOTIFY_REPLAY_KEY,
+      userId: SYSTEM_USER_ID,
+      value: {
+        entries: state && state.entries ? state.entries : {},
+        updatedAt: Math.floor(Date.now() / 1000),
+      },
+      permissionRead: 0,
+      permissionWrite: 0,
+    },
+  ]);
+}
+
+function trimReplayEntries(entries, maxEntries) {
+  var rows = [];
+  var keys = Object.keys(entries || {});
+  for (var i = 0; i < keys.length; i++) {
+    rows.push({
+      key: keys[i],
+      at: toInt(entries[keys[i]], 0),
+    });
+  }
+  rows.sort(function (a, b) {
+    return b.at - a.at;
+  });
+  var limit = Math.max(1, toInt(maxEntries, MAX_MAGIC_LINK_NOTIFY_REPLAY_ENTRIES));
+  var out = {};
+  for (var j = 0; j < rows.length && j < limit; j++) {
+    out[rows[j].key] = rows[j].at;
+  }
+  return out;
 }
 
 function extractMetadataPowerupsUsed(metadata) {

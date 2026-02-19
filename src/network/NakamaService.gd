@@ -15,6 +15,7 @@ const DEFAULT_LEADERBOARD_LIMIT := 10
 const DEFAULT_EXPORT_TARGET := "web"
 const DEFAULT_CLIENT_EVENTS_ENABLED := true
 const DEFAULT_CLIENT_EVENT_SAMPLE_RATE := 1.0
+const EMAIL_MAX_LENGTH := 320
 var PROVIDERS_BY_EXPORT_TARGET := {
 	"ios": ["apple"],
 	"android": ["google"],
@@ -118,10 +119,10 @@ func is_linked_account() -> bool:
 	return not SaveStore.get_terapixel_user_id().is_empty()
 
 func get_linked_email() -> String:
-	return SaveStore.get_terapixel_email().strip_edges().to_lower()
+	return _sanitize_email_input(SaveStore.get_terapixel_email())
 
 func set_linked_email(email: String) -> void:
-	var normalized := email.strip_edges().to_lower()
+	var normalized := _sanitize_email_input(email)
 	if normalized.is_empty():
 		return
 	SaveStore.set_terapixel_email(normalized)
@@ -539,7 +540,10 @@ func consume_powerup(powerup_type: String, quantity: int = 1) -> Dictionary:
 func start_magic_link(email: String) -> Dictionary:
 	if not await ensure_authenticated():
 		return {"ok": false, "error": "auth failed"}
-	var payload := {"email": email.strip_edges().to_lower()}
+	var sanitized_email := _sanitize_email_input(email)
+	if sanitized_email.is_empty():
+		return {"ok": false, "error": "invalid email"}
+	var payload := {"email": sanitized_email}
 	track_client_event("account.magic_link_start_requested", {
 		"email_domain": _safe_email_domain(payload["email"]),
 	}, true)
@@ -715,7 +719,7 @@ func _hydrate_auth_session(auth_response: Dictionary) -> Dictionary:
 func _handle_magic_link_completion(data: Dictionary) -> void:
 	var status := str(data.get("status", data.get("link_status", "ok")))
 	var linked_profile_id := _extract_magic_link_profile_id(data)
-	var linked_email := str(data.get("email", "")).strip_edges().to_lower()
+	var linked_email := _sanitize_email_input(str(data.get("email", "")))
 	if not linked_email.is_empty():
 		SaveStore.set_terapixel_email(linked_email)
 	if not linked_profile_id.is_empty():
@@ -816,11 +820,67 @@ func _summarize_rpc_error(result: Dictionary) -> String:
 	return "unknown_error"
 
 func _safe_email_domain(email: String) -> String:
-	var value := email.strip_edges().to_lower()
+	var value := _sanitize_email_input(email)
+	if value.is_empty():
+		return ""
 	var at_idx := value.find("@")
 	if at_idx < 0:
 		return ""
 	return value.substr(at_idx + 1)
+
+func _sanitize_email_input(value: String) -> String:
+	var cleaned := str(value).strip_edges().to_lower()
+	if cleaned.is_empty() or cleaned.length() > EMAIL_MAX_LENGTH:
+		return ""
+	if cleaned.find(" ") != -1 or cleaned.find("\t") != -1 or cleaned.find("\n") != -1 or cleaned.find("\r") != -1:
+		return ""
+	var at_idx := cleaned.find("@")
+	if at_idx <= 0 or at_idx >= cleaned.length() - 1 or at_idx != cleaned.rfind("@"):
+		return ""
+	var local := cleaned.substr(0, at_idx)
+	var domain := cleaned.substr(at_idx + 1)
+	if local.length() > 64:
+		return ""
+	if not _is_valid_email_local(local):
+		return ""
+	if not _is_valid_email_domain(domain):
+		return ""
+	return cleaned
+
+func _is_valid_email_local(local: String) -> bool:
+	if local.is_empty() or local.begins_with(".") or local.ends_with(".") or local.find("..") != -1:
+		return false
+	var allowed_specials := "!#$%&'*+/=?^_`{|}~.-"
+	for i in range(local.length()):
+		var c := local[i]
+		var is_letter := c >= "a" and c <= "z"
+		var is_digit := c >= "0" and c <= "9"
+		if is_letter or is_digit:
+			continue
+		if allowed_specials.find(c) != -1:
+			continue
+		return false
+	return true
+
+func _is_valid_email_domain(domain: String) -> bool:
+	if domain.is_empty() or domain.length() > 255 or domain.begins_with(".") or domain.ends_with("."):
+		return false
+	var labels := domain.split(".", false)
+	if labels.size() < 2:
+		return false
+	for label in labels:
+		if label.is_empty() or label.length() > 63:
+			return false
+		if label.begins_with("-") or label.ends_with("-"):
+			return false
+		for i in range(label.length()):
+			var c := label[i]
+			var is_letter := c >= "a" and c <= "z"
+			var is_digit := c >= "0" and c <= "9"
+			if is_letter or is_digit or c == "-":
+				continue
+			return false
+	return true
 
 func _looks_like_missing_client_event_rpc(result: Dictionary, summary: String) -> bool:
 	if int(result.get("code", 0)) == 404:
