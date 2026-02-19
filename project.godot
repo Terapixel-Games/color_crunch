@@ -52,7 +52,7 @@ window/handheld/orientation="portrait"
 [display]
 
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep_width"
+window/stretch/aspect="expand"
 window/handheld/orientation=1
 
 [editor_plugins]

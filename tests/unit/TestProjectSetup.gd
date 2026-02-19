@@ -17,7 +17,7 @@ func test_required_autoloads_are_registered() -> void:
 func test_mobile_portrait_and_stretch_settings() -> void:
 	assert_that(int(ProjectSettings.get_setting("display/window/handheld/orientation"))).is_equal(1)
 	assert_that(String(ProjectSettings.get_setting("display/window/stretch/mode"))).is_equal("canvas_items")
-	assert_that(String(ProjectSettings.get_setting("display/window/stretch/aspect"))).is_equal("keep_width")
+	assert_that(String(ProjectSettings.get_setting("display/window/stretch/aspect"))).is_equal("expand")
 
 func test_required_addons_exist() -> void:
 	var gdunit_path: String = ProjectSettings.globalize_path("res://addons/gdUnit4")
