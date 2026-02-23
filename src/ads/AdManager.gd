@@ -31,6 +31,8 @@ func _initialize_provider_async() -> void:
 	if provider != null:
 		return
 	var forced_mock: bool = bool(ProjectSettings.get_setting("lumarush/use_mock_ads", Engine.is_editor_hint()))
+	if DisplayServer.get_name() == "headless":
+		forced_mock = true
 	var has_admob_singleton: bool = Engine.has_singleton("AdmobPlugin")
 	if not forced_mock and not has_admob_singleton:
 		var retries: int = 10
@@ -41,7 +43,8 @@ func _initialize_provider_async() -> void:
 	var use_mock: bool = forced_mock or (not has_admob_singleton)
 	if use_mock:
 		provider = MockAdProviderScript.new()
-		push_warning("AdManager: using MockAdProvider (singleton=%s, forced=%s)." % [str(has_admob_singleton), str(forced_mock)])
+		if not forced_mock:
+			push_warning("AdManager: using MockAdProvider (singleton=%s, forced=%s)." % [str(has_admob_singleton), str(forced_mock)])
 	else:
 		provider = AdmobProviderScript.new()
 		add_child(provider)
@@ -58,7 +61,8 @@ func _bind_provider() -> void:
 	provider.connect("rewarded_closed", Callable(self, "_on_rewarded_closed"))
 	provider.load_interstitial(INTERSTITIAL_ID)
 	provider.load_rewarded(REWARDED_ID)
-	_start_rewarded_preload_loop()
+	if not FeatureFlagsScript.is_visual_test_mode() and DisplayServer.get_name() != "headless":
+		_start_rewarded_preload_loop()
 
 func on_game_finished() -> void:
 	SaveStore.increment_games_played()
@@ -218,5 +222,3 @@ func _ensure_provider_available() -> void:
 		return
 	provider = MockAdProviderScript.new()
 	_bind_provider()
-
-

@@ -132,8 +132,9 @@ func _process(_delta: float) -> void:
 			cleanup_report_history()
 		STOP:
 			_state = EXIT
-			# give the engine small amount time to finish the rpc
-			await get_tree().create_timer(0.1).timeout
+			# avoid allocating an extra SceneTreeTimer right before shutdown
+			for _i in range(6):
+				await get_tree().process_frame
 			await quit(get_exit_code())
 
 

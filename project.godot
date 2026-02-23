@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Color Crunch"
-run/main_scene="res://src/scenes/MainMenu.tscn"
+run/main_scene="res://src/scenes/Boot.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://icon.svg"
 
@@ -23,6 +23,10 @@ AdManager="*res://src/ads/AdManager.gd"
 MusicManager="*res://src/audio/MusicManager.gd"
 BackgroundMood="*res://src/visual/BackgroundMood.gd"
 VFXManager="*res://src/vfx/VFXManager.gd"
+Log="*res://src/core/Log.gd"
+Telemetry="*res://src/core/Telemetry.gd"
+LeaderboardService="*res://src/core/LeaderboardService.gd"
+ModalManager="*res://src/ui/ModalManager.gd"
 RunManager="*res://src/core/RunManager.gd"
 SafeArea="*res://src/core/SafeArea.gd"
 Typography="*res://src/ui/Typography.gd"

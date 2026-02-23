@@ -41,6 +41,16 @@ var _run_coins_spent: int = 0
 var _open_tip_shown_this_run: bool = false
 var _pause_overlap_factor: float = 0.5
 var _audio_overlay: AudioTrackOverlay
+var _current_mode: String = "PURE"
+var _pure_mode_locked: bool = false
+var _round_time_left: float = 90.0
+var _board_anchor_pos: Vector2 = Vector2.ZERO
+var _scene_opened_msec: int = Time.get_ticks_msec()
+var _combo_label: Label
+var _timer_label: Label
+var _near_miss_label: Label
+var _shake_strength: float = 0.0
+var _shake_time_left: float = 0.0
 
 const ICON_UNDO: Texture2D = preload("res://assets/ui/icons/atlas/powerup_undo.tres")
 const ICON_PRISM: Texture2D = preload("res://assets/ui/icons/atlas/powerup_prism.tres")
@@ -54,9 +64,13 @@ const HUD_MAX_WIDTH: float = 760.0
 const POWERUPS_MAX_WIDTH: float = 700.0
 const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
 const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
+const ROUND_LIMIT_SECONDS := 84.0
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
+	_current_mode = RunManager.get_selected_mode()
+	_pure_mode_locked = _current_mode == "PURE"
+	_round_time_left = ROUND_LIMIT_SECONDS
 	NakamaService.track_client_event("gameplay.run_started", {
 		"streak_days": StreakManager.get_streak_days(),
 		"track_id": MusicManager.get_current_track_id(),
@@ -108,6 +122,7 @@ func _ready() -> void:
 		button.clip_contents = false
 	_refresh_audio_icon()
 	powerup_flash.visible = false
+	_setup_dynamic_overlays()
 	_update_score()
 	_update_powerup_buttons()
 
@@ -121,12 +136,28 @@ func _ready() -> void:
 	_center_board()
 	call_deferred("_refresh_button_pivots")
 	_play_enter_transition()
+	Telemetry.mark_scene_loaded("game", _scene_opened_msec)
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_game(self)
 		_center_board()
 		call_deferred("_refresh_button_pivots")
+
+func _process(delta: float) -> void:
+	if _run_finished or _ending_transition_started:
+		return
+	_round_time_left = max(0.0, _round_time_left - delta)
+	_update_timer_label()
+	if _round_time_left <= 0.0:
+		_finish_run(true)
+		return
+	if _shake_time_left > 0.0:
+		_shake_time_left = max(0.0, _shake_time_left - delta)
+		var amp := max(0.0, _shake_strength * (_shake_time_left / 0.12))
+		board.position = _board_anchor_pos + Vector2(randf_range(-amp, amp), randf_range(-amp, amp))
+	elif board and board.position != _board_anchor_pos:
+		board.position = _board_anchor_pos
 
 func _on_match_made(group: Array) -> void:
 	var gained: int = board.consume_last_move_score()
@@ -135,12 +166,16 @@ func _on_match_made(group: Array) -> void:
 	combo += max(1, group.size())
 	score += gained
 	_update_score()
+	UiFx.pop(score_value_label, 1.05, 0.15)
+	_show_combo_feedback()
+	_kick_screen_shake(min(10.0, 2.0 + combo * 0.4))
 	_update_gameplay_mood_from_matches()
 	BackgroundMood.reset_starfield_emission_taper()
 	BackgroundMood.pulse_starfield()
 	MusicManager.on_match_made()
 	if combo >= HIGH_COMBO_THRESHOLD:
 		MusicManager.maybe_trigger_high_combo_fx()
+	_apply_difficulty_curve()
 
 func _on_move_committed(_group: Array, snapshot: Array) -> void:
 	_push_undo(snapshot, score, combo)
@@ -172,6 +207,9 @@ func _on_quit() -> void:
 	_finish_run(false)
 
 func _on_undo_pressed() -> void:
+	if _pure_mode_locked:
+		_show_pure_mode_notice()
+		return
 	if _undo_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("undo")
 		if not purchased:
@@ -194,6 +232,9 @@ func _on_undo_pressed() -> void:
 	_play_powerup_juice(Color(0.72, 0.9, 1.0, FeatureFlags.powerup_flash_alpha()))
 
 func _on_remove_color_pressed() -> void:
+	if _pure_mode_locked:
+		_show_pure_mode_notice()
+		return
 	if _remove_color_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("prism")
 		if not purchased:
@@ -213,14 +254,18 @@ func _on_remove_color_pressed() -> void:
 	_record_powerup_use("prism")
 	call_deferred("_consume_powerup_server", "prism")
 	combo += 1
-	score += removed * 12
+	_round_time_left = min(ROUND_LIMIT_SECONDS + 12.0, _round_time_left + min(8.0, float(removed) * 0.6))
 	_update_score()
+	_update_timer_label()
 	_update_gameplay_mood_from_matches(0.3)
 	_update_powerup_buttons()
 	MusicManager.on_match_made()
 	_play_powerup_juice(Color(1.0, 0.92, 0.7, FeatureFlags.powerup_flash_alpha()))
 
 func _on_shuffle_pressed() -> void:
+	if _pure_mode_locked:
+		_show_pure_mode_notice()
+		return
 	if _shuffle_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("shuffle")
 		if not purchased:
@@ -238,9 +283,10 @@ func _on_shuffle_pressed() -> void:
 	_shuffle_charges -= 1
 	_record_powerup_use("shuffle")
 	call_deferred("_consume_powerup_server", "shuffle")
-	score += 80
+	_round_time_left = min(ROUND_LIMIT_SECONDS + 12.0, _round_time_left + 6.0)
 	combo = max(0, combo - 1)
 	_update_score()
+	_update_timer_label()
 	_update_gameplay_mood_from_matches(0.3)
 	_update_powerup_buttons()
 	_play_powerup_juice(Color(0.8, 0.86, 1.0, FeatureFlags.powerup_flash_alpha()))
@@ -253,6 +299,8 @@ func _update_gameplay_mood_from_matches(fade_seconds: float = -1.0) -> void:
 	var calm_weight: float = raw_calm_weight * max_calm_weight
 	var fade: float = fade_seconds if fade_seconds >= 0.0 else FeatureFlags.gameplay_matches_mood_fade_seconds()
 	BackgroundMood.set_mood_mix(calm_weight, fade)
+	if matches_left <= 2:
+		_show_near_miss_warning(matches_left)
 
 func _update_powerup_buttons() -> void:
 	undo_button.icon = _powerup_button_icon(ICON_UNDO, "undo")
@@ -261,9 +309,20 @@ func _update_powerup_buttons() -> void:
 	_update_badge(undo_badge_panel, undo_badge, _undo_charges, _pending_powerup_refill_type == "undo")
 	_update_badge(prism_badge_panel, prism_badge, _remove_color_charges, _pending_powerup_refill_type == "prism")
 	_update_badge(shuffle_badge_panel, shuffle_badge, _shuffle_charges, _pending_powerup_refill_type == "shuffle")
-	undo_button.disabled = (_undo_charges > 0 and _undo_stack.is_empty()) or _is_other_refill_pending("undo")
-	remove_color_button.disabled = _is_other_refill_pending("prism")
-	shuffle_button.disabled = _is_other_refill_pending("shuffle")
+	if _pure_mode_locked:
+		undo_button.disabled = true
+		remove_color_button.disabled = true
+		shuffle_button.disabled = true
+		undo_button.tooltip_text = "PURE mode disables powerups"
+		remove_color_button.tooltip_text = "PURE mode disables powerups"
+		shuffle_button.tooltip_text = "PURE mode disables powerups"
+	else:
+		undo_button.disabled = (_undo_charges > 0 and _undo_stack.is_empty()) or _is_other_refill_pending("undo")
+		remove_color_button.disabled = _is_other_refill_pending("prism")
+		shuffle_button.disabled = _is_other_refill_pending("shuffle")
+		undo_button.tooltip_text = "Undo"
+		remove_color_button.tooltip_text = "Prism"
+		shuffle_button.tooltip_text = "Shuffle"
 
 func _push_undo(snapshot: Array, score_snapshot: int, combo_snapshot: int) -> void:
 	_undo_stack.append({
@@ -495,6 +554,7 @@ func _record_powerup_use(powerup_type: String) -> void:
 	_powerup_usage[powerup_type] = int(_powerup_usage[powerup_type]) + 1
 	_run_powerups_used_total += 1
 	_maybe_show_open_mode_tip()
+	Telemetry.mark_powerup_used(powerup_type, "OPEN", _remaining_powerup_charges(powerup_type))
 	NakamaService.track_client_event("gameplay.powerup_used", {
 		"powerup_type": powerup_type,
 		"remaining": _remaining_powerup_charges(powerup_type),
@@ -693,6 +753,7 @@ func _center_board() -> void:
 		(view_size.x - board_size.x) * 0.5,
 		top_limit + ((available_height - board_size.y) * 0.5)
 	)
+	_board_anchor_pos = board.position
 
 	powerup_row_width = clamp(board_size.x + max(84.0, board.tile_size * 0.8), min_row_width, max_row_width)
 	_layout_powerups(view_size, powerup_row_width, powerup_row_height)
@@ -810,3 +871,117 @@ func _queue_pause_button_overlap_position() -> void:
 
 func _queue_pause_button_overlap_position_deferred() -> void:
 	call_deferred("_position_pause_button_overlap")
+
+func _setup_dynamic_overlays() -> void:
+	if _combo_label == null:
+		_combo_label = Label.new()
+		_combo_label.name = "ComboChain"
+		_combo_label.visible = false
+		_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_combo_label.add_theme_font_size_override("font_size", 32)
+		_combo_label.add_theme_color_override("font_color", Color(1.0, 0.94, 0.56, 0.98))
+		_combo_label.add_theme_color_override("font_outline_color", Color(0.06, 0.1, 0.2, 0.95))
+		_combo_label.add_theme_constant_override("outline_size", 2)
+		_combo_label.anchor_left = 0.5
+		_combo_label.anchor_right = 0.5
+		_combo_label.anchor_top = 0.0
+		_combo_label.anchor_bottom = 0.0
+		_combo_label.offset_left = -180.0
+		_combo_label.offset_right = 180.0
+		_combo_label.offset_top = 86.0
+		_combo_label.offset_bottom = 130.0
+		$UI.add_child(_combo_label)
+	if _timer_label == null:
+		_timer_label = Label.new()
+		_timer_label.name = "RoundTimer"
+		_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_timer_label.add_theme_font_size_override("font_size", 28)
+		_timer_label.add_theme_color_override("font_color", Color(0.94, 0.98, 1.0, 0.98))
+		_timer_label.add_theme_color_override("font_outline_color", Color(0.08, 0.12, 0.22, 0.95))
+		_timer_label.add_theme_constant_override("outline_size", 2)
+		_timer_label.anchor_left = 0.5
+		_timer_label.anchor_right = 1.0
+		_timer_label.anchor_top = 0.0
+		_timer_label.anchor_bottom = 0.0
+		_timer_label.offset_left = -220.0
+		_timer_label.offset_right = -18.0
+		_timer_label.offset_top = 24.0
+		_timer_label.offset_bottom = 68.0
+		$UI.add_child(_timer_label)
+	if _near_miss_label == null:
+		_near_miss_label = Label.new()
+		_near_miss_label.name = "NearMissLabel"
+		_near_miss_label.visible = false
+		_near_miss_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_near_miss_label.add_theme_font_size_override("font_size", 24)
+		_near_miss_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.42, 0.98))
+		_near_miss_label.add_theme_color_override("font_outline_color", Color(0.14, 0.08, 0.06, 0.95))
+		_near_miss_label.add_theme_constant_override("outline_size", 2)
+		_near_miss_label.anchor_left = 0.0
+		_near_miss_label.anchor_right = 1.0
+		_near_miss_label.anchor_top = 0.0
+		_near_miss_label.anchor_bottom = 0.0
+		_near_miss_label.offset_left = 24.0
+		_near_miss_label.offset_right = -24.0
+		_near_miss_label.offset_top = 64.0
+		_near_miss_label.offset_bottom = 102.0
+		$UI.add_child(_near_miss_label)
+	_update_timer_label()
+
+func _update_timer_label() -> void:
+	if _timer_label == null:
+		return
+	var seconds_left := int(ceil(_round_time_left))
+	_timer_label.text = "Time %02d" % max(0, seconds_left)
+	var danger := _round_time_left <= 15.0
+	_timer_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.46, 1.0) if danger else Color(0.94, 0.98, 1.0, 0.98))
+
+func _show_combo_feedback() -> void:
+	if _combo_label == null or combo < 2:
+		return
+	_combo_label.visible = true
+	_combo_label.text = "Chain x%d" % combo
+	_combo_label.modulate.a = 1.0
+	_combo_label.position.y = 86.0
+	var tween := create_tween()
+	tween.tween_property(_combo_label, "position:y", 66.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_combo_label, "modulate:a", 0.0, 0.34)
+	tween.finished.connect(func() -> void:
+		if _combo_label:
+			_combo_label.visible = false
+	)
+
+func _show_near_miss_warning(matches_left: int) -> void:
+	if _near_miss_label == null:
+		return
+	_near_miss_label.visible = true
+	_near_miss_label.text = "Near miss: only %d moves left" % max(0, matches_left)
+	_near_miss_label.modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_property(_near_miss_label, "modulate:a", 0.0, 0.42)
+	tween.finished.connect(func() -> void:
+		if _near_miss_label:
+			_near_miss_label.visible = false
+	)
+	_kick_screen_shake(6.0)
+
+func _kick_screen_shake(strength: float) -> void:
+	_shake_strength = max(_shake_strength, strength)
+	_shake_time_left = 0.12
+
+func _show_pure_mode_notice() -> void:
+	var modal := TUTORIAL_TIP_SCENE.instantiate()
+	if modal and modal.has_method("configure"):
+		modal.configure({
+			"title": "PURE Mode Active",
+			"message": "Powerups are disabled in PURE mode. Switch to OPEN from the menu to use them.",
+			"confirm_text": "OK",
+			"show_checkbox": false,
+		})
+	add_child(modal)
+
+func _apply_difficulty_curve() -> void:
+	# Gentle curve: higher score trims remaining time cushion and keeps pressure up.
+	var curve := clamp(float(score) / 2200.0, 0.0, 1.0)
+	var max_time := ROUND_LIMIT_SECONDS + lerp(12.0, 6.0, curve)
+	_round_time_left = min(_round_time_left, max_time)

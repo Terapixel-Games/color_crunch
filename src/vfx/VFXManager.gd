@@ -100,10 +100,11 @@ func _spawn_pop_burst(parent: Node, at: Vector2, tint: Color) -> void:
 	pm.color = Color(1, 1, 1, 1)
 	burst.process_material = pm
 	parent.add_child(burst)
+	burst.finished.connect(func() -> void:
+		if is_instance_valid(burst):
+			burst.queue_free()
+	)
 	burst.emitting = true
-	await get_tree().create_timer(1.9).timeout
-	if is_instance_valid(burst):
-		burst.queue_free()
 
 func _resolve_vfx_parent() -> Node:
 	var parent := get_tree().current_scene

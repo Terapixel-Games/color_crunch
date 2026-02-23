@@ -30,6 +30,10 @@ var _base_reward_claimed: bool = false
 var _double_reward_pending: bool = false
 var _base_reward_amount: int = 0
 var _audio_overlay: AudioTrackOverlay
+var _powerups_label: Label
+var _encouragement_label: Label
+var _unlock_progress: ProgressBar
+var _dual_leaderboard_label: Label
 
 func _ready() -> void:
 	BackgroundMood.register_controller($BackgroundController)
@@ -41,6 +45,7 @@ func _ready() -> void:
 	_refresh_audio_icon()
 	_layout_results()
 	call_deferred("_layout_results")
+	_ensure_dynamic_stats()
 	_refresh_intro_pivots()
 	_update_labels()
 	_bind_online_signals()
@@ -52,6 +57,7 @@ func _ready() -> void:
 		add_child(modal)
 	if not AdManager.is_connected("rewarded_powerup_earned", Callable(self, "_on_double_reward_ad_earned")):
 		AdManager.connect("rewarded_powerup_earned", Callable(self, "_on_double_reward_ad_earned"))
+	Telemetry.mark_scene_loaded("results", Time.get_ticks_msec() - 1)
 
 func _update_labels() -> void:
 	score_label.text = "%d" % RunManager.last_score
@@ -68,6 +74,14 @@ func _update_labels() -> void:
 	streak_label.text = "Streak: %d" % StreakManager.get_streak_days()
 	online_status_label.text = "Online: %s" % NakamaService.get_online_status()
 	leaderboard_label.text = _format_leaderboard(NakamaService.get_leaderboard_records())
+	if _powerups_label:
+		_powerups_label.text = "Powerups used: %d" % RunManager.last_run_powerups_used
+	if _encouragement_label:
+		_encouragement_label.text = _build_encouragement_text(local_best, best_value)
+	if _unlock_progress:
+		_unlock_progress.value = SaveStore.get_unlock_progress() * 100.0
+	if _dual_leaderboard_label:
+		_dual_leaderboard_label.text = ""
 	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
 	if _base_reward_claimed:
 		coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
@@ -248,6 +262,12 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 		coins_earned_label.add_theme_font_size_override("font_size", coin_size)
 	if coin_balance_label:
 		coin_balance_label.add_theme_font_size_override("font_size", coin_size)
+	if _powerups_label:
+		_powerups_label.add_theme_font_size_override("font_size", body_size)
+	if _encouragement_label:
+		_encouragement_label.add_theme_font_size_override("font_size", body_size)
+	if _dual_leaderboard_label:
+		_dual_leaderboard_label.add_theme_font_size_override("font_size", int(round(body_size * 0.92)))
 	if double_reward_button:
 		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)
 	if play_again_button:
@@ -276,12 +296,15 @@ func _sync_online_results() -> void:
 	var mode: String = String(RunManager.last_run_leaderboard_mode).strip_edges().to_upper()
 	if mode.is_empty():
 		mode = "PURE"
-	await NakamaService.submit_score(RunManager.last_score, {
+	await LeaderboardService.submit_and_refresh(RunManager.last_score, {
 		"source": "results_ready",
 		"run_id": RunManager.last_run_id,
 		"powerup_breakdown": RunManager.last_run_powerup_breakdown.duplicate(true),
 	}, mode, RunManager.last_run_powerups_used, RunManager.last_run_coins_spent, RunManager.last_run_id, RunManager.last_run_duration_ms)
-	await NakamaService.refresh_my_high_score(mode)
+	var alternate_mode := "OPEN" if mode == "PURE" else "PURE"
+	var alt_result := await NakamaService.refresh_leaderboard(3, alternate_mode)
+	if _dual_leaderboard_label and alt_result.get("ok", false):
+		_dual_leaderboard_label.text = _format_alt_mode_leaderboard(alternate_mode, NakamaService.get_leaderboard_records())
 	await NakamaService.refresh_leaderboard(5, mode)
 
 func _sync_wallet_rewards() -> void:
@@ -432,6 +455,66 @@ func _refresh_audio_icon() -> void:
 	var label: String = "Audio Off" if muted else "Audio"
 	audio_button.set("tooltip_text_override", label)
 	audio_button.set("accessibility_name_override", label)
+
+func _ensure_dynamic_stats() -> void:
+	if box == null:
+		return
+	if _powerups_label == null:
+		_powerups_label = Label.new()
+		_powerups_label.name = "PowerupsUsed"
+		_powerups_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(_powerups_label)
+		box.move_child(_powerups_label, min(7, box.get_child_count() - 1))
+	if _encouragement_label == null:
+		_encouragement_label = Label.new()
+		_encouragement_label.name = "Encouragement"
+		_encouragement_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_encouragement_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_encouragement_label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0, 0.96))
+		box.add_child(_encouragement_label)
+		box.move_child(_encouragement_label, min(8, box.get_child_count() - 1))
+	if _unlock_progress == null:
+		_unlock_progress = ProgressBar.new()
+		_unlock_progress.name = "UnlockProgress"
+		_unlock_progress.min_value = 0.0
+		_unlock_progress.max_value = 100.0
+		_unlock_progress.value = 0.0
+		_unlock_progress.custom_minimum_size.y = 22.0
+		box.add_child(_unlock_progress)
+		box.move_child(_unlock_progress, min(9, box.get_child_count() - 1))
+	if _dual_leaderboard_label == null:
+		_dual_leaderboard_label = Label.new()
+		_dual_leaderboard_label.name = "AltLeaderboard"
+		_dual_leaderboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_dual_leaderboard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(_dual_leaderboard_label)
+		box.move_child(_dual_leaderboard_label, min(10, box.get_child_count() - 1))
+
+func _build_encouragement_text(local_best: int, best_value: int) -> String:
+	if best_value <= 0:
+		return "Great start. Keep chaining to build longer runs."
+	if RunManager.last_score >= best_value:
+		return "New benchmark set. Keep the streak alive."
+	var delta := max(0, best_value - RunManager.last_score)
+	if delta <= 128:
+		return "You were close! Only %d away from best." % delta
+	return "Strong run. %d points to beat your best." % delta
+
+func _format_alt_mode_leaderboard(mode_id: String, records: Array) -> String:
+	if records.is_empty():
+		return "%s leaderboard has no entries yet." % mode_id.capitalize()
+	var lines: Array[String] = []
+	for i in range(min(2, records.size())):
+		var row_var: Variant = records[i]
+		if typeof(row_var) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = row_var
+		lines.append("%d) %s - %d" % [
+			int(row.get("rank", i + 1)),
+			str(row.get("username", "Player")),
+			int(row.get("score", 0)),
+		])
+	return "%s Preview\n%s" % [mode_id.capitalize(), "\n".join(lines)]
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:

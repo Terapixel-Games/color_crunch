@@ -70,6 +70,16 @@ const TILE_PALETTE_LEGACY := [
 	Color(1.0, 0.82, 0.54, 0.88),
 	Color(1.0, 0.90, 0.60, 0.9),
 ]
+const TILE_PALETTE_COLORBLIND := [
+	Color(0.15, 0.66, 0.98, 0.9),
+	Color(0.97, 0.44, 0.10, 0.92),
+	Color(0.20, 0.82, 0.48, 0.9),
+	Color(0.96, 0.82, 0.12, 0.92),
+	Color(0.74, 0.50, 0.96, 0.92),
+	Color(0.95, 0.33, 0.48, 0.92),
+	Color(0.42, 0.88, 0.88, 0.92),
+	Color(0.95, 0.94, 0.94, 0.92),
+]
 
 const EMPTY_TILE_COLOR := Color(0.16, 0.22, 0.34, 0.34)
 
@@ -92,7 +102,9 @@ var _theme_tile_palette: Array = []
 
 func _ready() -> void:
 	_tile_gap_px = _gap_for_tile_size(tile_size)
-	var board_seed: int = 1234 if FeatureFlags.is_visual_test_mode() else -1
+	var board_seed: int = 1234 if FeatureFlags.is_visual_test_mode() else RunManager.consume_pending_daily_seed()
+	if board_seed <= 0:
+		board_seed = -1
 	colors = _palette_size()
 	board = Board.new(width, height, colors, board_seed, 2, _palette_size())
 	_create_tiles()
@@ -167,7 +179,7 @@ func _input(event: InputEvent) -> void:
 				_attempt_move(_direction_from_delta(mouse_event.position - _touch_start))
 
 func _direction_from_delta(delta: Vector2) -> Vector2i:
-	if delta.length() < max(20.0, tile_size * 0.2):
+	if delta.length() < max(12.0, tile_size * 0.15):
 		return Vector2i.ZERO
 	if absf(delta.x) >= absf(delta.y):
 		return Vector2i.RIGHT if delta.x > 0.0 else Vector2i.LEFT
@@ -535,6 +547,8 @@ func _palette_size() -> int:
 	return _tile_palette().size()
 
 func _tile_palette() -> Array:
+	if SaveStore.is_colorblind_high_contrast():
+		return TILE_PALETTE_COLORBLIND
 	if _theme_tile_palette.size() >= 3:
 		return _theme_tile_palette
 	return TILE_PALETTE_LEGACY if FeatureFlags.tile_design_mode() == FeatureFlags.TileDesignMode.LEGACY else TILE_PALETTE_MODERN

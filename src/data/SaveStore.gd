@@ -11,6 +11,14 @@ var data := {
 	"streak_at_risk": 0,
 	"games_played": 0,
 	"selected_track_id": "glassgrid",
+	"preferred_mode": "PURE",
+	"daily_challenge_enabled": false,
+	"tutorial_seen": false,
+	"unlock_progress": 0.0,
+	"colorblind_high_contrast": false,
+	"run_count": 0,
+	"run_duration_total_ms": 0,
+	"first_run_seconds_samples": [],
 	"nakama_device_id": "",
 	"nakama_user_id": "",
 	"terapixel_user_id": "",
@@ -33,6 +41,7 @@ func load_save() -> void:
 		return
 	if _load_from_file():
 		return
+	_normalize_runtime_fields()
 	save()
 
 func save() -> void:
@@ -65,8 +74,27 @@ func _apply_serialized_payload(payload: String) -> bool:
 	for k in data.keys():
 		if parsed.has(k):
 			data[k] = parsed[k]
+	_normalize_runtime_fields()
 	_migrate_legacy_tip_preferences()
 	return true
+
+func _normalize_runtime_fields() -> void:
+	data["preferred_mode"] = str(data.get("preferred_mode", "PURE")).strip_edges().to_upper()
+	if str(data["preferred_mode"]).is_empty():
+		data["preferred_mode"] = "PURE"
+	data["daily_challenge_enabled"] = bool(data.get("daily_challenge_enabled", false))
+	data["tutorial_seen"] = bool(data.get("tutorial_seen", false))
+	data["unlock_progress"] = clamp(float(data.get("unlock_progress", 0.0)), 0.0, 1.0)
+	data["colorblind_high_contrast"] = bool(data.get("colorblind_high_contrast", false))
+	data["run_count"] = max(0, int(data.get("run_count", 0)))
+	data["run_duration_total_ms"] = max(0, int(data.get("run_duration_total_ms", 0)))
+	var samples: Variant = data.get("first_run_seconds_samples", [])
+	if typeof(samples) != TYPE_ARRAY:
+		samples = []
+	var normalized: Array = []
+	for item in samples:
+		normalized.append(max(0, int(item)))
+	data["first_run_seconds_samples"] = normalized
 
 func _migrate_legacy_tip_preferences() -> void:
 	var dismissed_var: Variant = data.get("dismissed_tips", {})
@@ -261,3 +289,73 @@ func should_show_open_leaderboard_tip() -> bool:
 func set_show_open_leaderboard_tip(should_show: bool) -> void:
 	data["show_open_leaderboard_tip"] = should_show
 	set_tip_dismissed(TIP_OPEN_LEADERBOARD_FIRST_POWERUP, not should_show)
+
+func set_preferred_mode(mode_id: String) -> void:
+	var mode := mode_id.strip_edges().to_upper()
+	if mode != "OPEN":
+		mode = "PURE"
+	data["preferred_mode"] = mode
+	save()
+
+func get_preferred_mode() -> String:
+	var mode := str(data.get("preferred_mode", "PURE")).strip_edges().to_upper()
+	return "OPEN" if mode == "OPEN" else "PURE"
+
+func set_daily_challenge_enabled(enabled: bool) -> void:
+	data["daily_challenge_enabled"] = enabled
+	save()
+
+func get_daily_challenge_enabled() -> bool:
+	return bool(data.get("daily_challenge_enabled", false))
+
+func set_tutorial_seen(value: bool) -> void:
+	data["tutorial_seen"] = value
+	save()
+
+func is_tutorial_seen() -> bool:
+	return bool(data.get("tutorial_seen", false))
+
+func set_unlock_progress(value: float) -> void:
+	data["unlock_progress"] = clamp(value, 0.0, 1.0)
+	save()
+
+func get_unlock_progress() -> float:
+	return clamp(float(data.get("unlock_progress", 0.0)), 0.0, 1.0)
+
+func set_colorblind_high_contrast(enabled: bool) -> void:
+	data["colorblind_high_contrast"] = enabled
+	save()
+
+func is_colorblind_high_contrast() -> bool:
+	return bool(data.get("colorblind_high_contrast", false))
+
+func record_run_duration_ms(run_duration_ms: int) -> void:
+	data["run_count"] = int(data.get("run_count", 0)) + 1
+	data["run_duration_total_ms"] = int(data.get("run_duration_total_ms", 0)) + max(0, run_duration_ms)
+	save()
+
+func record_first_run_seconds(seconds_to_gameplay: int) -> void:
+	var samples_var: Variant = data.get("first_run_seconds_samples", [])
+	var samples: Array = samples_var if typeof(samples_var) == TYPE_ARRAY else []
+	samples.append(max(0, seconds_to_gameplay))
+	while samples.size() > 24:
+		samples.pop_front()
+	data["first_run_seconds_samples"] = samples
+	save()
+
+func get_average_run_duration_seconds() -> float:
+	var runs: int = max(1, int(data.get("run_count", 0)))
+	var total_ms: int = max(0, int(data.get("run_duration_total_ms", 0)))
+	return float(total_ms) / float(runs) / 1000.0
+
+func get_average_first_run_seconds() -> float:
+	var samples_var: Variant = data.get("first_run_seconds_samples", [])
+	if typeof(samples_var) != TYPE_ARRAY:
+		return 0.0
+	var samples: Array = samples_var
+	if samples.is_empty():
+		return 0.0
+	var total := 0.0
+	for item in samples:
+		total += float(item)
+	return total / float(samples.size())

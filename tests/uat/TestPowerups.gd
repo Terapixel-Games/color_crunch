@@ -7,6 +7,9 @@ func before() -> void:
 	ProjectSettings.set_setting("lumarush/visual_test_mode", true)
 	ProjectSettings.set_setting("lumarush/audio_test_mode", true)
 	ProjectSettings.set_setting("lumarush/use_mock_ads", true)
+	ProjectSettings.set_setting("color_crunch/nakama_enable_client", false)
+	ProjectSettings.set_setting("color_crunch/client_events_enabled", false)
+	NakamaService._read_runtime_settings()
 
 func test_remove_color_and_shuffle_consume_charges() -> void:
 	var game: Control = await _spawn_game()
@@ -25,8 +28,7 @@ func test_remove_color_and_shuffle_consume_charges() -> void:
 	await game._on_shuffle_pressed()
 	assert_that(int(game._shuffle_charges)).is_equal(0)
 
-	game.queue_free()
-	await get_tree().process_frame
+	await _free_scene(game)
 
 func test_undo_restores_snapshot_and_consumes_charge() -> void:
 	var game: Control = await _spawn_game()
@@ -44,8 +46,7 @@ func test_undo_restores_snapshot_and_consumes_charge() -> void:
 	assert_that(board_view.capture_snapshot()).is_equal(before)
 	assert_that(int(game._undo_charges)).is_equal(0)
 
-	game.queue_free()
-	await get_tree().process_frame
+	await _free_scene(game)
 
 func _spawn_game() -> Control:
 	var scene: PackedScene = load("res://src/scenes/Game.tscn") as PackedScene
@@ -53,3 +54,9 @@ func _spawn_game() -> Control:
 	get_tree().root.add_child(game)
 	await get_tree().process_frame
 	return game
+
+func _free_scene(scene: Node) -> void:
+	if is_instance_valid(scene):
+		scene.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
