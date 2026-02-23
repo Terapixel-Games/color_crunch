@@ -101,18 +101,18 @@ func _on_menu_pressed() -> void:
 
 func _play_intro() -> void:
 	var ui: CanvasItem = $UI
-	var panel: CanvasItem = $UI/Panel
+	var panel_item: CanvasItem = $UI/Panel
 	var box_item: CanvasItem = box
 	var play_again: CanvasItem = play_again_button
 	var menu: CanvasItem = menu_button
 	ui.modulate.a = 0.0
-	panel.scale = Vector2(0.9, 0.9)
+	panel_item.scale = Vector2(0.9, 0.9)
 	box_item.scale = Vector2(0.95, 0.95)
 	play_again.modulate.a = 0.0
 	menu.modulate.a = 0.0
 	var t := create_tween()
 	t.tween_property(ui, "modulate:a", 1.0, 0.28)
-	t.parallel().tween_property(panel, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(panel_item, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.parallel().tween_property(box_item, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(play_again, "modulate:a", 1.0, 0.16)
 	t.tween_property(menu, "modulate:a", 1.0, 0.16)
@@ -155,28 +155,38 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
 	var use_split: bool = viewport_aspect >= 1.45
 	_configure_stats_split(content_size, use_split)
+	var compact_mode: bool = false
+	_set_compact_optional_rows(compact_mode)
 	var base_separation: float = clamp(round(content_size.y * 0.01), 6.0, 16.0)
 	var compact_scale: float = 1.0
-	for _i in range(6):
-		var separation: int = int(clamp(round(base_separation * compact_scale), 6.0, 16.0))
+	for _i in range(8):
+		var separation_min: float = 4.0 if compact_mode else 6.0
+		var separation: int = int(clamp(round(base_separation * compact_scale), separation_min, 16.0))
 		box.add_theme_constant_override("separation", separation)
-		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale)
+		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale, compact_mode)
 
-		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, 38.0, 84.0)
-		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, 48.0, 104.0)
+		var secondary_min: float = 30.0 if compact_mode else 38.0
+		var primary_min: float = 36.0 if compact_mode else 48.0
+		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, secondary_min, 84.0)
+		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, primary_min, 104.0)
 		double_reward_button.custom_minimum_size.y = secondary_button_height
 		if play_again_button:
 			play_again_button.custom_minimum_size.y = primary_button_height
 		if menu_button:
 			menu_button.custom_minimum_size.y = primary_button_height
 		if spacer:
-			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * 0.015 * compact_scale))
+			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * (0.008 if compact_mode else 0.015) * compact_scale))
 
 		var required_height: float = box.get_combined_minimum_size().y
 		if required_height <= content_size.y:
 			break
+		if not compact_mode:
+			compact_mode = true
+			_set_compact_optional_rows(compact_mode)
+			compact_scale = min(compact_scale, 0.72)
+			continue
 		var fit_ratio: float = content_size.y / max(1.0, required_height)
-		var next_scale: float = clamp(compact_scale * fit_ratio, 0.6, compact_scale)
+		var next_scale: float = clamp(compact_scale * fit_ratio, 0.5, compact_scale)
 		if absf(next_scale - compact_scale) < 0.01:
 			break
 		compact_scale = next_scale
@@ -188,6 +198,7 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 	box.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	box.position = Vector2.ZERO
 	box.size = Vector2(content_size.x, content_size.y)
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN if compact_mode else BoxContainer.ALIGNMENT_CENTER
 	box.custom_minimum_size = Vector2(content_size.x, 0.0)
 	var content_min_height: float = box.get_combined_minimum_size().y
 	box.custom_minimum_size.y = max(content_size.y, content_min_height)
@@ -224,7 +235,7 @@ func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
 	if leaderboard_label:
 		leaderboard_label.horizontal_alignment = right_alignment
 
-func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, use_split: bool, compact_scale: float = 1.0) -> void:
+func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, use_split: bool, compact_scale: float = 1.0, compact_mode: bool = false) -> void:
 	var is_wide: bool = viewport_aspect >= 1.55
 	var headline_scale: float = compact_scale
 	var action_scale: float = compact_scale
@@ -234,14 +245,22 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
 	var menu_title_px: int = Typography.px(Typography.SIZE_MENU_TITLE)
 	var menu_button_px: int = Typography.px(Typography.SIZE_BUTTON)
-	var title_size: int = int(round(clamp(float(menu_title_px) * 0.82 * headline_scale, 46.0, 124.0)))
-	var score_size: int = int(round(clamp(max(float(menu_title_px) * 1.0, stat_column_width * 0.16) * headline_scale, 58.0, 156.0)))
-	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale, 18.0, 48.0)))
-	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.9 * compact_scale, 22.0, 58.0)))
-	var body_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale, 17.0, 44.0)))
-	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.8 * compact_scale, 17.0, 46.0)))
-	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.78 * action_scale, 17.0, 40.0)))
-	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.9 if is_wide else 0.95) * action_scale, 20.0, 56.0)))
+	var title_min: float = 34.0 if compact_mode else 46.0
+	var score_min: float = 44.0 if compact_mode else 58.0
+	var mode_min: float = 14.0 if compact_mode else 18.0
+	var stat_min: float = 16.0 if compact_mode else 22.0
+	var body_min: float = 14.0 if compact_mode else 17.0
+	var coin_min: float = 14.0 if compact_mode else 17.0
+	var reward_min: float = 14.0 if compact_mode else 17.0
+	var primary_min: float = 16.0 if compact_mode else 20.0
+	var title_size: int = int(round(clamp(float(menu_title_px) * 0.82 * headline_scale, title_min, 124.0)))
+	var score_size: int = int(round(clamp(max(float(menu_title_px) * 1.0, stat_column_width * 0.16) * headline_scale, score_min, 156.0)))
+	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale, mode_min, 48.0)))
+	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.9 * compact_scale, stat_min, 58.0)))
+	var body_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale, body_min, 44.0)))
+	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.8 * compact_scale, coin_min, 46.0)))
+	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.78 * action_scale, reward_min, 40.0)))
+	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.9 if is_wide else 0.95) * action_scale, primary_min, 56.0)))
 
 	if title_label:
 		title_label.add_theme_font_size_override("font_size", title_size)
@@ -490,12 +509,20 @@ func _ensure_dynamic_stats() -> void:
 		box.add_child(_dual_leaderboard_label)
 		box.move_child(_dual_leaderboard_label, min(10, box.get_child_count() - 1))
 
-func _build_encouragement_text(local_best: int, best_value: int) -> String:
+func _set_compact_optional_rows(compact_mode: bool) -> void:
+	if _encouragement_label:
+		_encouragement_label.visible = not compact_mode
+	if _unlock_progress:
+		_unlock_progress.visible = not compact_mode
+	if _dual_leaderboard_label:
+		_dual_leaderboard_label.visible = not compact_mode
+
+func _build_encouragement_text(_local_best: int, best_value: int) -> String:
 	if best_value <= 0:
 		return "Great start. Keep chaining to build longer runs."
 	if RunManager.last_score >= best_value:
 		return "New benchmark set. Keep the streak alive."
-	var delta := max(0, best_value - RunManager.last_score)
+	var delta: int = max(0, best_value - RunManager.last_score)
 	if delta <= 128:
 		return "You were close! Only %d away from best." % delta
 	return "Strong run. %d points to beat your best." % delta

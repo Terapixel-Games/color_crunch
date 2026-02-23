@@ -1,6 +1,10 @@
 extends GdUnitTestSuite
 
+var _original_mode: String = "PURE"
+
 func before() -> void:
+	_original_mode = RunManager.get_selected_mode()
+	RunManager.set_selected_mode("OPEN", "test")
 	ProjectSettings.set_setting("lumarush/powerup_undo_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_remove_color_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_shuffle_charges", 1)
@@ -10,6 +14,9 @@ func before() -> void:
 	ProjectSettings.set_setting("color_crunch/nakama_enable_client", false)
 	ProjectSettings.set_setting("color_crunch/client_events_enabled", false)
 	NakamaService._read_runtime_settings()
+
+func after() -> void:
+	RunManager.set_selected_mode(_original_mode, "test")
 
 func test_remove_color_and_shuffle_consume_charges() -> void:
 	var game: Control = await _spawn_game()

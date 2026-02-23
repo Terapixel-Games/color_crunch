@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 
 func test_project_name_and_main_scene() -> void:
 	assert_that(String(ProjectSettings.get_setting("application/config/name"))).is_equal("Color Crunch")
-	assert_that(String(ProjectSettings.get_setting("application/run/main_scene"))).is_equal("res://src/scenes/MainMenu.tscn")
+	assert_that(String(ProjectSettings.get_setting("application/run/main_scene"))).is_equal("res://src/scenes/Boot.tscn")
 
 func test_required_autoloads_are_registered() -> void:
 	assert_that(String(ProjectSettings.get_setting("autoload/SaveStore"))).is_equal("*res://src/data/SaveStore.gd")

@@ -154,7 +154,7 @@ func _process(delta: float) -> void:
 		return
 	if _shake_time_left > 0.0:
 		_shake_time_left = max(0.0, _shake_time_left - delta)
-		var amp := max(0.0, _shake_strength * (_shake_time_left / 0.12))
+		var amp: float = max(0.0, _shake_strength * (_shake_time_left / 0.12))
 		board.position = _board_anchor_pos + Vector2(randf_range(-amp, amp), randf_range(-amp, amp))
 	elif board and board.position != _board_anchor_pos:
 		board.position = _board_anchor_pos
@@ -982,6 +982,6 @@ func _show_pure_mode_notice() -> void:
 
 func _apply_difficulty_curve() -> void:
 	# Gentle curve: higher score trims remaining time cushion and keeps pressure up.
-	var curve := clamp(float(score) / 2200.0, 0.0, 1.0)
-	var max_time := ROUND_LIMIT_SECONDS + lerp(12.0, 6.0, curve)
+	var curve: float = clamp(float(score) / 2200.0, 0.0, 1.0)
+	var max_time: float = ROUND_LIMIT_SECONDS + lerp(12.0, 6.0, curve)
 	_round_time_left = min(_round_time_left, max_time)
