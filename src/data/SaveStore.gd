@@ -23,7 +23,6 @@ var data := {
 	"nakama_user_id": "",
 	"terapixel_user_id": "",
 	"terapixel_display_name": "",
-	"terapixel_email": "",
 	"coins": 0,
 	"owned_themes": ["default"],
 	"equipped_theme": "default",
@@ -32,6 +31,7 @@ var data := {
 	"dismissed_tips": {},
 	"show_open_leaderboard_tip": true,
 }
+var _runtime_terapixel_email := ""
 
 func _ready() -> void:
 	load_save()
@@ -71,11 +71,18 @@ func _apply_serialized_payload(payload: String) -> bool:
 	var parsed: Variant = JSON.parse_string(payload)
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return false
+	var parsed_dict: Dictionary = parsed
+	var had_legacy_email := parsed_dict.has("terapixel_email")
+	var legacy_email := str(parsed_dict.get("terapixel_email", "")).strip_edges().to_lower()
 	for k in data.keys():
 		if parsed.has(k):
 			data[k] = parsed[k]
+	_runtime_terapixel_email = legacy_email
 	_normalize_runtime_fields()
 	_migrate_legacy_tip_preferences()
+	if had_legacy_email:
+		# Remove legacy persisted email from storage.
+		save()
 	return true
 
 func _normalize_runtime_fields() -> void:
@@ -176,8 +183,7 @@ func set_terapixel_identity(user_id: String, display_name: String = "", email: S
 	data["terapixel_user_id"] = user_id.strip_edges()
 	if not display_name.is_empty():
 		data["terapixel_display_name"] = display_name
-	if not email.is_empty():
-		data["terapixel_email"] = email.strip_edges().to_lower()
+	_runtime_terapixel_email = email.strip_edges().to_lower()
 	save()
 
 func get_terapixel_user_id() -> String:
@@ -187,16 +193,15 @@ func get_terapixel_display_name() -> String:
 	return str(data.get("terapixel_display_name", ""))
 
 func set_terapixel_email(email: String) -> void:
-	data["terapixel_email"] = email.strip_edges().to_lower()
-	save()
+	_runtime_terapixel_email = email.strip_edges().to_lower()
 
 func get_terapixel_email() -> String:
-	return str(data.get("terapixel_email", ""))
+	return _runtime_terapixel_email
 
 func clear_terapixel_identity() -> void:
 	data["terapixel_user_id"] = ""
 	data["terapixel_display_name"] = ""
-	data["terapixel_email"] = ""
+	_runtime_terapixel_email = ""
 	save()
 
 func set_coins(value: int) -> void:

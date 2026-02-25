@@ -638,7 +638,7 @@ func update_username(new_username: String) -> Dictionary:
 func _authenticate_preferred() -> Dictionary:
 	var terapixel_user_id := SaveStore.get_terapixel_user_id().strip_edges()
 	if not terapixel_user_id.is_empty():
-		var custom_result: Dictionary = await _authenticate_custom(terapixel_user_id, true)
+		var custom_result: Dictionary = await _authenticate_custom(terapixel_user_id, false)
 		if custom_result.get("ok", false):
 			custom_result["provider"] = "custom"
 			return custom_result
@@ -647,7 +647,7 @@ func _authenticate_preferred() -> Dictionary:
 		device_result["provider"] = "device"
 	return device_result
 
-func _authenticate_custom(terapixel_user_id: String, create_if_missing: bool = true) -> Dictionary:
+func _authenticate_custom(terapixel_user_id: String, create_if_missing: bool = false) -> Dictionary:
 	var cleaned_id := terapixel_user_id.strip_edges()
 	if cleaned_id.is_empty():
 		return {"ok": false, "error": "missing terapixel_user_id"}
@@ -728,7 +728,7 @@ func _handle_magic_link_completion(data: Dictionary) -> void:
 			SaveStore.get_terapixel_display_name(),
 			linked_email
 		)
-		var switch_result: Dictionary = await _authenticate_custom(linked_profile_id)
+		var switch_result: Dictionary = await _authenticate_custom(linked_profile_id, false)
 		if switch_result.get("ok", false):
 			_is_authenticated = true
 			auth_state_changed.emit(true, _user_id)

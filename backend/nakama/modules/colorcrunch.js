@@ -293,6 +293,12 @@ function afterAuthenticateDevice(ctx, logger, nk, session, request) {
 
 function verifyPlatformAuth(nk, logger, provider, externalId, username) {
   if (!MODULE_CONFIG.authUrl) {
+    if (provider === "custom") {
+      logger.error(
+        "Platform auth URL is required for custom auth. Set TPX_PLATFORM_AUTH_URL."
+      );
+      throw new Error("Custom authentication is not configured.");
+    }
     return;
   }
 
