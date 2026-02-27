@@ -27,7 +27,7 @@ func test_required_addons_exist() -> void:
 
 func test_color_crunch_backend_defaults_exist() -> void:
 	assert_that(bool(ProjectSettings.get_setting("color_crunch/nakama_enable_client"))).is_false()
-	assert_that(String(ProjectSettings.get_setting("color_crunch/nakama_base_url"))).is_equal("http://127.0.0.1:7350")
+	assert_that(String(ProjectSettings.get_setting("color_crunch/nakama_base_url"))).is_equal("https://terapixel.games/nakama/color-crunch")
 	assert_that(String(ProjectSettings.get_setting("color_crunch/nakama_server_key"))).is_equal("colorcrunch-dev-key")
 	assert_that(int(ProjectSettings.get_setting("color_crunch/nakama_leaderboard_limit"))).is_equal(10)
 	assert_that(String(ProjectSettings.get_setting("color_crunch/platform"))).is_equal("terapixel")
