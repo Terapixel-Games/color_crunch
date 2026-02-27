@@ -24,7 +24,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run Nakama Module Tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          node --version
+          node --test backend/nakama/tests/*.test.js
+
   deploy:
+    needs: quality-gates
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.target == 'prod' && 'production' || 'staging') || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}
     env:
@@ -38,13 +52,15 @@ jobs:
       CLOUDRUN_SERVICE_TEMPLATE: ${{ vars.CLOUDRUN_SERVICE_TEMPLATE != '' && vars.CLOUDRUN_SERVICE_TEMPLATE || 'backend/nakama/cloudrun/service.template.yaml' }}
       CLOUDSQL_INSTANCE_CONNECTION_NAME: ${{ vars.CLOUDSQL_INSTANCE_CONNECTION_NAME }}
       CLOUDRUN_DEPLOY_FLAGS_JSON: ${{ vars.CLOUDRUN_DEPLOY_FLAGS_JSON }}
+      CLOUDRUN_VPC_CONNECTOR: ${{ vars.CLOUDRUN_VPC_CONNECTOR }}
+      CLOUDRUN_VPC_EGRESS: ${{ vars.CLOUDRUN_VPC_EGRESS }}
       TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL: ${{ vars.TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL }}
       TPX_PLATFORM_USERNAME_VALIDATE_URL: ${{ vars.TPX_PLATFORM_USERNAME_VALIDATE_URL }}
       TPX_PLATFORM_TELEMETRY_EVENTS_URL: ${{ vars.TPX_PLATFORM_TELEMETRY_EVENTS_URL }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Validate required configuration
         shell: bash
@@ -74,13 +90,13 @@ jobs:
           fi
 
       - name: Authenticate to Google Cloud (OIDC)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a # v2.1.4
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
@@ -100,6 +116,8 @@ jobs:
             image_base="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/nakama/${CLOUDRUN_SERVICE}"
           fi
           image_uri="${image_base}:${GITHUB_SHA::12}"
+          vpc_connector="${CLOUDRUN_VPC_CONNECTOR:-projects/${GCP_PROJECT_ID}/locations/${GCP_REGION}/connectors/tpx-serverless-connector}"
+          vpc_egress="${CLOUDRUN_VPC_EGRESS:-PRIVATE_RANGES_ONLY}"
 
           docker build -f backend/nakama/Dockerfile.render -t "${image_uri}" backend/nakama
           docker push "${image_uri}"
@@ -110,6 +128,8 @@ jobs:
             -e "s|__SERVICE_ACCOUNT_EMAIL__|${CLOUDRUN_RUNTIME_SERVICE_ACCOUNT}|g" \
             -e "s|__IMAGE_URI__|${image_uri}|g" \
             -e "s|__CLOUDSQL_INSTANCES__|${CLOUDSQL_INSTANCE_CONNECTION_NAME}|g" \
+            -e "s|__CLOUDRUN_VPC_CONNECTOR__|${vpc_connector}|g" \
+            -e "s|__CLOUDRUN_VPC_EGRESS__|${vpc_egress}|g" \
             -e "s|__TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL__|${TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL}|g" \
             -e "s|__TPX_PLATFORM_USERNAME_VALIDATE_URL__|${TPX_PLATFORM_USERNAME_VALIDATE_URL}|g" \
             -e "s|__TPX_PLATFORM_TELEMETRY_EVENTS_URL__|${TPX_PLATFORM_TELEMETRY_EVENTS_URL}|g" \
