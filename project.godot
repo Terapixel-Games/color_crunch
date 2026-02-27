@@ -36,7 +36,7 @@ ThemeManager="*res://src/theme/ThemeManager.gd"
 [color_crunch]
 
 nakama_enable_client=false
-nakama_base_url="http://127.0.0.1:7350"
+nakama_base_url="https://terapixel.games/nakama/color-crunch"
 nakama_server_key="colorcrunch-dev-key"
 nakama_leaderboard_limit=10
 platform="terapixel"

@@ -1,17 +1,16 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: colorcrunch-nakama
+  name: "__CLOUDRUN_SERVICE__"
 spec:
   template:
     metadata:
       annotations:
         autoscaling.knative.dev/minScale: "0"
-        autoscaling.knative.dev/maxScale: "40"
+        autoscaling.knative.dev/maxScale: "20"
         run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/execution-environment: gen2
-        # Optional when using Cloud SQL Auth Proxy:
-        # run.googleapis.com/cloudsql-instances: "__PROJECT_ID__:__REGION__:__CLOUDSQL_INSTANCE__"
+        run.googleapis.com/cloudsql-instances: "__CLOUDSQL_INSTANCES__"
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300

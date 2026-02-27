@@ -1,0 +1,151 @@
+name: Deploy Nakama To Cloud Run
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deploy target"
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cloudrun-nakama-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.target == 'prod' && 'production' || 'staging') || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION != '' && vars.GCP_REGION || 'us-central1' }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      CLOUDRUN_SERVICE: ${{ vars.CLOUDRUN_SERVICE != '' && vars.CLOUDRUN_SERVICE || 'colorcrunch-nakama' }}
+      CLOUDRUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUDRUN_RUNTIME_SERVICE_ACCOUNT }}
+      CLOUDRUN_IMAGE_BASE: ${{ vars.CLOUDRUN_IMAGE_BASE }}
+      CLOUDRUN_SERVICE_TEMPLATE: ${{ vars.CLOUDRUN_SERVICE_TEMPLATE != '' && vars.CLOUDRUN_SERVICE_TEMPLATE || 'backend/nakama/cloudrun/service.template.yaml' }}
+      CLOUDSQL_INSTANCE_CONNECTION_NAME: ${{ vars.CLOUDSQL_INSTANCE_CONNECTION_NAME }}
+      CLOUDRUN_DEPLOY_FLAGS_JSON: ${{ vars.CLOUDRUN_DEPLOY_FLAGS_JSON }}
+      TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL: ${{ vars.TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL }}
+      TPX_PLATFORM_USERNAME_VALIDATE_URL: ${{ vars.TPX_PLATFORM_USERNAME_VALIDATE_URL }}
+      TPX_PLATFORM_TELEMETRY_EVENTS_URL: ${{ vars.TPX_PLATFORM_TELEMETRY_EVENTS_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT CLOUDRUN_SERVICE CLOUDRUN_RUNTIME_SERVICE_ACCOUNT CLOUDSQL_INSTANCE_CONNECTION_NAME TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL TPX_PLATFORM_USERNAME_VALIDATE_URL TPX_PLATFORM_TELEMETRY_EVENTS_URL; do
+            if [ -z "${!key:-}" ]; then
+              echo "Missing required variable: ${key}"
+              exit 1
+            fi
+          done
+          if [ ! -f "${CLOUDRUN_SERVICE_TEMPLATE}" ]; then
+            echo "Missing Cloud Run service template: ${CLOUDRUN_SERVICE_TEMPLATE}"
+            exit 1
+          fi
+          if [ -n "${CLOUDRUN_DEPLOY_FLAGS_JSON:-}" ]; then
+            if jq -e 'type == "array"' <<<"${CLOUDRUN_DEPLOY_FLAGS_JSON}" >/dev/null 2>&1; then
+              :
+            else
+              raw_flags="${CLOUDRUN_DEPLOY_FLAGS_JSON#[}"
+              raw_flags="${raw_flags%]}"
+              if [ -z "${raw_flags//[[:space:],]/}" ]; then
+                echo "Invalid CLOUDRUN_DEPLOY_FLAGS_JSON format"
+                exit 1
+              fi
+            fi
+          fi
+
+      - name: Authenticate to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Build image and deploy service
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          image_base="${CLOUDRUN_IMAGE_BASE:-}"
+          if [ -z "${image_base}" ]; then
+            image_base="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/nakama/${CLOUDRUN_SERVICE}"
+          fi
+          image_uri="${image_base}:${GITHUB_SHA::12}"
+
+          gcloud builds submit backend/nakama \
+            --project "${GCP_PROJECT_ID}" \
+            --tag "${image_uri}" \
+            --file backend/nakama/Dockerfile.render
+
+          rendered="/tmp/${CLOUDRUN_SERVICE}-service.yaml"
+          sed \
+            -e "s|__CLOUDRUN_SERVICE__|${CLOUDRUN_SERVICE}|g" \
+            -e "s|__SERVICE_ACCOUNT_EMAIL__|${CLOUDRUN_RUNTIME_SERVICE_ACCOUNT}|g" \
+            -e "s|__IMAGE_URI__|${image_uri}|g" \
+            -e "s|__CLOUDSQL_INSTANCES__|${CLOUDSQL_INSTANCE_CONNECTION_NAME}|g" \
+            -e "s|__TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL__|${TPX_PLATFORM_IDENTITY_NAKAMA_AUTH_URL}|g" \
+            -e "s|__TPX_PLATFORM_USERNAME_VALIDATE_URL__|${TPX_PLATFORM_USERNAME_VALIDATE_URL}|g" \
+            -e "s|__TPX_PLATFORM_TELEMETRY_EVENTS_URL__|${TPX_PLATFORM_TELEMETRY_EVENTS_URL}|g" \
+            "${CLOUDRUN_SERVICE_TEMPLATE}" > "${rendered}"
+
+          gcloud run services replace "${rendered}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}"
+
+          if [ -n "${CLOUDRUN_DEPLOY_FLAGS_JSON:-}" ]; then
+            extra_flags=()
+            if jq -e 'type == "array"' <<<"${CLOUDRUN_DEPLOY_FLAGS_JSON}" >/dev/null 2>&1; then
+              mapfile -t extra_flags < <(jq -r '.[]' <<<"${CLOUDRUN_DEPLOY_FLAGS_JSON}")
+            else
+              raw_flags="${CLOUDRUN_DEPLOY_FLAGS_JSON#[}"
+              raw_flags="${raw_flags%]}"
+              IFS=',' read -ra raw_parts <<<"${raw_flags}"
+              for part in "${raw_parts[@]}"; do
+                flag="$(echo "${part}" | xargs)"
+                flag="${flag%\"}"
+                flag="${flag#\"}"
+                if [ -n "${flag}" ]; then
+                  extra_flags+=("${flag}")
+                fi
+              done
+            fi
+            if [ "${#extra_flags[@]}" -gt 0 ]; then
+              gcloud run services update "${CLOUDRUN_SERVICE}" \
+                --project "${GCP_PROJECT_ID}" \
+                --region "${GCP_REGION}" \
+                "${extra_flags[@]}"
+            fi
+          fi
+
+          service_url="$(gcloud run services describe "${CLOUDRUN_SERVICE}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --format='value(status.url)')"
+
+          echo "### Cloud Run Nakama Deploy" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Service: \`${CLOUDRUN_SERVICE}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Image: \`${image_uri}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- URL: ${service_url}" >> "${GITHUB_STEP_SUMMARY}"

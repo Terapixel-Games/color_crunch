@@ -160,7 +160,7 @@ If the Terapixel auth URL is unset, Nakama auth proceeds without external verifi
 - `tpx_account_update_username`: validates and updates username (first change free, then coins).
 - `tpx_client_event_track`: ingests normalized client telemetry events through Nakama to platform telemetry.
 
-## Deploy on Render
+## Deploy on Render (fallback)
 
 This repo includes a Render Blueprint at `render.yaml` for a Docker-based Nakama web service that connects to a shared Postgres instance.
 
