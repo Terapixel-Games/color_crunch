@@ -162,6 +162,10 @@ If the Terapixel auth URL is unset, Nakama auth proceeds without external verifi
 
 ## Deploy on Render (fallback)
 
+Render is decommissioned as the primary hosting path. Keep this section for disaster recovery only.
+To re-enable GitHub-triggered fallback deploys, set repository/environment variable `RENDER_ENABLED=true`
+and restore the required Render secrets (`RENDER_API_KEY`, `RENDER_SERVICE_IDS`).
+
 This repo includes a Render Blueprint at `render.yaml` for a Docker-based Nakama web service that connects to a shared Postgres instance.
 
 1. In Render, create a new Blueprint deployment from this repo.
