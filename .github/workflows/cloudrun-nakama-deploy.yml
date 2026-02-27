@@ -84,6 +84,12 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Configure Artifact Registry auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
       - name: Build image and deploy service
         shell: bash
         run: |
@@ -95,14 +101,8 @@ jobs:
           fi
           image_uri="${image_base}:${GITHUB_SHA::12}"
 
-          dockerfile_path="backend/nakama/Dockerfile.render"
-          temp_dockerfile="backend/nakama/Dockerfile"
-          cp "${dockerfile_path}" "${temp_dockerfile}"
-          trap 'rm -f "${temp_dockerfile}"' EXIT
-
-          gcloud builds submit backend/nakama \
-            --project "${GCP_PROJECT_ID}" \
-            --tag "${image_uri}"
+          docker build -f backend/nakama/Dockerfile.render -t "${image_uri}" backend/nakama
+          docker push "${image_uri}"
 
           rendered="/tmp/${CLOUDRUN_SERVICE}-service.yaml"
           sed \
