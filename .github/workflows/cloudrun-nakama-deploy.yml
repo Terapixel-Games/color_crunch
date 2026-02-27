@@ -117,7 +117,7 @@ jobs:
           fi
           image_uri="${image_base}:${GITHUB_SHA::12}"
           vpc_connector="${CLOUDRUN_VPC_CONNECTOR:-projects/${GCP_PROJECT_ID}/locations/${GCP_REGION}/connectors/tpx-serverless-connector}"
-          vpc_egress="${CLOUDRUN_VPC_EGRESS:-PRIVATE_RANGES_ONLY}"
+          vpc_egress="${CLOUDRUN_VPC_EGRESS:-private-ranges-only}"
 
           docker build -f backend/nakama/Dockerfile.render -t "${image_uri}" backend/nakama
           docker push "${image_uri}"
