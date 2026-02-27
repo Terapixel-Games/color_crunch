@@ -11,13 +11,12 @@ spec:
         run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/cloudsql-instances: "__CLOUDSQL_INSTANCES__"
+        run.googleapis.com/vpc-access-connector: "__CLOUDRUN_VPC_CONNECTOR__"
+        run.googleapis.com/vpc-access-egress: "__CLOUDRUN_VPC_EGRESS__"
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300
       serviceAccountName: "__SERVICE_ACCOUNT_EMAIL__"
-      vpcAccess:
-        connector: "__CLOUDRUN_VPC_CONNECTOR__"
-        egress: "__CLOUDRUN_VPC_EGRESS__"
       containers:
         - image: "__IMAGE_URI__"
           ports:
