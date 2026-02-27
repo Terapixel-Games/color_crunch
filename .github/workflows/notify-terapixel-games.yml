@@ -31,30 +31,48 @@ jobs:
           WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           SHA: ${{ github.sha }}
         run: |
+          SOURCE_REPO="Terapixel-Games/color_crunch"
+          TARGET_REPO="Terapixel-Games/terapixel.games"
+
           if [ -z "$DISPATCH_TOKEN" ]; then
             echo "Missing required secret: TERAPIXEL_GAMES_DISPATCH_TOKEN"
             exit 1
           fi
 
           RELEASE_TAG="$INPUT_RELEASE_TAG"
+          RELEASE_ASSET=""
           if [ -z "$RELEASE_TAG" ]; then
             RELEASE_TAG="$RELEASE_TAG_FROM_EVENT"
           fi
-          if [ -z "$RELEASE_TAG" ]; then
+          if [ -n "$RELEASE_TAG" ]; then
+            VERSION="${RELEASE_TAG#v}"
+            RELEASE_ASSET="color-crunch-web-${VERSION}.zip"
+          fi
+
+          LATEST_JSON=""
+          if [ -z "$RELEASE_TAG" ] || [ -z "$RELEASE_ASSET" ]; then
             LATEST_JSON=$(curl -sS \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $DISPATCH_TOKEN" \
-              https://api.github.com/repos/TeraPixelGames/color_crunch/releases/latest)
+              "https://api.github.com/repos/${SOURCE_REPO}/releases/latest")
+          fi
+
+          if [ -z "$RELEASE_TAG" ]; then
             RELEASE_TAG=$(LATEST_JSON="$LATEST_JSON" python -c "import json,os; print(json.loads(os.environ.get('LATEST_JSON','{}')).get('tag_name',''))")
+          fi
+          if [ -z "$RELEASE_ASSET" ]; then
+            RELEASE_ASSET=$(LATEST_JSON="$LATEST_JSON" python -c "import json, os; data = json.loads(os.environ.get('LATEST_JSON', '{}')); assets = data.get('assets', []); zip_asset = next((a.get('name', '') for a in assets if a.get('name', '').endswith('.zip')), ''); print(zip_asset or (assets[0].get('name', '') if assets else ''))")
           fi
 
           if [ -z "$RELEASE_TAG" ]; then
             echo "Unable to resolve release tag"
             exit 1
           fi
+          if [ -z "$RELEASE_ASSET" ]; then
+            VERSION="${RELEASE_TAG#v}"
+            RELEASE_ASSET="color-crunch-web-${VERSION}.zip"
+          fi
 
-          VERSION="${RELEASE_TAG#v}"
-          RELEASE_ASSET="color-crunch-web-${VERSION}.zip"
           SOURCE_SHA="$RELEASE_TARGET_SHA"
           if [ -z "$SOURCE_SHA" ]; then
             SOURCE_SHA="$WORKFLOW_RUN_HEAD_SHA"
@@ -69,7 +87,7 @@ jobs:
             "client_payload": {
               "release_tag": "$RELEASE_TAG",
               "release_asset": "$RELEASE_ASSET",
-              "source_repo": "TeraPixelGames/color_crunch",
+              "source_repo": "$SOURCE_REPO",
               "source_sha": "$SOURCE_SHA"
             }
           }
@@ -80,7 +98,7 @@ jobs:
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $DISPATCH_TOKEN" \
-            https://api.github.com/repos/TeraPixelGames/terapixel.games/dispatches \
+            "https://api.github.com/repos/${TARGET_REPO}/dispatches" \
             -d "$PAYLOAD")
 
           echo "Dispatch HTTP status: $HTTP_CODE"
@@ -91,4 +109,4 @@ jobs:
             exit 1
           fi
 
-          echo "repository_dispatch sent to TeraPixel/terapixel.games"
+          echo "repository_dispatch sent to ${TARGET_REPO}"
