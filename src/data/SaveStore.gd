@@ -30,6 +30,12 @@ var data := {
 	"owned_powerups": {"undo": 0, "prism": 0, "shuffle": 0},
 	"dismissed_tips": {},
 	"show_open_leaderboard_tip": true,
+	"social_week_key": "",
+	"social_week_points": 0,
+	"social_week_tier": 0,
+	"social_week_best": 0,
+	"social_rival_name": "Nova-17",
+	"social_rival_target": 0,
 }
 var _runtime_terapixel_email := ""
 
@@ -95,6 +101,12 @@ func _normalize_runtime_fields() -> void:
 	data["colorblind_high_contrast"] = bool(data.get("colorblind_high_contrast", false))
 	data["run_count"] = max(0, int(data.get("run_count", 0)))
 	data["run_duration_total_ms"] = max(0, int(data.get("run_duration_total_ms", 0)))
+	data["social_week_key"] = str(data.get("social_week_key", ""))
+	data["social_week_points"] = max(0, int(data.get("social_week_points", 0)))
+	data["social_week_tier"] = max(0, int(data.get("social_week_tier", 0)))
+	data["social_week_best"] = max(0, int(data.get("social_week_best", 0)))
+	data["social_rival_name"] = str(data.get("social_rival_name", "Nova-17"))
+	data["social_rival_target"] = max(0, int(data.get("social_rival_target", 0)))
 	var samples: Variant = data.get("first_run_seconds_samples", [])
 	if typeof(samples) != TYPE_ARRAY:
 		samples = []

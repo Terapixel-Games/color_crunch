@@ -1,0 +1,52 @@
+name: Godot Unit + UAT
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.5.1"
+  GODOT_STATUS: "stable"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [unit, uat]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot Headless
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip wget
+          GODOT_BASE="Godot_v${GODOT_VERSION}-${GODOT_STATUS}"
+          HEADLESS_ZIP="${GODOT_BASE}_linux.x86_64.zip"
+          wget -O /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${HEADLESS_ZIP}"
+          unzip -o /tmp/godot.zip -d /tmp/godot-bin
+          chmod +x "/tmp/godot-bin/${GODOT_BASE}_linux.x86_64"
+          echo "GODOT_BIN=/tmp/godot-bin/${GODOT_BASE}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Disable Editor Plugins For CI
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if grep -q "^\[editor_plugins\]" project.godot; then
+            sed -i 's/^enabled=PackedStringArray(.*/enabled=PackedStringArray()/g' project.godot
+          fi
+
+      - name: Import Project
+        run: $GODOT_BIN --headless --path . --import --quit
+
+      - name: Run ${{ matrix.suite }} suite
+        run: $GODOT_BIN --headless --path . --script res://tests/framework/TestRunner.gd -- --suite=${{ matrix.suite }}

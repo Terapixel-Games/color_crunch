@@ -1,0 +1,192 @@
+{
+  "profiles": {
+    "calm_puzzle": {
+      "gradient": {
+        "base_color_a": "#0f1a27",
+        "base_color_b": "#19324e",
+        "hue_speed": 0.008,
+        "pulse_intensity": 0.04,
+        "pulse_speed": 0.16,
+        "vignette": 0.25
+      },
+      "parallax_layers": [
+        {
+          "texture_path": "",
+          "velocity": [2.0, 8.0],
+          "tint": "#9ebfff",
+          "alpha": 0.2,
+          "scale": 1.0
+        },
+        {
+          "texture_path": "",
+          "velocity": [4.0, 16.0],
+          "tint": "#b7d6ff",
+          "alpha": 0.16,
+          "scale": 1.2
+        },
+        {
+          "texture_path": "",
+          "velocity": [6.0, 24.0],
+          "tint": "#d8edff",
+          "alpha": 0.12,
+          "scale": 1.5
+        }
+      ],
+      "flow_particles": {
+        "enabled": true,
+        "count": 130,
+        "min_count": 50,
+        "speed": 24,
+        "alpha": 0.16,
+        "palette": ["#9fd1ff", "#a8ffe2", "#c2c9ff"],
+        "scale_min": 0.4,
+        "scale_max": 1.0,
+        "bounds_padding": 80
+      },
+      "grid": {
+        "enabled": false,
+        "opacity": 0.1,
+        "warp_amount": 0.05,
+        "warp_speed": 0.3,
+        "spacing": 56,
+        "thickness": 0.04,
+        "color": "#56caff"
+      },
+      "sweep": {
+        "enabled": false,
+        "opacity": 0.05,
+        "interval_min": 28,
+        "interval_max": 44,
+        "speed": 0.4
+      }
+    },
+    "neon_arcade": {
+      "gradient": {
+        "base_color_a": "#1c1638",
+        "base_color_b": "#08364a",
+        "hue_speed": 0.018,
+        "pulse_intensity": 0.08,
+        "pulse_speed": 0.24,
+        "vignette": 0.22
+      },
+      "parallax_layers": [
+        {
+          "texture_path": "",
+          "velocity": [8.0, 14.0],
+          "tint": "#b86dff",
+          "alpha": 0.25,
+          "scale": 1.1
+        },
+        {
+          "texture_path": "",
+          "velocity": [14.0, 24.0],
+          "tint": "#5cc4ff",
+          "alpha": 0.2,
+          "scale": 1.35
+        },
+        {
+          "texture_path": "",
+          "velocity": [22.0, 36.0],
+          "tint": "#73ffe8",
+          "alpha": 0.16,
+          "scale": 1.6
+        }
+      ],
+      "flow_particles": {
+        "enabled": true,
+        "count": 260,
+        "min_count": 90,
+        "speed": 48,
+        "alpha": 0.26,
+        "palette": ["#6fd6ff", "#be91ff", "#7effd8"],
+        "scale_min": 0.45,
+        "scale_max": 1.25,
+        "bounds_padding": 80
+      },
+      "grid": {
+        "enabled": true,
+        "opacity": 0.13,
+        "warp_amount": 0.08,
+        "warp_speed": 0.6,
+        "spacing": 58,
+        "thickness": 0.042,
+        "color": "#57d2ff"
+      },
+      "sweep": {
+        "enabled": true,
+        "opacity": 0.08,
+        "interval_min": 22,
+        "interval_max": 34,
+        "speed": 0.54
+      },
+      "tiers": {
+        "5": {
+          "grid_enabled": true,
+          "flow_count_mult": 1.2,
+          "flow_speed_mult": 1.25,
+          "grid_warp_boost": 0.28
+        }
+      }
+    },
+    "synth_grid": {
+      "gradient": {
+        "base_color_a": "#120f26",
+        "base_color_b": "#2f1840",
+        "hue_speed": 0.013,
+        "pulse_intensity": 0.07,
+        "pulse_speed": 0.2,
+        "vignette": 0.18
+      },
+      "parallax_layers": [
+        {
+          "texture_path": "",
+          "velocity": [3.0, 6.0],
+          "tint": "#f58dff",
+          "alpha": 0.22,
+          "scale": 1.0
+        },
+        {
+          "texture_path": "",
+          "velocity": [8.0, 12.0],
+          "tint": "#8a9dff",
+          "alpha": 0.18,
+          "scale": 1.25
+        },
+        {
+          "texture_path": "",
+          "velocity": [14.0, 22.0],
+          "tint": "#64edff",
+          "alpha": 0.13,
+          "scale": 1.55
+        }
+      ],
+      "flow_particles": {
+        "enabled": true,
+        "count": 180,
+        "min_count": 70,
+        "speed": 34,
+        "alpha": 0.2,
+        "palette": ["#ff93f2", "#8dd0ff", "#8fffd5"],
+        "scale_min": 0.4,
+        "scale_max": 1.15,
+        "bounds_padding": 90
+      },
+      "grid": {
+        "enabled": true,
+        "opacity": 0.18,
+        "warp_amount": 0.11,
+        "warp_speed": 0.7,
+        "spacing": 42,
+        "thickness": 0.06,
+        "color": "#ff89f0"
+      },
+      "sweep": {
+        "enabled": true,
+        "opacity": 0.06,
+        "interval_min": 28,
+        "interval_max": 44,
+        "speed": 0.42
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Copy to AdMob.local.txt (UNTRACKED). Do not commit real IDs in public repos.
+APP_ID=ca-app-pub-XXXXXXXXXXXX~YYYYYYYYYY
+INTERSTITIAL=ca-app-pub-XXXXXXXXXXXX/IIIIIIIIII
+REWARDED=ca-app-pub-XXXXXXXXXXXX/RRRRRRRRRR

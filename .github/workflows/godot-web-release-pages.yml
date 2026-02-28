@@ -1,0 +1,154 @@
+name: Godot Web Release + Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.5.1"
+  GODOT_STATUS: "stable"
+  WEB_EXPORT_PRESET: "Web"
+  WEB_EXPORT_DIR: "build/web"
+
+jobs:
+  export-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Godot Headless + Export Templates
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip wget zip
+
+          GODOT_BASE="Godot_v${GODOT_VERSION}-${GODOT_STATUS}"
+          HEADLESS_ZIP="${GODOT_BASE}_linux.x86_64.zip"
+          TEMPLATES_TPZ="${GODOT_BASE}_export_templates.tpz"
+
+          wget -O /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${HEADLESS_ZIP}"
+          unzip -o /tmp/godot.zip -d /tmp/godot-bin
+          chmod +x "/tmp/godot-bin/${GODOT_BASE}_linux.x86_64"
+          echo "GODOT_BIN=/tmp/godot-bin/${GODOT_BASE}_linux.x86_64" >> "$GITHUB_ENV"
+
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
+          mkdir -p "$TEMPLATE_DIR"
+          wget -O /tmp/export_templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${TEMPLATES_TPZ}"
+          unzip -o /tmp/export_templates.tpz -d /tmp/godot-templates
+          find /tmp/godot-templates -type f -name "*.zip" -exec cp {} "$TEMPLATE_DIR/" \;
+
+      - name: Disable Editor Plugins For CI Export
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sed -i 's/^enabled=PackedStringArray(.*/enabled=PackedStringArray()/g' project.godot
+
+      - name: Inject Nakama Server Key For Web Build (optional)
+        shell: bash
+        env:
+          NAKAMA_SERVER_KEY: ${{ secrets.NAKAMA_SERVER_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NAKAMA_SERVER_KEY:-}" ]; then
+            echo "NAKAMA_SERVER_KEY not set; skipping injection."
+            exit 0
+          fi
+          if ! grep -q "^nakama_server_key=" project.godot; then
+            echo "nakama_server_key not found in project.godot; skipping injection."
+            exit 0
+          fi
+          sed -i "s|^nakama_server_key=.*$|nakama_server_key=\"${NAKAMA_SERVER_KEY}\"|g" project.godot
+          echo "nakama_server_key injected."
+
+      - name: Disable Ad Plugins For Web CI
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [ -f export_presets.cfg ]; then
+            sed -i 's/^plugins\/AdmobPlugin=true$/plugins\/AdmobPlugin=false/g' export_presets.cfg || true
+            grep -n "plugins/AdmobPlugin" export_presets.cfg || true
+          fi
+          if [ -d addons/AdmobPlugin ]; then
+            mv addons/AdmobPlugin addons/_AdmobPlugin_disabled_ci
+          fi
+          if [ -d addons/godot-admob ]; then
+            mv addons/godot-admob addons/_godot-admob_disabled_ci
+          fi
+
+      - name: Import Project
+        run: $GODOT_BIN --headless --path . --import --quit
+
+      - name: Export Web Build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "${WEB_EXPORT_DIR}"
+          $GODOT_BIN --headless --path . --export-release "${WEB_EXPORT_PRESET}" "${WEB_EXPORT_DIR}/index.html"
+
+      - name: Compute Next Semantic Version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag="$(git tag -l 'v*' --sort=-version:refname | head -n 1)"
+          if [ -z "$latest_tag" ]; then
+            next_version="0.0.1"
+          else
+            current="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$current"
+            major="${major:-0}"
+            minor="${minor:-0}"
+            patch="${patch:-0}"
+            patch=$((patch + 1))
+            next_version="${major}.${minor}.${patch}"
+          fi
+          echo "version=$next_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Package Web Build Zip
+        id: package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          asset_name="${repo_name}-web-${{ steps.version.outputs.version }}.zip"
+          zip -r "${asset_name}" "${WEB_EXPORT_DIR}"
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release With Build
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ github.event.repository.name }} ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: ${{ steps.package.outputs.asset_name }}
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.WEB_EXPORT_DIR }}
+
+  deploy:
+    needs: export-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy To Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

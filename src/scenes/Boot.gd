@@ -7,12 +7,16 @@ var _boot_started_msec: int = Time.get_ticks_msec()
 func _ready() -> void:
 	if FeatureFlagsScript.clear_high_score_on_boot():
 		SaveStore.clear_high_score()
+	if _is_headless_runtime():
+		Telemetry.mark_scene_loaded("boot", _boot_started_msec)
+		return
 	MusicManager.start_all_synced()
 	_play_logo_sting()
 	call_deferred("_go_menu")
 
 func _go_menu() -> void:
-	await get_tree().create_timer(LOGO_STING_SECONDS).timeout
+	if not _is_headless_runtime():
+		await get_tree().create_timer(LOGO_STING_SECONDS).timeout
 	Telemetry.mark_scene_loaded("boot", _boot_started_msec)
 	RunManager.goto_menu()
 
@@ -37,3 +41,6 @@ func _play_logo_sting() -> void:
 		if is_instance_valid(layer):
 			layer.queue_free()
 	)
+
+func _is_headless_runtime() -> bool:
+	return DisplayServer.get_name() == "headless" or OS.has_feature("dedicated_server")

@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "game": {
+    "id": "globlocks",
+    "name": "GloBlocks",
+    "target_repo": "C:/code/TeraPixel/GloBlocks",
+    "env_prefix": "GLOBLOCKS",
+    "settings_prefix": "globlocks",
+    "leaderboard_id": "globlocks_high_scores",
+    "dispatch_event_type": "globlocks_main_updated",
+    "notify_target_repo": "TeraPixelGames/terapixel.games",
+    "default_server_key": "globlocks-dev-key",
+    "default_nakama_base_url": "http://127.0.0.1:7350"
+  },
+  "catalogs": {
+    "coin_packs": [
+      {
+        "product_id": "coins_500_globlocks",
+        "label": "500 - $0.99",
+        "price_usd": 0.99,
+        "coins": 500,
+        "provider": "paypal_web",
+        "enabled": true
+      },
+      {
+        "product_id": "coins_1200_globlocks",
+        "label": "1200 - $1.99",
+        "price_usd": 1.99,
+        "coins": 1200,
+        "provider": "paypal_web",
+        "enabled": true
+      }
+    ],
+    "powerups": [
+      {
+        "id": "undo",
+        "cost_coins": 120
+      },
+      {
+        "id": "prism",
+        "cost_coins": 180
+      },
+      {
+        "id": "shuffle",
+        "cost_coins": 140
+      }
+    ],
+    "themes": [
+      {
+        "id": "default",
+        "display_name": "Default",
+        "cost_coins": 0
+      },
+      {
+        "id": "neon",
+        "display_name": "Neon",
+        "cost_coins": 1500,
+        "rent_with_ad": true,
+        "rental_seconds": 86400
+      }
+    ]
+  },
+  "integrations": {
+    "github": {
+      "required_secrets": [
+        "CONSUMER_REPO_DISPATCH_TOKEN",
+        "NAKAMA_SERVER_KEY"
+      ],
+      "required_variables": [
+        "GAME_ID",
+        "LEADERBOARD_ID"
+      ]
+    },
+    "render": {
+      "required_env": [
+        "GAME_ID",
+        "LEADERBOARD_ID",
+        "PLATFORM_IDENTITY_URL",
+        "PLATFORM_ACCOUNT_MAGIC_LINK_START_URL",
+        "PLATFORM_ACCOUNT_MAGIC_LINK_COMPLETE_URL",
+        "TPX_MAGIC_LINK_NOTIFY_SECRET"
+      ]
+    },
+    "cloudrun": {
+      "required_variables": [
+        "GCP_PROJECT_ID",
+        "GCP_REGION",
+        "GCP_WORKLOAD_IDENTITY_PROVIDER",
+        "GCP_SERVICE_ACCOUNT",
+        "CLOUDRUN_SERVICE",
+        "CLOUDRUN_RUNTIME_SERVICE_ACCOUNT",
+        "CLOUDSQL_INSTANCE_CONNECTION_NAME",
+        "PLATFORM_IDENTITY_URL",
+        "PLATFORM_ACCOUNT_MAGIC_LINK_START_URL",
+        "PLATFORM_ACCOUNT_MAGIC_LINK_COMPLETE_URL",
+        "PLATFORM_USERNAME_VALIDATE_URL",
+        "PLATFORM_ACCOUNT_MERGE_CODE_URL",
+        "PLATFORM_ACCOUNT_MERGE_REDEEM_URL",
+        "PLATFORM_TELEMETRY_EVENTS_URL"
+      ]
+    },
+    "platform": {
+      "manual_requirements": [
+        "Create platform game registration record.",
+        "Configure callback target for magic-link notify to Cloud Run service.",
+        "Set or rotate TPX_MAGIC_LINK_NOTIFY_SECRET."
+      ]
+    },
+    "store": {
+      "manual_requirements": [
+        "Provision payment products in store/ad network dashboards.",
+        "Enable production credentials for PayPal or mobile IAP providers."
+      ]
+    }
+  },
+  "bootstrap": {
+    "include_nakama_client_template": true,
+    "force": true,
+    "write_project_settings": true,
+    "write_catalog_config": true,
+    "catalog_config_path": "configs/shop.catalog.json"
+  },
+  "client": {
+    "nakama_enable_client": true,
+    "nakama_leaderboard_limit": 10,
+    "platform": "terapixel",
+    "export_target": "web",
+    "client_events_enabled": true,
+    "client_event_sample_rate": 1.0,
+    "project_settings": {
+      "paypal_client_id": "",
+      "paypal_currency": "USD"
+    }
+  },
+  "github": {
+    "owner": "TeraPixelGames",
+    "repo": "globlocks",
+    "full_name": "TeraPixelGames/globlocks",
+    "visibility": "private",
+    "create_repo": false,
+    "configure_secrets": true,
+    "configure_variables": true,
+    "secrets": [
+      {
+        "name": "CONSUMER_REPO_DISPATCH_TOKEN",
+        "value_env": "CONSUMER_REPO_DISPATCH_TOKEN",
+        "required": true
+      },
+      {
+        "name": "NAKAMA_SERVER_KEY",
+        "value": "globlocks-dev-key",
+        "required": true
+      }
+    ],
+    "variables": {
+      "GAME_ID": "globlocks",
+      "LEADERBOARD_ID": "globlocks_high_scores"
+    }
+  },
+  "render": {
+    "enabled": false,
+    "owner_id": "",
+    "validate_blueprint": true,
+    "trigger_deploy": false,
+    "service_id": "",
+    "api_base_url": "https://api.render.com/v1",
+    "api_key_env": "RENDER_API_KEY",
+    "blueprint_path": "render.yaml",
+    "deploy_mode": "build_and_deploy",
+    "deploy_clear_cache": false,
+    "env_overrides": {
+      "PLATFORM_IDENTITY_URL": "https://terapixel.games/api",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_START_URL": "https://terapixel.games/api/v1/account/magic-link/start",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_COMPLETE_URL": "https://terapixel.games/api/v1/account/magic-link/complete",
+      "PLATFORM_USERNAME_VALIDATE_URL": "https://terapixel.games/api/v1/identity/internal/username/validate",
+      "PLATFORM_ACCOUNT_MERGE_CODE_URL": "https://terapixel.games/api/v1/account/merge/code",
+      "PLATFORM_ACCOUNT_MERGE_REDEEM_URL": "https://terapixel.games/api/v1/account/merge/redeem",
+      "PLATFORM_TELEMETRY_EVENTS_URL": "https://terapixel.games/api/v1/telemetry/events",
+      "PLATFORM_INTERNAL_KEY": "",
+      "TPX_MAGIC_LINK_NOTIFY_SECRET": ""
+    }
+  },
+  "cloudrun": {
+    "enabled": true,
+    "project_id": "",
+    "region": "us-central1",
+    "workload_identity_provider": "",
+    "deploy_service_account": "",
+    "runtime_service_account": "",
+    "service": "globlocks-nakama",
+    "image_base": "",
+    "service_template": "backend/nakama/cloudrun/service.template.yaml",
+    "cloudsql_instance_connection_name": "",
+    "deploy_flags_json": "",
+    "env_overrides": {
+      "PLATFORM_IDENTITY_URL": "https://terapixel.games/api",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_START_URL": "https://terapixel.games/api/v1/account/magic-link/start",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_COMPLETE_URL": "https://terapixel.games/api/v1/account/magic-link/complete",
+      "PLATFORM_USERNAME_VALIDATE_URL": "https://terapixel.games/api/v1/identity/internal/username/validate",
+      "PLATFORM_ACCOUNT_MERGE_CODE_URL": "https://terapixel.games/api/v1/account/merge/code",
+      "PLATFORM_ACCOUNT_MERGE_REDEEM_URL": "https://terapixel.games/api/v1/account/merge/redeem",
+      "PLATFORM_TELEMETRY_EVENTS_URL": "https://terapixel.games/api/v1/telemetry/events"
+    }
+  },
+  "deployment": {
+    "provision_github": true,
+    "provision_render": false,
+    "deploy_render": false,
+    "run_smoke_tests": true,
+    "verify_after_provision": true
+  }
+}

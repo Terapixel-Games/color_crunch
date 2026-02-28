@@ -8,6 +8,7 @@ func before_test() -> void:
 		"streak_at_risk": 0,
 		"games_played": 0,
 	}
+	SaveManager.data = SaveManager.DEFAULT_DATA.duplicate(true)
 
 func test_streak_increments_next_day() -> void:
 	var s := StreakManager

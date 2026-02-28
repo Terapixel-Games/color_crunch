@@ -182,14 +182,19 @@ This repo includes a Render Blueprint at `render.yaml` for a Docker-based Nakama
 
 The Render startup script (`backend/nakama/render/start.sh`) runs migrations, starts Nakama on internal ports, and fronts it with nginx on Render's public `PORT`.
 
-On Render:
+On Render (fallback only):
 
 - API/Client endpoints: `https://<your-service>.onrender.com/`
 - Console: `https://<your-service>.onrender.com/console/`
 
-## Deploy on Cloud Run
+## Deploy on Cloud Run (primary)
 
 Cloud Run deployment scaffolding is included under `backend/nakama/cloudrun/`.
+
+Active runtime endpoints:
+- Production API/client: `https://terapixel.games/nakama/color-crunch/`
+- Production console (Access-gated): `https://terapixel.games/nakama/color-crunch/console`
+- Staging origin service: `https://colorcrunch-nakama-r42ojz43uq-uc.a.run.app`
 
 1. Build and push the image with `backend/nakama/Dockerfile.render`.
 2. Create the required secrets (including `nakama-db-address` for shared Postgres).

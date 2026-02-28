@@ -28,6 +28,7 @@ var _track_index: int = 0
 var _audio_overlay: AudioTrackOverlay
 var _mode_button: Button
 var _daily_button: Button
+var _weekly_button: Button
 var _promo_button: Button
 var _contrast_button: Button
 var _scene_opened_msec: int = Time.get_ticks_msec()
@@ -270,6 +271,12 @@ func _ensure_action_buttons() -> void:
 		_contrast_button.custom_minimum_size.y = 56.0
 		_contrast_button.pressed.connect(_on_contrast_toggle_pressed)
 		panel_vbox.add_child(_contrast_button)
+	if _weekly_button == null:
+		_weekly_button = Button.new()
+		_weekly_button.name = "WeeklyLadderInfo"
+		_weekly_button.custom_minimum_size.y = 56.0
+		_weekly_button.disabled = true
+		panel_vbox.add_child(_weekly_button)
 	if _promo_button == null:
 		_promo_button = Button.new()
 		_promo_button.name = "CrossPromo"
@@ -280,15 +287,22 @@ func _ensure_action_buttons() -> void:
 	UiFx.fade_in(_mode_button, 0.14)
 	UiFx.fade_in(_daily_button, 0.14)
 	UiFx.fade_in(_contrast_button, 0.14)
+	UiFx.fade_in(_weekly_button, 0.14)
 	UiFx.fade_in(_promo_button, 0.14)
 
 func _sync_mode_buttons() -> void:
 	if _mode_button:
-		_mode_button.text = "Leaderboard Mode: %s" % RunManager.get_selected_mode()
+		var week_tier: int = int(SaveStore.data.get("social_week_tier", 0))
+		_mode_button.text = "Leaderboard Mode: %s | Weekly Tier %d" % [RunManager.get_selected_mode(), week_tier]
 	if _daily_button:
 		_daily_button.text = "Daily Puzzle: %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
 	if _contrast_button:
 		_contrast_button.text = "Colorblind Contrast: %s" % ("On" if SaveStore.is_colorblind_high_contrast() else "Off")
+	if _weekly_button:
+		var week_points: int = int(SaveStore.data.get("social_week_points", 0))
+		var rival_target: int = RunManager.get_active_rival_target()
+		var rival_name: String = str(SaveStore.data.get("social_rival_name", "Rival"))
+		_weekly_button.text = "Weekly Ladder %d pts | %s target %d" % [week_points, rival_name, rival_target]
 
 func _on_mode_toggle_pressed() -> void:
 	var next_mode := "OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE"

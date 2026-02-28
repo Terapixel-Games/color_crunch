@@ -1,0 +1,149 @@
+name: Sync Upstream Web Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Upstream source repo (owner/name)"
+        required: true
+        default: ""
+      release_tag:
+        description: "Upstream release tag (optional)"
+        required: false
+        default: ""
+      release_asset:
+        description: "Upstream release asset name (optional)"
+        required: false
+        default: ""
+      extracted_subdir:
+        description: "Subdir in zip to copy from"
+        required: false
+        default: "build/web"
+      destination_dir:
+        description: "Destination dir in this repo"
+        required: true
+        default: "public/play/game"
+  repository_dispatch:
+    types: [upstream_web_release_updated]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Resolve payload values
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE_REPO="${{ github.event.client_payload.source_repo }}"
+          RELEASE_TAG="${{ github.event.client_payload.release_tag }}"
+          RELEASE_ASSET="${{ github.event.client_payload.release_asset }}"
+
+          if [ -z "$SOURCE_REPO" ]; then
+            SOURCE_REPO="${{ inputs.source_repo }}"
+          fi
+          if [ -z "$SOURCE_REPO" ]; then
+            echo "source_repo is required."
+            exit 1
+          fi
+
+          if [ -z "$RELEASE_TAG" ]; then
+            RELEASE_TAG="${{ inputs.release_tag }}"
+          fi
+          if [ -z "$RELEASE_TAG" ]; then
+            LATEST_JSON=$(curl -sS \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${SOURCE_REPO}/releases/latest")
+            RELEASE_TAG=$(LATEST_JSON="$LATEST_JSON" python -c "import json,os; print(json.loads(os.environ.get('LATEST_JSON','{}')).get('tag_name',''))")
+          fi
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "Unable to resolve release tag."
+            exit 1
+          fi
+
+          if [ -z "$RELEASE_ASSET" ]; then
+            RELEASE_ASSET="${{ inputs.release_asset }}"
+          fi
+          if [ -z "$RELEASE_ASSET" ]; then
+            VERSION="${RELEASE_TAG#v}"
+            REPO_NAME="${SOURCE_REPO#*/}"
+            RELEASE_ASSET="${REPO_NAME}-web-${VERSION}.zip"
+          fi
+
+          EXTRACTED_SUBDIR="${{ inputs.extracted_subdir }}"
+          DESTINATION_DIR="${{ inputs.destination_dir }}"
+          if [ -z "$EXTRACTED_SUBDIR" ]; then
+            EXTRACTED_SUBDIR="build/web"
+          fi
+          if [ -z "$DESTINATION_DIR" ]; then
+            echo "destination_dir is required."
+            exit 1
+          fi
+
+          echo "source_repo=$SOURCE_REPO" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_asset=$RELEASE_ASSET" >> "$GITHUB_OUTPUT"
+          echo "extracted_subdir=$EXTRACTED_SUBDIR" >> "$GITHUB_OUTPUT"
+          echo "destination_dir=$DESTINATION_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Download and extract upstream release asset
+        shell: bash
+        env:
+          READ_TOKEN: ${{ secrets.UPSTREAM_RELEASE_READ_TOKEN }}
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip rsync
+
+          API_URL="https://api.github.com/repos/${{ steps.vars.outputs.source_repo }}/releases/tags/${{ steps.vars.outputs.release_tag }}"
+          AUTH_HEADER=()
+          if [ -n "${READ_TOKEN:-}" ]; then
+            AUTH_HEADER=(-H "Authorization: Bearer ${READ_TOKEN}")
+          fi
+
+          RELEASE_JSON=$(curl -fsSL "${AUTH_HEADER[@]}" \
+            -H "Accept: application/vnd.github+json" \
+            "$API_URL")
+          BROWSER_URL=$(RELEASE_JSON="$RELEASE_JSON" ASSET_NAME="${{ steps.vars.outputs.release_asset }}" python3 -c "import json, os; data = json.loads(os.environ.get('RELEASE_JSON', '{}')); asset = os.environ.get('ASSET_NAME', ''); print(next((a.get('browser_download_url', '') for a in data.get('assets', []) if a.get('name') == asset), ''))")
+
+          if [ -z "$BROWSER_URL" ]; then
+            echo "Release asset not found: ${{ steps.vars.outputs.release_asset }}"
+            exit 1
+          fi
+
+          curl -sS -L "${AUTH_HEADER[@]}" -o /tmp/upstream-web.zip "$BROWSER_URL"
+
+          rm -rf /tmp/upstream-build
+          mkdir -p /tmp/upstream-build
+          unzip -o /tmp/upstream-web.zip -d /tmp/upstream-build
+          test -f "/tmp/upstream-build/${{ steps.vars.outputs.extracted_subdir }}/index.html"
+
+      - name: Sync extracted web build into destination
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ steps.vars.outputs.destination_dir }}"
+          rsync -a --delete "/tmp/upstream-build/${{ steps.vars.outputs.extracted_subdir }}/" "${{ steps.vars.outputs.destination_dir }}/"
+
+      - name: Commit and push changes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git add "${{ steps.vars.outputs.destination_dir }}"
+          git commit -m "sync: update upstream web build"
+          git push

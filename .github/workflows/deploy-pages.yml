@@ -19,11 +19,44 @@ env:
   GODOT_STATUS: "stable"
 
 jobs:
-  export-web:
+  quality-gates:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Godot Headless
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip wget
+          GODOT_BASE="Godot_v${GODOT_VERSION}-${GODOT_STATUS}"
+          HEADLESS_ZIP="${GODOT_BASE}_linux.x86_64.zip"
+          wget -O /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${HEADLESS_ZIP}"
+          unzip -o /tmp/godot.zip -d /tmp/godot-bin
+          chmod +x "/tmp/godot-bin/${GODOT_BASE}_linux.x86_64"
+          echo "GODOT_BIN=/tmp/godot-bin/${GODOT_BASE}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Run Godot Test Suite
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ./addons/gdUnit4/runtest.sh --godot_binary "$GODOT_BIN" -a tests --ignoreHeadlessMode
+
+      - name: Run Nakama Module Tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          node --version
+          node --test backend/nakama/tests/*.test.js
+
+  export-web:
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
@@ -120,7 +153,7 @@ jobs:
           zip -r "color-crunch-web-${{ steps.version.outputs.version }}.zip" build/web
 
       - name: Create GitHub Release With Build
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Color Crunch ${{ steps.version.outputs.tag }}
@@ -128,7 +161,7 @@ jobs:
           files: color-crunch-web-${{ steps.version.outputs.version }}.zip
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: build/web
 
@@ -141,4 +174,4 @@ jobs:
     steps:
       - name: Deploy To Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

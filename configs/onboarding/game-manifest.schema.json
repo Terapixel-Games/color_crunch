@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://terapixel.games/schemas/arcadecore/game-manifest.schema.json",
+  "title": "ArcadeCore Game Manifest",
+  "description": "Single source of truth for bootstrap, provisioning, and deployment of an ArcadeCore game.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "game"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "game": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target_repo"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "env_prefix": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]+$"
+        },
+        "settings_prefix": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "leaderboard_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dispatch_event_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notify_target_repo": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "default_server_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_nakama_base_url": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "catalogs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "coin_packs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coinPack"
+          }
+        },
+        "powerups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/powerup"
+          }
+        },
+        "themes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/theme"
+          }
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required_secrets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "required_variables": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required_env": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "cloudrun": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required_variables": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manual_requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "store": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manual_requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include_nakama_client_template": {
+          "type": "boolean"
+        },
+        "force": {
+          "type": "boolean"
+        },
+        "write_project_settings": {
+          "type": "boolean"
+        },
+        "write_catalog_config": {
+          "type": "boolean"
+        },
+        "catalog_config_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nakama_enable_client": {
+          "type": "boolean"
+        },
+        "nakama_leaderboard_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "platform": {
+          "type": "string"
+        },
+        "export_target": {
+          "type": "string"
+        },
+        "client_events_enabled": {
+          "type": "boolean"
+        },
+        "client_event_sample_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "project_settings": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "private",
+            "public"
+          ]
+        },
+        "create_repo": {
+          "type": "boolean"
+        },
+        "configure_secrets": {
+          "type": "boolean"
+        },
+        "configure_variables": {
+          "type": "boolean"
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/githubSecret"
+          }
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "render": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "owner_id": {
+          "type": "string"
+        },
+        "validate_blueprint": {
+          "type": "boolean"
+        },
+        "trigger_deploy": {
+          "type": "boolean"
+        },
+        "service_id": {
+          "type": "string"
+        },
+        "api_base_url": {
+          "type": "string"
+        },
+        "api_key_env": {
+          "type": "string"
+        },
+        "blueprint_path": {
+          "type": "string"
+        },
+        "deploy_mode": {
+          "type": "string",
+          "enum": [
+            "build_and_deploy",
+            "deploy_only",
+            "build_only"
+          ]
+        },
+        "deploy_clear_cache": {
+          "type": "boolean"
+        },
+        "env_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cloudrun": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "workload_identity_provider": {
+          "type": "string"
+        },
+        "deploy_service_account": {
+          "type": "string"
+        },
+        "runtime_service_account": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string"
+        },
+        "image_base": {
+          "type": "string"
+        },
+        "service_template": {
+          "type": "string"
+        },
+        "cloudsql_instance_connection_name": {
+          "type": "string"
+        },
+        "deploy_flags_json": {
+          "type": "string"
+        },
+        "env_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provision_github": {
+          "type": "boolean"
+        },
+        "provision_render": {
+          "type": "boolean"
+        },
+        "deploy_render": {
+          "type": "boolean"
+        },
+        "run_smoke_tests": {
+          "type": "boolean"
+        },
+        "verify_after_provision": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "coinPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_id",
+        "label",
+        "price_usd",
+        "coins"
+      ],
+      "properties": {
+        "product_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "price_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "coins": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "powerup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "cost_coins"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cost_coins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "cost_coins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rent_with_ad": {
+          "type": "boolean"
+        },
+        "rental_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "githubSecret": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string"
+            },
+            "value_env": {
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

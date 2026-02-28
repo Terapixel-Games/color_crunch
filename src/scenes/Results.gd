@@ -34,6 +34,8 @@ var _powerups_label: Label
 var _encouragement_label: Label
 var _unlock_progress: ProgressBar
 var _dual_leaderboard_label: Label
+var _weekly_ladder_label: Label
+var _rival_target_label: Label
 
 func _ready() -> void:
 	BackgroundMood.register_controller($BackgroundController)
@@ -82,6 +84,7 @@ func _update_labels() -> void:
 		_unlock_progress.value = SaveStore.get_unlock_progress() * 100.0
 	if _dual_leaderboard_label:
 		_dual_leaderboard_label.text = ""
+	_update_social_labels()
 	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
 	if _base_reward_claimed:
 		coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
@@ -287,6 +290,10 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 		_encouragement_label.add_theme_font_size_override("font_size", body_size)
 	if _dual_leaderboard_label:
 		_dual_leaderboard_label.add_theme_font_size_override("font_size", int(round(body_size * 0.92)))
+	if _weekly_ladder_label:
+		_weekly_ladder_label.add_theme_font_size_override("font_size", int(round(body_size * 0.96)))
+	if _rival_target_label:
+		_rival_target_label.add_theme_font_size_override("font_size", int(round(body_size * 0.94)))
 	if double_reward_button:
 		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)
 	if play_again_button:
@@ -508,6 +515,21 @@ func _ensure_dynamic_stats() -> void:
 		_dual_leaderboard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(_dual_leaderboard_label)
 		box.move_child(_dual_leaderboard_label, min(10, box.get_child_count() - 1))
+	if _weekly_ladder_label == null:
+		_weekly_ladder_label = Label.new()
+		_weekly_ladder_label.name = "WeeklyLadder"
+		_weekly_ladder_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_weekly_ladder_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_weekly_ladder_label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0, 0.96))
+		box.add_child(_weekly_ladder_label)
+		box.move_child(_weekly_ladder_label, min(11, box.get_child_count() - 1))
+	if _rival_target_label == null:
+		_rival_target_label = Label.new()
+		_rival_target_label.name = "WeeklyRival"
+		_rival_target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_rival_target_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(_rival_target_label)
+		box.move_child(_rival_target_label, min(12, box.get_child_count() - 1))
 
 func _set_compact_optional_rows(compact_mode: bool) -> void:
 	if _encouragement_label:
@@ -526,6 +548,36 @@ func _build_encouragement_text(_local_best: int, best_value: int) -> String:
 	if delta <= 128:
 		return "You were close! Only %d away from best." % delta
 	return "Strong run. %d points to beat your best." % delta
+
+func _update_social_labels() -> void:
+	var weekly: Dictionary = RunManager.get_weekly_snapshot()
+	var rival: Dictionary = RunManager.get_rival_snapshot()
+	if _weekly_ladder_label != null:
+		var week_key: String = str(weekly.get("week_key", "week"))
+		var points_after: int = int(weekly.get("points_after", 0))
+		var points_gained: int = int(weekly.get("points_gained", 0))
+		var tier_after: int = int(weekly.get("tier_after", 0))
+		var to_next: int = int(weekly.get("to_next_tier", 0))
+		var week_best: int = int(weekly.get("week_best", 0))
+		_weekly_ladder_label.text = "Weekly Ladder %s  Tier %d  Points %d (+%d)  Next tier in %d  Week best %d" % [
+			week_key,
+			tier_after,
+			points_after,
+			max(0, points_gained),
+			max(0, to_next),
+			max(0, week_best),
+		]
+	if _rival_target_label != null:
+		var rival_name: String = str(rival.get("name", "Rival"))
+		var target_after: int = int(rival.get("target_after", RunManager.get_active_rival_target()))
+		var delta_after: int = int(rival.get("delta_after", max(0, target_after - RunManager.last_score)))
+		var cleared: bool = bool(rival.get("cleared", false))
+		if cleared:
+			_rival_target_label.text = "Rival %s defeated. New async target: %d" % [rival_name, target_after]
+			_rival_target_label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.58, 0.98))
+		else:
+			_rival_target_label.text = "Rival %s target %d (%d to go)" % [rival_name, target_after, max(0, delta_after)]
+			_rival_target_label.add_theme_color_override("font_color", Color(0.86, 0.94, 1.0, 0.98))
 
 func _format_alt_mode_leaderboard(mode_id: String, records: Array) -> String:
 	if records.is_empty():

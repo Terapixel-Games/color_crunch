@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/PillButton.gd" id="1"]
+
+[node name="TPButton" type="Button"]
+custom_minimum_size = Vector2(0, 64)
+size_flags_horizontal = 3
+size_flags_vertical = 0
+text = "Button"
+script = ExtResource("1")
+corner_radius = 0.36

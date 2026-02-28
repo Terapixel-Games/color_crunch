@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/PillButton.gd" id="1"]
+
+[node name="TPPillItem" type="Button"]
+custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+text = "Powerup"
+script = ExtResource("1")
+corner_radius = 0.5

@@ -76,3 +76,4 @@ warmup4.log
 .DS_Store
 Thumbs.db
 Desktop.ini
+/configs/AdMob.local.txt

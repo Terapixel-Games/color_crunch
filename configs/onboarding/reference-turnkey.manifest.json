@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "game": {
+    "id": "turnkey_reference",
+    "name": "Turnkey Reference",
+    "target_repo": ".",
+    "env_prefix": "TURNKEY_REFERENCE",
+    "settings_prefix": "turnkey_reference",
+    "leaderboard_id": "turnkey_reference_high_scores",
+    "notify_target_repo": "TeraPixelGames/terapixel.games"
+  },
+  "catalogs": {
+    "coin_packs": [
+      {
+        "product_id": "coins_500_turnkey_reference",
+        "label": "500 - $0.99",
+        "price_usd": 0.99,
+        "coins": 500,
+        "provider": "paypal_web",
+        "enabled": true
+      }
+    ],
+    "powerups": [
+      {
+        "id": "undo",
+        "cost_coins": 120
+      }
+    ],
+    "themes": [
+      {
+        "id": "default",
+        "display_name": "Default",
+        "cost_coins": 0
+      }
+    ]
+  },
+  "bootstrap": {
+    "include_nakama_client_template": true,
+    "force": true,
+    "write_project_settings": true,
+    "write_catalog_config": true,
+    "catalog_config_path": "configs/shop.catalog.json"
+  },
+  "client": {
+    "nakama_enable_client": true,
+    "nakama_leaderboard_limit": 10,
+    "platform": "terapixel",
+    "export_target": "web",
+    "client_events_enabled": true,
+    "client_event_sample_rate": 1.0
+  },
+  "deployment": {
+    "provision_github": false,
+    "provision_render": false,
+    "deploy_render": false,
+    "run_smoke_tests": true,
+    "verify_after_provision": true
+  },
+  "cloudrun": {
+    "enabled": true,
+    "project_id": "",
+    "region": "us-central1",
+    "workload_identity_provider": "",
+    "deploy_service_account": "",
+    "runtime_service_account": "",
+    "service": "turnkey_reference-nakama",
+    "image_base": "",
+    "service_template": "backend/nakama/cloudrun/service.template.yaml",
+    "cloudsql_instance_connection_name": "",
+    "deploy_flags_json": "",
+    "env_overrides": {
+      "PLATFORM_IDENTITY_URL": "https://terapixel.games/api",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_START_URL": "https://terapixel.games/api/v1/account/magic-link/start",
+      "PLATFORM_ACCOUNT_MAGIC_LINK_COMPLETE_URL": "https://terapixel.games/api/v1/account/magic-link/complete",
+      "PLATFORM_USERNAME_VALIDATE_URL": "https://terapixel.games/api/v1/identity/internal/username/validate",
+      "PLATFORM_ACCOUNT_MERGE_CODE_URL": "https://terapixel.games/api/v1/account/merge/code",
+      "PLATFORM_ACCOUNT_MERGE_REDEEM_URL": "https://terapixel.games/api/v1/account/merge/redeem",
+      "PLATFORM_TELEMETRY_EVENTS_URL": "https://terapixel.games/api/v1/telemetry/events"
+    }
+  }
+}
