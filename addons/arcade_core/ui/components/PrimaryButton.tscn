@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/components/premium_button.gd" id="1"]
+
+[node name="PrimaryButton" type="Button"]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+text = "Start Game"
+script = ExtResource("1")
+button_tier = "primary"
+idle_pulse_enabled = true
+glow_intensity = 1.15

@@ -3,8 +3,8 @@ extends Control
 const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.tscn")
 const ACCOUNT_MODAL_SCENE := preload("res://src/scenes/AccountModal.tscn")
 const SHOP_MODAL_SCENE := preload("res://src/scenes/ShopModal.tscn")
-const ICON_MUSIC_ON := preload("res://assets/ui/icons/atlas/music_on.tres")
-const ICON_MUSIC_OFF := preload("res://assets/ui/icons/atlas/music_off.tres")
+const ICON_SETTINGS_ON := preload("res://assets/ui/icons/atlas/music_on.tres")
+const ICON_SETTINGS_OFF := preload("res://assets/ui/icons/atlas/music_off.tres")
 const PROMO_URL := "https://terapixel.games/lumarush"
 
 @onready var root_margin: MarginContainer = $UI/RootMargin
@@ -12,13 +12,16 @@ const PROMO_URL := "https://terapixel.games/lumarush"
 @onready var panel: ColorRect = $UI/RootMargin/Layout/Center/PanelShell/Panel
 @onready var content_margin: MarginContainer = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin
 @onready var title_label: Label = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title
-@onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start
-@onready var panel_vbox: VBoxContainer = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox
+@onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA/Start
+@onready var mode_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/ModeToggle
+@onready var daily_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/DailyToggle
+@onready var contrast_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow/WeeklyLadderInfo
+@onready var promo_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow/CrossPromo
 @onready var audio_button: Button = $UI/RootMargin/Layout/TopBar/Audio
 @onready var account_button: Button = $UI/RootMargin/Layout/TopBar/Account
-@onready var shop_button: Button = $UI/RootMargin/Layout/BottomBar/Shop
-@onready var coin_badge_panel: PanelContainer = $UI/RootMargin/Layout/BottomBar/Shop/CoinBadge
-@onready var coin_badge: Label = $UI/RootMargin/Layout/BottomBar/Shop/CoinBadge/Value
+@onready var shop_button: Button = $UI/RootMargin/Layout/TopBar/Shop
+@onready var coin_badge_panel: PanelContainer = $UI/RootMargin/Layout/TopBar/Shop/CoinBadge
+@onready var coin_badge: Label = $UI/RootMargin/Layout/TopBar/Shop/CoinBadge/Value
 
 var _title_t: float = 0.0
 var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
@@ -26,14 +29,11 @@ var _title_accent_color: Color = Color(0.78, 0.88, 1.0, 1.0)
 var _tracks: Array[Dictionary] = []
 var _track_index: int = 0
 var _audio_overlay: AudioTrackOverlay
-var _mode_button: Button
-var _daily_button: Button
-var _weekly_button: Button
-var _promo_button: Button
-var _contrast_button: Button
 var _scene_opened_msec: int = Time.get_ticks_msec()
-const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
-const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
+var _logo_idle_tween: Tween
+var _cta_pulse_tween: Tween
+var _badge_pulse_tween: Tween
+var _panel_fade_tween: Tween
 
 func _ready() -> void:
 	if FeatureFlags.clear_high_score_on_boot():
@@ -51,12 +51,11 @@ func _ready() -> void:
 	ThemeManager.apply_to_scene(self)
 	_layout_menu()
 	call_deferred("_layout_menu")
-	_style_coin_badge()
-	_ensure_action_buttons()
 	_sync_mode_buttons()
 	title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
 	_refresh_audio_icon()
+	_play_menu_motion()
 	if not NakamaService.wallet_updated.is_connected(_on_wallet_updated):
 		NakamaService.wallet_updated.connect(_on_wallet_updated)
 	start_button.disabled = true
@@ -69,9 +68,7 @@ func _process(delta: float) -> void:
 	if FeatureFlags.is_visual_test_mode():
 		return
 	_title_t += delta
-	var rot_wave: float = sin(_title_t * 1.8)
-	title_label.rotation_degrees = rot_wave * 3.8
-	var color_wave: float = (sin(_title_t * 1.2) + 1.0) * 0.5
+	var color_wave: float = (sin(_title_t * 1.10) + 1.0) * 0.5
 	title_label.add_theme_color_override("font_color", _title_base_color.lerp(_title_accent_color, color_wave))
 
 func _notification(what: int) -> void:
@@ -93,32 +90,72 @@ func _layout_menu() -> void:
 	root_margin.add_theme_constant_override("margin_right", outer_margin)
 	root_margin.add_theme_constant_override("margin_bottom", outer_margin)
 
-	var panel_width: float = clamp(viewport_size.x * 0.78, 280.0, min(820.0, viewport_size.x - float(outer_margin * 2)))
-	var panel_height_cap: float = max(280.0, viewport_size.y - float(outer_margin * 2) - 170.0)
-	var panel_height: float = clamp(viewport_size.y * 0.62, 340.0, panel_height_cap)
+	var panel_width: float = clamp(viewport_size.x * 0.82, 320.0, min(880.0, viewport_size.x - float(outer_margin * 2)))
+	var panel_height_cap: float = max(320.0, viewport_size.y - float(outer_margin * 2) - 120.0)
+	var panel_height: float = clamp(viewport_size.y * 0.70, 420.0, panel_height_cap)
 	var panel_size := Vector2(panel_width, panel_height)
 	panel_shell.custom_minimum_size = panel_size
 	panel.custom_minimum_size = panel_size
 
-	var inner_margin: int = int(round(clamp(panel_width * 0.05, 16.0, 34.0)))
+	var inner_margin: int = int(round(clamp(panel_width * 0.052, 18.0, 38.0)))
 	content_margin.add_theme_constant_override("margin_left", inner_margin)
 	content_margin.add_theme_constant_override("margin_top", inner_margin)
 	content_margin.add_theme_constant_override("margin_right", inner_margin)
 	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
-	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.095, 84.0, 118.0)
+	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.10, 86.0, 122.0)
+	mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.076, 62.0, 86.0)
+	daily_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
+	contrast_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
+	promo_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
 
-	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
+	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.095, 62.0, 90.0)
 	audio_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	account_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	shop_button.custom_minimum_size = Vector2(icon_size, icon_size)
 	_layout_coin_badge(icon_size)
-
 	_refresh_title_pivots()
 
 func _refresh_title_pivots() -> void:
 	if title_label:
 		title_label.pivot_offset = title_label.size * 0.5
+
+func _play_menu_motion() -> void:
+	_run_panel_fade_in()
+	_run_logo_idle_float()
+	_run_badge_pulse()
+	_run_cta_pulse()
+
+func _run_logo_idle_float() -> void:
+	if is_instance_valid(_logo_idle_tween):
+		_logo_idle_tween.kill()
+	_logo_idle_tween = create_tween()
+	_logo_idle_tween.set_loops()
+	_logo_idle_tween.tween_property(title_label, "scale", Vector2(1.02, 1.02), 1.45)
+	_logo_idle_tween.tween_property(title_label, "scale", Vector2.ONE, 1.45)
+
+func _run_cta_pulse() -> void:
+	if is_instance_valid(_cta_pulse_tween):
+		_cta_pulse_tween.kill()
+	_cta_pulse_tween = create_tween()
+	_cta_pulse_tween.set_loops()
+	_cta_pulse_tween.tween_property(start_button, "scale", Vector2(1.015, 1.015), 0.9)
+	_cta_pulse_tween.tween_property(start_button, "scale", Vector2.ONE, 0.9)
+
+func _run_badge_pulse() -> void:
+	if is_instance_valid(_badge_pulse_tween):
+		_badge_pulse_tween.kill()
+	_badge_pulse_tween = create_tween()
+	_badge_pulse_tween.set_loops()
+	_badge_pulse_tween.tween_property(coin_badge_panel, "scale", Vector2(1.06, 1.06), 0.7)
+	_badge_pulse_tween.tween_property(coin_badge_panel, "scale", Vector2.ONE, 0.7)
+
+func _run_panel_fade_in() -> void:
+	if is_instance_valid(_panel_fade_tween):
+		_panel_fade_tween.kill()
+	panel.modulate.a = 0.0
+	_panel_fade_tween = create_tween()
+	_panel_fade_tween.tween_property(panel, "modulate:a", 1.0, 0.48)
 
 func _on_start_pressed() -> void:
 	Telemetry.mark_mode_selected(RunManager.get_selected_mode(), "menu_start")
@@ -173,12 +210,6 @@ func _selected_index_for_id(track_id: String, tracks: Array[Dictionary]) -> int:
 			return i
 	return 0
 
-func _cycle_track(step: int) -> void:
-	if _tracks.is_empty():
-		return
-	var wrapped_index: int = posmod(_track_index + step, _tracks.size())
-	_apply_track_index(wrapped_index)
-
 func _on_audio_overlay_track_selected(_track_name: String, index: int) -> void:
 	_apply_track_index(index)
 
@@ -206,119 +237,46 @@ func _refresh_audio_icon() -> void:
 	if audio_button == null:
 		return
 	var is_muted: bool = is_muted_track(str(MusicManager.get_current_track_id()))
-	audio_button.set("icon_texture", ICON_MUSIC_OFF if is_muted else ICON_MUSIC_ON)
-	var label: String = "Audio Off" if is_muted else "Audio"
+	audio_button.set("icon_texture", ICON_SETTINGS_OFF if is_muted else ICON_SETTINGS_ON)
+	var label: String = "Settings (Audio Off)" if is_muted else "Settings"
 	audio_button.set("tooltip_text_override", label)
 	audio_button.set("accessibility_name_override", label)
-
-func _style_coin_badge() -> void:
-	if coin_badge_panel == null or coin_badge == null:
-		return
-	var style := StyleBoxFlat.new()
-	style.bg_color = BADGE_BG_COLOR
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = BADGE_BORDER_COLOR
-	style.corner_radius_top_left = 128
-	style.corner_radius_top_right = 128
-	style.corner_radius_bottom_left = 128
-	style.corner_radius_bottom_right = 128
-	style.anti_aliasing = true
-	style.anti_aliasing_size = 1.2
-	coin_badge_panel.add_theme_stylebox_override("panel", style)
-	coin_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	coin_badge.add_theme_color_override("font_color", Color(0.98, 0.99, 1.0, 1.0))
-	coin_badge.add_theme_color_override("font_outline_color", Color(0.3, 0.0, 0.05, 0.95))
-	coin_badge.add_theme_constant_override("outline_size", 2)
-	coin_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	coin_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	shop_button.clip_contents = false
 
 func _layout_coin_badge(icon_size: float) -> void:
 	if coin_badge_panel == null:
 		return
-	var radius: float = clamp(icon_size * 0.23, 14.0, 22.0)
-	coin_badge_panel.anchor_left = 1.0
-	coin_badge_panel.anchor_top = 0.0
-	coin_badge_panel.anchor_right = 1.0
-	coin_badge_panel.anchor_bottom = 0.0
-	coin_badge_panel.offset_left = -radius
-	coin_badge_panel.offset_top = -radius
-	coin_badge_panel.offset_right = radius
-	coin_badge_panel.offset_bottom = radius
-	coin_badge_panel.z_index = 10
-
-func _ensure_action_buttons() -> void:
-	if panel_vbox == null:
-		return
-	if _mode_button == null:
-		_mode_button = Button.new()
-		_mode_button.name = "ModeToggle"
-		_mode_button.custom_minimum_size.y = 60.0
-		_mode_button.pressed.connect(_on_mode_toggle_pressed)
-		panel_vbox.add_child(_mode_button)
-	if _daily_button == null:
-		_daily_button = Button.new()
-		_daily_button.name = "DailyToggle"
-		_daily_button.custom_minimum_size.y = 56.0
-		_daily_button.pressed.connect(_on_daily_toggle_pressed)
-		panel_vbox.add_child(_daily_button)
-	if _contrast_button == null:
-		_contrast_button = Button.new()
-		_contrast_button.name = "ContrastToggle"
-		_contrast_button.custom_minimum_size.y = 56.0
-		_contrast_button.pressed.connect(_on_contrast_toggle_pressed)
-		panel_vbox.add_child(_contrast_button)
-	if _weekly_button == null:
-		_weekly_button = Button.new()
-		_weekly_button.name = "WeeklyLadderInfo"
-		_weekly_button.custom_minimum_size.y = 56.0
-		_weekly_button.disabled = true
-		panel_vbox.add_child(_weekly_button)
-	if _promo_button == null:
-		_promo_button = Button.new()
-		_promo_button.name = "CrossPromo"
-		_promo_button.text = "Play LumaRush"
-		_promo_button.custom_minimum_size.y = 52.0
-		_promo_button.pressed.connect(_on_promo_pressed)
-		panel_vbox.add_child(_promo_button)
-	UiFx.fade_in(_mode_button, 0.14)
-	UiFx.fade_in(_daily_button, 0.14)
-	UiFx.fade_in(_contrast_button, 0.14)
-	UiFx.fade_in(_weekly_button, 0.14)
-	UiFx.fade_in(_promo_button, 0.14)
+	var radius: float = clamp(icon_size * 0.20, 13.0, 19.0)
+	coin_badge_panel.offset_left = icon_size * 0.68
+	coin_badge_panel.offset_top = -radius * 0.5
+	coin_badge_panel.offset_right = coin_badge_panel.offset_left + (radius * 2.0)
+	coin_badge_panel.offset_bottom = coin_badge_panel.offset_top + (radius * 2.0)
 
 func _sync_mode_buttons() -> void:
-	if _mode_button:
+	if mode_button:
 		var week_tier: int = int(SaveStore.data.get("social_week_tier", 0))
-		_mode_button.text = "Leaderboard Mode: %s | Weekly Tier %d" % [RunManager.get_selected_mode(), week_tier]
-	if _daily_button:
-		_daily_button.text = "Daily Puzzle: %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
-	if _contrast_button:
-		_contrast_button.text = "Colorblind Contrast: %s" % ("On" if SaveStore.is_colorblind_high_contrast() else "Off")
-	if _weekly_button:
-		var week_points: int = int(SaveStore.data.get("social_week_points", 0))
-		var rival_target: int = RunManager.get_active_rival_target()
-		var rival_name: String = str(SaveStore.data.get("social_rival_name", "Rival"))
-		_weekly_button.text = "Weekly Ladder %d pts | %s target %d" % [week_points, rival_name, rival_target]
+		mode_button.text = "Leaderboard: %s (Tier %d)" % [RunManager.get_selected_mode(), week_tier]
+	if daily_button:
+		daily_button.text = "Daily Puzzle: %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
+	if contrast_button:
+		contrast_button.text = "Contrast: %s" % ("On" if SaveStore.is_colorblind_high_contrast() else "Off")
+	if promo_button:
+		promo_button.text = "LumaRush"
 
 func _on_mode_toggle_pressed() -> void:
 	var next_mode := "OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE"
 	RunManager.set_selected_mode(next_mode, "menu_toggle")
 	_sync_mode_buttons()
-	UiFx.pop(_mode_button)
+	UiFx.pop(mode_button)
 
 func _on_daily_toggle_pressed() -> void:
 	RunManager.set_daily_challenge_enabled(not SaveStore.get_daily_challenge_enabled())
 	_sync_mode_buttons()
-	UiFx.pop(_daily_button)
+	UiFx.pop(daily_button)
 
 func _on_contrast_toggle_pressed() -> void:
 	SaveStore.set_colorblind_high_contrast(not SaveStore.is_colorblind_high_contrast())
 	_sync_mode_buttons()
-	UiFx.pop(_contrast_button)
+	UiFx.pop(contrast_button)
 
 func _on_promo_pressed() -> void:
 	OS.shell_open(PROMO_URL)

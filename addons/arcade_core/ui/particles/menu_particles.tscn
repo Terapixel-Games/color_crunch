@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/particles/menu_particles.gd" id="1"]
+
+[sub_resource type="ParticleProcessMaterial" id="1"]
+emission_shape = 2
+emission_box_extents = Vector3(540, 960, 0)
+gravity = Vector3(0, -6, 0)
+initial_velocity_min = 16.0
+initial_velocity_max = 34.0
+scale_min = 0.05
+scale_max = 0.14
+color = Color(0.64, 0.92, 1, 0.18)
+hue_variation_min = -0.03
+hue_variation_max = 0.03
+anim_speed_min = 0.4
+anim_speed_max = 0.8
+direction = Vector3(0, -1, 0)
+spread = 18.0
+
+[node name="MenuParticles" type="GPUParticles2D"]
+z_index = -1
+amount = 24
+lifetime = 8.0
+preprocess = 4.0
+process_material = SubResource("1")
+emitting = true
+modulate = Color(1, 1, 1, 0.92)
+script = ExtResource("1")

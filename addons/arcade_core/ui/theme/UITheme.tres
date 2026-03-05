@@ -1,0 +1,65 @@
+[gd_resource type="Theme" load_steps=7 format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_primary"]
+bg_color = Color(0.08, 0.30, 0.48, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.52, 0.93, 1, 0.85)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+shadow_color = Color(0.08, 0.52, 0.86, 0.52)
+shadow_size = 10
+anti_aliasing = true
+anti_aliasing_size = 1.2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_secondary"]
+bg_color = Color(0.06, 0.14, 0.30, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.66, 0.84, 1, 0.58)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+shadow_color = Color(0.03, 0.08, 0.22, 0.34)
+shadow_size = 8
+anti_aliasing = true
+anti_aliasing_size = 1.2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.05, 0.12, 0.24, 0.66)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.79, 0.91, 1, 0.34)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+shadow_color = Color(0.01, 0.05, 0.15, 0.52)
+shadow_size = 12
+anti_aliasing = true
+anti_aliasing_size = 1.2
+
+[resource]
+default_font_size = 34
+Button/colors/font_color = Color(0.96, 0.99, 1, 1)
+Button/colors/font_hover_color = Color(1, 1, 1, 1)
+Button/colors/font_outline_color = Color(0, 0.04, 0.1, 0.9)
+Button/constants/outline_size = 3
+Button/font_sizes/font_size = 32
+Button/styles/focus = SubResource("StyleBoxFlat_button_primary")
+Button/styles/hover = SubResource("StyleBoxFlat_button_primary")
+Button/styles/normal = SubResource("StyleBoxFlat_button_secondary")
+Button/styles/pressed = SubResource("StyleBoxFlat_button_primary")
+Label/colors/font_color = Color(0.96, 0.99, 1, 1)
+Label/colors/font_outline_color = Color(0.01, 0.03, 0.08, 0.86)
+Label/constants/outline_size = 4
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")

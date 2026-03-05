@@ -1,24 +1,29 @@
-[gd_scene load_steps=10 format=3 uid="uid://40tx7crv0o0w"]
+[gd_scene load_steps=13 format=3]
 
-[ext_resource type="Script" uid="uid://c4g6tpjx8lich" path="res://src/scenes/MainMenu.gd" id="1"]
+[ext_resource type="Script" path="res://src/scenes/MainMenu.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id="2"]
-[ext_resource type="Script" uid="uid://ddwjca2l8jso8" path="res://src/ui/GlassPanel.gd" id="3"]
-[ext_resource type="Theme" uid="uid://c7md3l4sokudj" path="res://src/ui/UiTheme.tres" id="4"]
-[ext_resource type="Script" uid="uid://cm18fs18ym62x" path="res://src/ui/LiquidGlassButton.gd" id="5"]
-[ext_resource type="PackedScene" path="res://ui/components/IconButton.tscn" id="6"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/person.tres" id="8"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/cart.tres" id="9"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/music_on.tres" id="10"]
+[ext_resource type="Theme" path="res://addons/arcade_core/ui/theme/UITheme.tres" id="3"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/IconButton.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/GlassPanel.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/PrimaryButton.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/SecondaryButton.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/NotificationBadge.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/particles/menu_particles.tscn" id="9"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/person.tres" id="10"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/cart.tres" id="11"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/music_on.tres" id="12"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme = ExtResource("4")
+theme = ExtResource("3")
 script = ExtResource("1")
 
 [node name="BackgroundController" parent="." instance=ExtResource("2")]
+
+[node name="MenuParticles" parent="." instance=ExtResource("9")]
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 1
@@ -44,28 +49,47 @@ theme_override_constants/margin_bottom = 20
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 14
+theme_override_constants/separation = 16
 
 [node name="TopBar" type="HBoxContainer" parent="UI/RootMargin/Layout"]
-custom_minimum_size = Vector2(0, 86)
+custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Brand" type="Label" parent="UI/RootMargin/Layout/TopBar"]
+layout_mode = 2
+text = "Color Crunch"
+vertical_alignment = 1
 
 [node name="TopSpacer" type="Control" parent="UI/RootMargin/Layout/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Audio" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("6")]
+[node name="Account" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("4")]
 layout_mode = 2
 icon_texture = ExtResource("10")
-tooltip_text_override = "Audio"
-accessibility_name_override = "Audio"
+tooltip_text_override = "Profile"
+accessibility_name_override = "Profile"
 
-[node name="Account" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("6")]
+[node name="Shop" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("4")]
 layout_mode = 2
-icon_texture = ExtResource("8")
-tooltip_text_override = "Account"
-accessibility_name_override = "Account"
+icon_texture = ExtResource("11")
+tooltip_text_override = "Shop"
+accessibility_name_override = "Shop"
+
+[node name="CoinBadge" parent="UI/RootMargin/Layout/TopBar/Shop" instance=ExtResource("8")]
+layout_mode = 0
+offset_left = 58.0
+offset_top = -8.0
+offset_right = 92.0
+offset_bottom = 26.0
+
+[node name="Audio" parent="UI/RootMargin/Layout/TopBar" instance=ExtResource("4")]
+layout_mode = 2
+icon_texture = ExtResource("12")
+tooltip_text_override = "Settings"
+accessibility_name_override = "Settings"
 
 [node name="Center" type="CenterContainer" parent="UI/RootMargin/Layout"]
 layout_mode = 2
@@ -73,25 +97,13 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="PanelShell" type="PanelContainer" parent="UI/RootMargin/Layout/Center"]
-custom_minimum_size = Vector2(640, 520)
+custom_minimum_size = Vector2(760, 620)
 layout_mode = 2
 
-[node name="Panel" type="ColorRect" parent="UI/RootMargin/Layout/Center/PanelShell"]
-custom_minimum_size = Vector2(640, 520)
+[node name="Panel" parent="UI/RootMargin/Layout/Center/PanelShell" instance=ExtResource("5")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-color = Color(0.12, 0.18, 0.32, 0.22)
-script = ExtResource("3")
-blur_radius = 5.2
-tint = Color(0.12, 0.18, 0.32, 0.22)
-edge = Color(0.9, 0.96, 1, 0.2)
-corner_radius = 0.11
-edge_width = 1.1
-warp_intensity = 0.12
-strength_x = 8.0
-strength_y = 8.0
-chromatic_strength = 0.18
 
 [node name="ContentMargin" type="MarginContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel"]
 layout_mode = 1
@@ -100,78 +112,87 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 28
-theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 28
-theme_override_constants/margin_bottom = 28
+theme_override_constants/margin_left = 34
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 34
+theme_override_constants/margin_bottom = 30
 
 [node name="VBox" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 18
+theme_override_constants/separation = 16
 alignment = 1
 
 [node name="Title" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 78
+theme_override_font_sizes/font_size = 84
 text = "Color Crunch"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
-visible = false
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 32
-text = "Swipe to crunch matching colors"
+theme_override_font_sizes/font_size = 30
+text = "Chain cleanly. Control the board."
 horizontal_alignment = 1
 
-[node name="Start" type="Button" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
-custom_minimum_size = Vector2(0, 112)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Start"
-script = ExtResource("5")
-
-[node name="BottomBar" type="HBoxContainer" parent="UI/RootMargin/Layout"]
-custom_minimum_size = Vector2(0, 98)
-layout_mode = 2
-size_flags_horizontal = 3
-alignment = 2
-
-[node name="BottomSpacer" type="Control" parent="UI/RootMargin/Layout/BottomBar"]
+[node name="PrimaryCTA" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Shop" parent="UI/RootMargin/Layout/BottomBar" instance=ExtResource("6")]
+[node name="Start" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA" instance=ExtResource("6")]
 layout_mode = 2
-icon_texture = ExtResource("9")
-tooltip_text_override = "Shop"
-accessibility_name_override = "Shop"
+text = "Start Game"
 
-[node name="CoinBadge" type="PanelContainer" parent="UI/RootMargin/Layout/BottomBar/Shop"]
-layout_mode = 0
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -18.0
-offset_top = -18.0
-offset_right = 18.0
-offset_bottom = 18.0
-mouse_filter = 2
+[node name="SecondaryOptions" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
 
-[node name="Value" type="Label" parent="UI/RootMargin/Layout/BottomBar/Shop/CoinBadge"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-text = "0"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Heading" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions"]
+layout_mode = 2
+text = "Secondary Options"
 
-[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start" to="." method="_on_start_pressed"]
+[node name="OptionRow" type="HBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ModeToggle" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow" instance=ExtResource("7")]
+layout_mode = 2
+text = "Leaderboard Mode"
+
+[node name="DailyToggle" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow" instance=ExtResource("7")]
+layout_mode = 2
+text = "Daily Challenge"
+
+[node name="Modes" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Heading" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes"]
+layout_mode = 2
+text = "Arcade Modes"
+
+[node name="ModeRow" type="HBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="WeeklyLadderInfo" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow" instance=ExtResource("7")]
+layout_mode = 2
+text = "Colorblind Contrast"
+
+[node name="CrossPromo" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow" instance=ExtResource("7")]
+layout_mode = 2
+text = "Play LumaRush"
+
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA/Start" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="UI/RootMargin/Layout/TopBar/Audio" to="." method="_on_audio_pressed"]
 [connection signal="pressed" from="UI/RootMargin/Layout/TopBar/Account" to="." method="_on_account_pressed"]
-[connection signal="pressed" from="UI/RootMargin/Layout/BottomBar/Shop" to="." method="_on_shop_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/TopBar/Shop" to="." method="_on_shop_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/ModeToggle" to="." method="_on_mode_toggle_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/DailyToggle" to="." method="_on_daily_toggle_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow/WeeklyLadderInfo" to="." method="_on_contrast_toggle_pressed"]
+[connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow/CrossPromo" to="." method="_on_promo_pressed"]

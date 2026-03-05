@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/components/premium_glass_panel.gd" id="1"]
+
+[node name="GlassPanel" type="ColorRect"]
+custom_minimum_size = Vector2(680, 560)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+color = Color(1, 1, 1, 1)
+script = ExtResource("1")

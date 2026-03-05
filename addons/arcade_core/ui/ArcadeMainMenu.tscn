@@ -1,0 +1,125 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://addons/arcade_core/ui/ArcadeMainMenu.gd" id="1"]
+[ext_resource type="Theme" path="res://addons/arcade_core/ui/theme/UITheme.tres" id="2"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/GlassPanel.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/PrimaryButton.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/SecondaryButton.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://addons/arcade_core/ui/components/IconButton.tscn" id="6"]
+
+[node name="ArcadeMainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("2")
+script = ExtResource("1")
+
+[node name="Root" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="TopBar" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Spacer" type="Control" parent="Root/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ProfileButton" parent="Root/TopBar" instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="ShopButton" parent="Root/TopBar" instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="SettingsButton" parent="Root/TopBar" instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="PanelShell" type="PanelContainer" parent="Root"]
+custom_minimum_size = Vector2(760, 620)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="Panel" parent="Root/PanelShell" instance=ExtResource("3")]
+layout_mode = 2
+
+[node name="Content" type="MarginContainer" parent="Root/PanelShell/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="Root/PanelShell/Panel/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Root/PanelShell/Panel/Content/VBox"]
+layout_mode = 2
+text = "TITLE"
+horizontal_alignment = 1
+
+[node name="PrimaryCTA" type="VBoxContainer" parent="Root/PanelShell/Panel/Content/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StartButton" parent="Root/PanelShell/Panel/Content/VBox/PrimaryCTA" instance=ExtResource("4")]
+layout_mode = 2
+text = "Start Game"
+
+[node name="SecondaryOptions" type="VBoxContainer" parent="Root/PanelShell/Panel/Content/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="Root/PanelShell/Panel/Content/VBox/SecondaryOptions"]
+layout_mode = 2
+text = "SECONDARY OPTIONS"
+
+[node name="OptionRow" type="HBoxContainer" parent="Root/PanelShell/Panel/Content/VBox/SecondaryOptions"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LeaderboardButton" parent="Root/PanelShell/Panel/Content/VBox/SecondaryOptions/OptionRow" instance=ExtResource("5")]
+layout_mode = 2
+text = "Leaderboard"
+
+[node name="DailyButton" parent="Root/PanelShell/Panel/Content/VBox/SecondaryOptions/OptionRow" instance=ExtResource("5")]
+layout_mode = 2
+text = "Daily Challenge"
+
+[node name="ModeSection" type="VBoxContainer" parent="Root/PanelShell/Panel/Content/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="Root/PanelShell/Panel/Content/VBox/ModeSection"]
+layout_mode = 2
+text = "ARCADE MODES"
+
+[node name="ModeButtons" type="HBoxContainer" parent="Root/PanelShell/Panel/Content/VBox/ModeSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ModePrimaryButton" parent="Root/PanelShell/Panel/Content/VBox/ModeSection/ModeButtons" instance=ExtResource("5")]
+layout_mode = 2
+text = "ColorCrunch"
+
+[node name="ModeSecondaryButton" parent="Root/PanelShell/Panel/Content/VBox/ModeSection/ModeButtons" instance=ExtResource("5")]
+layout_mode = 2
+text = "Other Games"
