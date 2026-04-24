@@ -1,4 +1,4 @@
-extends RefCounted
+extends Node
 
 var scene_tree: SceneTree = null
 var _failures: Array[String] = []

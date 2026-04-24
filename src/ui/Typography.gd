@@ -4,9 +4,9 @@ const REFERENCE_HEIGHT: float = 2532.0
 const GLOBAL_TEXT_SCALE: float = 2.12
 const MIN_SCALE_FACTOR: float = 0.90
 const MAX_SCALE_FACTOR: float = 2.30
-const PRIMARY_TEXT: Color = Color8(242, 244, 255, 255)
-const SECONDARY_TEXT: Color = Color8(242, 244, 255, 166)
-const SHADOW_TEXT: Color = Color(0.02, 0.04, 0.12, 0.82)
+const PRIMARY_TEXT: Color = Color8(255, 248, 236, 255)
+const SECONDARY_TEXT: Color = Color8(221, 233, 201, 214)
+const SHADOW_TEXT: Color = Color(0.10, 0.08, 0.02, 0.82)
 
 const SIZE_SCORE: float = 60.0
 const SIZE_BUTTON: float = 30.0
@@ -78,6 +78,12 @@ func style_button(button: BaseButton, reference_size: float, weight: int = WEIGH
 
 func style_main_menu(scene: Control) -> void:
 	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/TopBar/Brand",
+	]) as Label, 18.0, WEIGHT_SEMIBOLD)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Kicker",
+	]) as Label, 14.0, WEIGHT_SEMIBOLD, true)
+	style_label(_node_from_paths(scene, [
 		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title",
 		"UI/VBox/Title",
 	]) as Label, SIZE_MENU_TITLE, WEIGHT_BOLD)
@@ -85,6 +91,18 @@ func style_main_menu(scene: Control) -> void:
 		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Subtitle",
 		"UI/VBox/Subtitle",
 	]) as Label, SIZE_BODY, WEIGHT_REGULAR, true)
+	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/LaunchNote",
+	]) as Label, 16.0, WEIGHT_MEDIUM, true)
+	_style_labels(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/Heading",
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/Heading",
+	], 16.0, WEIGHT_SEMIBOLD, true)
+	_style_labels(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/SpeedCard/SpeedLabel",
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/ContrastCard/ContrastLabel",
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/ChainCard/ChainLabel",
+	], 14.0, WEIGHT_SEMIBOLD)
 	style_button(_node_from_paths(scene, [
 		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/TrackSelector/VBox/CollapsedPill",
 	]) as BaseButton, 20.0, WEIGHT_MEDIUM)
@@ -101,6 +119,7 @@ func style_main_menu(scene: Control) -> void:
 		"UI/VBox/TrackCarousel/TrackNext",
 	]) as BaseButton, 24.0, WEIGHT_BOLD)
 	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA/Start",
 		"UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Start",
 		"UI/VBox/Start",
 	]) as BaseButton, SIZE_BUTTON, WEIGHT_SEMIBOLD)
@@ -112,10 +131,12 @@ func style_main_menu(scene: Control) -> void:
 		"UI/Account",
 	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
 	style_button(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/TopBar/Shop",
 		"UI/RootMargin/Layout/BottomBar/Shop",
 		"UI/Shop",
 	]) as BaseButton, 20.0, WEIGHT_SEMIBOLD)
 	style_label(_node_from_paths(scene, [
+		"UI/RootMargin/Layout/TopBar/Shop/CoinBadge/Value",
 		"UI/RootMargin/Layout/BottomBar/Shop/CoinBadge/Value",
 		"UI/RootMargin/Layout/BottomBar/CoinBadge",
 		"UI/Shop/CoinBadge",
@@ -216,3 +237,9 @@ func _node_from_paths(scene: Node, paths: Array[String]) -> Node:
 		if node != null:
 			return node
 	return null
+
+func _style_labels(scene: Node, paths: Array[String], reference_size: float, weight: int, secondary: bool = false) -> void:
+	for path in paths:
+		var node := scene.get_node_or_null(path)
+		if node is Label:
+			style_label(node as Label, reference_size, weight, secondary)

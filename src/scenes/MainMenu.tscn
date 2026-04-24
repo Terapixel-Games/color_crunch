@@ -59,7 +59,7 @@ theme_override_constants/separation = 10
 
 [node name="Brand" type="Label" parent="UI/RootMargin/Layout/TopBar"]
 layout_mode = 2
-text = "Color Crunch"
+text = "TERAPIXEL // COLOR CRUNCH"
 vertical_alignment = 1
 
 [node name="TopSpacer" type="Control" parent="UI/RootMargin/Layout/TopBar"]
@@ -97,18 +97,24 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="BottomBalance" type="Control" parent="UI/RootMargin/Layout"]
-custom_minimum_size = Vector2(0, 92)
+custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="PanelShell" type="PanelContainer" parent="UI/RootMargin/Layout/Center"]
-custom_minimum_size = Vector2(760, 620)
+custom_minimum_size = Vector2(860, 700)
 layout_mode = 2
 
 [node name="Panel" parent="UI/RootMargin/Layout/Center/PanelShell" instance=ExtResource("5")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+panel_tint = Color(0.06, 0.08, 0.12, 0.84)
+panel_edge = Color(1, 0.82, 0.34, 0.40)
+panel_glow = Color(1.0, 0.72, 0.26, 1.0)
+blur_radius = 5.6
+corner_radius = 0.17
+drop_shadow_alpha = 0.32
 
 [node name="ContentMargin" type="MarginContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel"]
 layout_mode = 1
@@ -126,8 +132,14 @@ theme_override_constants/margin_bottom = 30
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 16
+theme_override_constants/separation = 18
 alignment = 1
+
+[node name="Kicker" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ARCADE COLOR GRID"
+horizontal_alignment = 1
 
 [node name="Title" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
@@ -140,8 +152,46 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 30
-text = "Chain cleanly. Control the board."
+text = "Read fast. Build chains. Burn through pressure."
 horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SignalGrid" type="GridContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="SpeedCard" type="PanelContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SpeedLabel" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/SpeedCard"]
+layout_mode = 2
+text = "SPEED READS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ContrastCard" type="PanelContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ContrastLabel" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/ContrastCard"]
+layout_mode = 2
+text = "VISION FILTER"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChainCard" type="PanelContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ChainLabel" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SignalGrid/ChainCard"]
+layout_mode = 2
+text = "CHAIN BURSTS"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="PrimaryCTA" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
@@ -149,7 +199,14 @@ size_flags_horizontal = 3
 
 [node name="Start" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA" instance=ExtResource("6")]
 layout_mode = 2
-text = "Start Game"
+text = "Start Puzzle"
+
+[node name="LaunchNote" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Daily boards and vision filters stay one tap away."
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="SecondaryOptions" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
@@ -158,7 +215,7 @@ theme_override_constants/separation = 10
 
 [node name="Heading" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions"]
 layout_mode = 2
-text = "Secondary Options"
+text = "CONTROL DECK"
 
 [node name="OptionRow" type="HBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions"]
 layout_mode = 2
@@ -170,7 +227,7 @@ text = "Leaderboard Mode"
 
 [node name="DailyToggle" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow" instance=ExtResource("7")]
 layout_mode = 2
-text = "Daily Challenge"
+text = "Daily Puzzle"
 
 [node name="Modes" type="VBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
@@ -179,7 +236,7 @@ theme_override_constants/separation = 10
 
 [node name="Heading" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes"]
 layout_mode = 2
-text = "Arcade Modes"
+text = "ARCADE LINKS"
 
 [node name="ModeRow" type="HBoxContainer" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes"]
 layout_mode = 2
@@ -187,11 +244,11 @@ theme_override_constants/separation = 12
 
 [node name="WeeklyLadderInfo" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow" instance=ExtResource("7")]
 layout_mode = 2
-text = "Colorblind Contrast"
+text = "Vision Filter"
 
 [node name="CrossPromo" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Modes/ModeRow" instance=ExtResource("7")]
 layout_mode = 2
-text = "Play LumaRush"
+text = "Open LumaRush"
 
 [connection signal="pressed" from="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA/Start" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="UI/RootMargin/Layout/TopBar/Audio" to="." method="_on_audio_pressed"]

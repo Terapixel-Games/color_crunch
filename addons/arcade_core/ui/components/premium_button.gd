@@ -52,11 +52,11 @@ func _refresh_center_pivot() -> void:
 
 func _apply_theme() -> void:
 	add_theme_font_size_override("font_size", 34 if button_tier == "primary" else 30)
-	add_theme_color_override("font_color", UI_COLORS.TEXT_PRIMARY)
-	add_theme_color_override("font_hover_color", Color.WHITE)
-	add_theme_color_override("font_pressed_color", Color.WHITE)
+	add_theme_color_override("font_color", Color(0.10, 0.08, 0.06, 1.0) if button_tier == "primary" else UI_COLORS.TEXT_PRIMARY)
+	add_theme_color_override("font_hover_color", Color(0.08, 0.06, 0.04, 1.0) if button_tier == "primary" else Color.WHITE)
+	add_theme_color_override("font_pressed_color", Color(0.08, 0.06, 0.04, 1.0) if button_tier == "primary" else Color.WHITE)
 	add_theme_color_override("font_outline_color", Color(0.01, 0.05, 0.14, 0.92))
-	add_theme_constant_override("outline_size", 3)
+	add_theme_constant_override("outline_size", 2 if button_tier == "primary" else 3)
 
 	var fill: Color = UI_COLORS.primary_button_fill()
 	var edge: Color = UI_COLORS.primary_button_edge()
@@ -71,27 +71,37 @@ func _apply_theme() -> void:
 	normal.border_width_right = normal.border_width_left
 	normal.border_width_bottom = normal.border_width_left
 	normal.border_color = edge
-	normal.corner_radius_top_left = 999
-	normal.corner_radius_top_right = 999
-	normal.corner_radius_bottom_right = 999
-	normal.corner_radius_bottom_left = 999
-	normal.shadow_color = UI_COLORS.GLOW_COLOR.darkened(0.2)
-	normal.shadow_size = 10 if button_tier == "primary" else 7
+	normal.corner_radius_top_left = 26
+	normal.corner_radius_top_right = 26
+	normal.corner_radius_bottom_right = 26
+	normal.corner_radius_bottom_left = 26
+	normal.content_margin_left = 18.0
+	normal.content_margin_right = 18.0
+	normal.content_margin_top = 14.0
+	normal.content_margin_bottom = 14.0
+	normal.shadow_color = Color(0.02, 0.05, 0.12, 0.26) if button_tier == "primary" else Color(0.02, 0.05, 0.12, 0.18)
+	normal.shadow_size = 14 if button_tier == "primary" else 10
 	normal.anti_aliasing = true
 	normal.anti_aliasing_size = 1.2
 
 	var hover: StyleBoxFlat = normal.duplicate()
-	hover.bg_color = fill.lightened(0.1)
-	hover.border_color = edge.lightened(0.1)
+	hover.bg_color = fill.lightened(0.08)
+	hover.border_color = edge.lightened(0.06)
 
 	var pressed: StyleBoxFlat = normal.duplicate()
-	pressed.bg_color = fill.darkened(0.08)
+	pressed.bg_color = fill.darkened(0.06)
+	pressed.shadow_size = max(0, normal.shadow_size - 4)
+
+	var disabled_style: StyleBoxFlat = normal.duplicate()
+	disabled_style.bg_color = fill.darkened(0.16)
+	disabled_style.border_color = edge.darkened(0.18)
+	disabled_style.shadow_size = 0
 
 	add_theme_stylebox_override("normal", normal)
 	add_theme_stylebox_override("hover", hover)
 	add_theme_stylebox_override("focus", hover)
 	add_theme_stylebox_override("pressed", pressed)
-	add_theme_stylebox_override("disabled", normal)
+	add_theme_stylebox_override("disabled", disabled_style)
 
 func _ensure_glow_layer() -> void:
 	if _glow_layer != null:
@@ -117,10 +127,10 @@ func _sync_visual_state() -> void:
 	if material == null:
 		return
 	var intensity := glow_intensity
-	var color := UI_COLORS.GLOW_COLOR
+	var color := UI_COLORS.ACCENT_COLOR if button_tier == "primary" else UI_COLORS.GLOW_COLOR
 	if button_tier == "secondary":
 		intensity *= 0.58
-		color = UI_COLORS.SECONDARY_COLOR.lightened(0.24)
+		color = UI_COLORS.PRIMARY_COLOR.lightened(0.18)
 	if disabled:
 		intensity *= 0.4
 	elif button_pressed:
@@ -129,7 +139,7 @@ func _sync_visual_state() -> void:
 		intensity *= 1.25
 	material.set_shader_parameter("glow_color", color)
 	material.set_shader_parameter("intensity", intensity)
-	material.set_shader_parameter("edge_mix", 0.82 if button_tier == "primary" else 0.66)
+	material.set_shader_parameter("edge_mix", 0.88 if button_tier == "primary" else 0.68)
 
 func _on_mouse_entered() -> void:
 	_animate_scale(_base_scale * hover_scale, 0.12)

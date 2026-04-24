@@ -64,32 +64,34 @@ func _refresh_center_pivot() -> void:
 
 func _apply_styles() -> void:
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.08, 0.16, 0.32, 0.52)
+	normal.bg_color = UI_COLORS.utility_button_fill()
 	normal.border_width_left = 1
 	normal.border_width_top = 1
 	normal.border_width_right = 1
 	normal.border_width_bottom = 1
-	normal.border_color = Color(0.86, 0.96, 1.0, 0.62)
-	normal.corner_radius_top_left = 24
-	normal.corner_radius_top_right = 24
-	normal.corner_radius_bottom_right = 24
-	normal.corner_radius_bottom_left = 24
-	normal.shadow_color = Color(0.04, 0.14, 0.30, 0.42)
-	normal.shadow_size = 8
+	normal.border_color = UI_COLORS.utility_button_edge()
+	normal.corner_radius_top_left = 28
+	normal.corner_radius_top_right = 28
+	normal.corner_radius_bottom_right = 28
+	normal.corner_radius_bottom_left = 28
+	normal.shadow_color = Color(0.02, 0.05, 0.12, 0.22)
+	normal.shadow_size = 12
 	normal.anti_aliasing = true
 	normal.anti_aliasing_size = 1.2
 
 	var hover: StyleBoxFlat = normal.duplicate()
-	hover.bg_color = Color(0.10, 0.22, 0.44, 0.64)
-	hover.border_color = Color(0.92, 0.98, 1.0, 0.82)
+	hover.bg_color = UI_COLORS.utility_button_fill().lightened(0.08)
+	hover.border_color = UI_COLORS.ACCENT_COLOR.lightened(0.08)
 
 	var pressed: StyleBoxFlat = normal.duplicate()
-	pressed.bg_color = Color(0.07, 0.14, 0.28, 0.72)
-	pressed.border_color = Color(0.78, 0.90, 1.0, 0.78)
+	pressed.bg_color = UI_COLORS.utility_button_fill().darkened(0.06)
+	pressed.border_color = UI_COLORS.PRIMARY_COLOR.lightened(0.12)
+	pressed.shadow_size = 6
 
 	var disabled_style: StyleBoxFlat = normal.duplicate()
-	disabled_style.bg_color = Color(0.14, 0.18, 0.28, 0.24)
-	disabled_style.border_color = Color(0.78, 0.86, 0.95, 0.35)
+	disabled_style.bg_color = UI_COLORS.utility_button_fill().darkened(0.06)
+	disabled_style.border_color = UI_COLORS.utility_button_edge().darkened(0.12)
+	disabled_style.shadow_size = 0
 
 	add_theme_stylebox_override("normal", normal)
 	add_theme_stylebox_override("hover", hover)
@@ -129,10 +131,10 @@ func _sync_icon_state() -> void:
 		_icon_rect.modulate = Color(1.0, 1.0, 1.0, 0.46)
 		intensity *= 0.4
 	elif button_pressed:
-		_icon_rect.modulate = Color(0.86, 0.92, 1.0, 1.0)
+		_icon_rect.modulate = UI_COLORS.ACCENT_COLOR.lightened(0.08)
 		intensity *= 1.2
 	elif is_hovered():
-		_icon_rect.modulate = Color(1.0, 1.0, 1.0, 1.0)
+		_icon_rect.modulate = Color(1.0, 0.95, 0.86, 1.0)
 		intensity *= 1.34
 	else:
 		_icon_rect.modulate = Color(0.94, 0.97, 1.0, 1.0)

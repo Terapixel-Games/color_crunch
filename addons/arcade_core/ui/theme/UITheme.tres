@@ -1,50 +1,50 @@
 [gd_resource type="Theme" load_steps=7 format=3]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_primary"]
-bg_color = Color(0.08, 0.30, 0.48, 0.92)
+bg_color = Color(0.10, 0.14, 0.22, 0.94)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.52, 0.93, 1, 0.85)
+border_color = Color(0.97, 0.72, 0.32, 0.78)
 corner_radius_top_left = 28
 corner_radius_top_right = 28
 corner_radius_bottom_right = 28
 corner_radius_bottom_left = 28
-shadow_color = Color(0.08, 0.52, 0.86, 0.52)
-shadow_size = 10
+shadow_color = Color(0.02, 0.05, 0.12, 0.26)
+shadow_size = 14
 anti_aliasing = true
 anti_aliasing_size = 1.2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_secondary"]
-bg_color = Color(0.06, 0.14, 0.30, 0.86)
+bg_color = Color(0.09, 0.12, 0.20, 0.92)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.66, 0.84, 1, 0.58)
+border_color = Color(0.62, 0.88, 1, 0.42)
 corner_radius_top_left = 24
 corner_radius_top_right = 24
 corner_radius_bottom_right = 24
 corner_radius_bottom_left = 24
-shadow_color = Color(0.03, 0.08, 0.22, 0.34)
-shadow_size = 8
+shadow_color = Color(0.02, 0.05, 0.12, 0.18)
+shadow_size = 10
 anti_aliasing = true
 anti_aliasing_size = 1.2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.05, 0.12, 0.24, 0.66)
+bg_color = Color(0.06, 0.09, 0.15, 0.82)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.79, 0.91, 1, 0.34)
-corner_radius_top_left = 28
-corner_radius_top_right = 28
-corner_radius_bottom_right = 28
-corner_radius_bottom_left = 28
-shadow_color = Color(0.01, 0.05, 0.15, 0.52)
-shadow_size = 12
+border_color = Color(0.64, 0.88, 1, 0.28)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+shadow_color = Color(0.01, 0.05, 0.12, 0.24)
+shadow_size = 18
 anti_aliasing = true
 anti_aliasing_size = 1.2
 

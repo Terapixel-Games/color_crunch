@@ -24,8 +24,8 @@ const PROMO_URL := "https://terapixel.games/lumarush"
 @onready var coin_badge: Label = $UI/RootMargin/Layout/TopBar/Shop/CoinBadge/Value
 
 var _title_t: float = 0.0
-var _title_base_color: Color = Color(0.98, 0.99, 1.0, 1.0)
-var _title_accent_color: Color = Color(0.78, 0.88, 1.0, 1.0)
+var _title_base_color: Color = Color(1.0, 0.93, 0.76, 1.0)
+var _title_accent_color: Color = Color(0.86, 1.0, 0.60, 1.0)
 var _tracks: Array[Dictionary] = []
 var _track_index: int = 0
 var _audio_overlay: AudioTrackOverlay
@@ -90,9 +90,9 @@ func _layout_menu() -> void:
 	root_margin.add_theme_constant_override("margin_right", outer_margin)
 	root_margin.add_theme_constant_override("margin_bottom", outer_margin)
 
-	var panel_width: float = clamp(viewport_size.x * 0.82, 320.0, min(880.0, viewport_size.x - float(outer_margin * 2)))
+	var panel_width: float = clamp(viewport_size.x * 0.86, 340.0, min(940.0, viewport_size.x - float(outer_margin * 2)))
 	var panel_height_cap: float = max(320.0, viewport_size.y - float(outer_margin * 2) - 120.0)
-	var panel_height: float = clamp(viewport_size.y * 0.70, 420.0, panel_height_cap)
+	var panel_height: float = clamp(viewport_size.y * 0.76, 480.0, panel_height_cap)
 	var panel_size := Vector2(panel_width, panel_height)
 	panel_shell.custom_minimum_size = panel_size
 	panel.custom_minimum_size = panel_size
@@ -104,7 +104,7 @@ func _layout_menu() -> void:
 	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
 	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.10, 86.0, 122.0)
-	mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.076, 62.0, 86.0)
+	mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.070, 60.0, 82.0)
 	daily_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
 	contrast_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
 	promo_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
@@ -253,14 +253,13 @@ func _layout_coin_badge(icon_size: float) -> void:
 
 func _sync_mode_buttons() -> void:
 	if mode_button:
-		var week_tier: int = int(SaveStore.data.get("social_week_tier", 0))
-		mode_button.text = "Leaderboard: %s (Tier %d)" % [RunManager.get_selected_mode(), week_tier]
+		mode_button.text = "Switch to %s" % ("OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE")
 	if daily_button:
-		daily_button.text = "Daily Puzzle: %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
+		daily_button.text = "Daily %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
 	if contrast_button:
-		contrast_button.text = "Contrast: %s" % ("On" if SaveStore.is_colorblind_high_contrast() else "Off")
+		contrast_button.text = "Contrast %s" % ("On" if SaveStore.is_colorblind_high_contrast() else "Off")
 	if promo_button:
-		promo_button.text = "LumaRush"
+		promo_button.text = "Open LumaRush"
 
 func _on_mode_toggle_pressed() -> void:
 	var next_mode := "OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE"

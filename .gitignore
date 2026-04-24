@@ -1,4 +1,4 @@
-# -----------------------------
+﻿# -----------------------------
 # Godot
 # -----------------------------
 .godot/
@@ -77,3 +77,9 @@ warmup4.log
 Thumbs.db
 Desktop.ini
 /configs/AdMob.local.txt
+
+# Local verification/capture output
+tmp/
+/tmp/
+changes.patch
+
