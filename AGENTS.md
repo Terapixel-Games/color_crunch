@@ -1,5 +1,8 @@
 # Agent Guardrails
 
+This repo inherits the workspace agreement from `C:\code\TeraPixel\AGENTS.md`.
+This file contains Color Crunch-specific addenda only. If a rule should apply across TeraPixel, update the root `AGENTS.md` instead of duplicating it here.
+
 ## Modal And Input Bugs
 - Do not set UI to `PROCESS_MODE_WHEN_PAUSED` unless the scene is only shown while `get_tree().paused == true`.
 - For overlays used on non-paused scenes (for example results/menu modals), use default processing or `PROCESS_MODE_ALWAYS`.
