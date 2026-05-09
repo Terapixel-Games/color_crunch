@@ -28,10 +28,27 @@ function Add-Attribute([System.Collections.Generic.List[string]]$Attributes, [st
 	$Attributes.Add(" $Name=`"$encoded`"")
 }
 
+function ConvertTo-AdSenseClient([string]$Value) {
+	if ([string]::IsNullOrWhiteSpace($Value)) {
+		return ""
+	}
+
+	$clean = $Value.Trim()
+	if ($clean.StartsWith("ca-pub-", [System.StringComparison]::OrdinalIgnoreCase)) {
+		return "ca-pub-" + $clean.Substring(7)
+	}
+	if ($clean.StartsWith("pub-", [System.StringComparison]::OrdinalIgnoreCase)) {
+		return "ca-" + $clean
+	}
+	return $clean
+}
+
 if ([string]::IsNullOrWhiteSpace($Client)) {
 	Write-Host "ADSENSE_H5_CLIENT not set; skipping H5 ads injection."
 	exit 0
 }
+
+$Client = ConvertTo-AdSenseClient $Client
 
 if (-not (Test-Path $HtmlPath)) {
 	throw "HTML file not found: $HtmlPath"
