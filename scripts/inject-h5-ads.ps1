@@ -33,7 +33,7 @@ function ConvertTo-AdSenseClient([string]$Value) {
 		return ""
 	}
 
-	$clean = $Value.Trim()
+	$clean = $Value.Replace([string][char]0xFEFF, "").Trim()
 	if ($clean.StartsWith("ca-pub-", [System.StringComparison]::OrdinalIgnoreCase)) {
 		return "ca-pub-" + $clean.Substring(7)
 	}
