@@ -7,6 +7,7 @@ signal rewarded_powerup_earned
 const LOCAL_CFG := "res://configs/AdMob.local.txt"
 const AdCadenceScript := preload("res://addons/arcade_core/AdCadence.gd")
 const MOCK_PROVIDER_PATH := "res://addons/arcade_core/ads/MockAdProvider.gd"
+const H5AdProviderScript := preload("res://addons/arcade_core/ads/H5AdProvider.gd")
 
 @export var ad_retry_attempts := 2
 @export var ad_retry_interval_seconds := 0.35
@@ -86,6 +87,13 @@ func _ensure_fallback_ad_unit_ids() -> void:
 
 func _initialize_provider() -> void:
     if provider != null:
+        return
+
+    var h5_provider: Object = H5AdProviderScript.new()
+    if h5_provider.has_method("is_supported_environment") and bool(h5_provider.call("is_supported_environment")):
+        provider = h5_provider
+        _owns_provider = false
+        _bind_provider()
         return
 
     if not use_mock_ads:
@@ -204,7 +212,9 @@ func _on_rewarded_closed() -> void:
     emit_signal("rewarded_closed")
 
 func _show_interstitial_now(games: int) -> bool:
-    if provider == null or interstitial_id.is_empty():
+    if provider == null:
+        return false
+    if interstitial_id.is_empty() and _provider_requires_ad_unit_ids():
         return false
 
     var shown := bool(provider.call("show_interstitial", interstitial_id))
@@ -215,7 +225,9 @@ func _show_interstitial_now(games: int) -> bool:
     return shown
 
 func _show_rewarded_now() -> bool:
-    if provider == null or rewarded_id.is_empty():
+    if provider == null:
+        return false
+    if rewarded_id.is_empty() and _provider_requires_ad_unit_ids():
         return false
 
     var shown := bool(provider.call("show_rewarded", rewarded_id))
@@ -350,3 +362,10 @@ func _is_mock_provider_active() -> bool:
 
 func _is_headless_runtime() -> bool:
     return DisplayServer.get_name() == "headless" or OS.has_feature("dedicated_server")
+
+func _provider_requires_ad_unit_ids() -> bool:
+    if provider == null:
+        return true
+    if provider.has_method("requires_ad_unit_ids"):
+        return bool(provider.call("requires_ad_unit_ids"))
+    return true

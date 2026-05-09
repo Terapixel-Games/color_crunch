@@ -99,6 +99,19 @@ jobs:
           mkdir -p "${WEB_EXPORT_DIR}"
           $GODOT_BIN --headless --path . --export-release "${WEB_EXPORT_PRESET}" "${WEB_EXPORT_DIR}/index.html"
 
+      - name: Inject AdSense H5 Games Ads (optional)
+        shell: pwsh
+        env:
+          ADSENSE_H5_CLIENT: ${{ secrets.ADSENSE_H5_CLIENT || vars.ADSENSE_H5_CLIENT }}
+          ADSENSE_H5_CHANNEL: ${{ vars.ADSENSE_H5_CHANNEL }}
+          ADSENSE_H5_FREQUENCY_HINT: ${{ vars.ADSENSE_H5_FREQUENCY_HINT }}
+          ADSENSE_H5_TEST_MODE: ${{ vars.ADSENSE_H5_TEST_MODE }}
+          ADSENSE_H5_ADMOB_INTERSTITIAL_SLOT: ${{ secrets.ADSENSE_H5_ADMOB_INTERSTITIAL_SLOT || vars.ADSENSE_H5_ADMOB_INTERSTITIAL_SLOT }}
+          ADSENSE_H5_ADMOB_REWARDED_SLOT: ${{ secrets.ADSENSE_H5_ADMOB_REWARDED_SLOT || vars.ADSENSE_H5_ADMOB_REWARDED_SLOT }}
+          ADSENSE_H5_CHILD_DIRECTED: ${{ vars.ADSENSE_H5_CHILD_DIRECTED }}
+          ADSENSE_H5_UNDER_AGE_OF_CONSENT: ${{ vars.ADSENSE_H5_UNDER_AGE_OF_CONSENT }}
+        run: ./scripts/inject-h5-ads.ps1 -HtmlPath "${env:WEB_EXPORT_DIR}/index.html"
+
       - name: Compute Next Semantic Version
         id: version
         shell: bash
