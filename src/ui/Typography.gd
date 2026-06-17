@@ -168,14 +168,33 @@ func style_results(scene: Control) -> void:
 	var base_path := "UI/Panel/Scroll/VBox"
 	if scene.get_node_or_null("%s/Title" % base_path) == null:
 		base_path = "UI/VBox"
+	style_label(scene.get_node_or_null("%s/Kicker" % base_path), 15.0, WEIGHT_SEMIBOLD, true)
 	style_label(scene.get_node_or_null("%s/Title" % base_path), 62.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("%s/Score" % base_path), 64.0, WEIGHT_BOLD)
-	style_label(scene.get_node_or_null("%s/ModeBadge" % base_path), 20.0, WEIGHT_SEMIBOLD, true)
-	style_label(scene.get_node_or_null("%s/Best" % base_path), 34.0, WEIGHT_BOLD, false)
-	style_label(scene.get_node_or_null("%s/Streak" % base_path), 34.0, WEIGHT_BOLD, false)
-	style_label(scene.get_node_or_null("%s/OnlineStatus" % base_path), 30.0, WEIGHT_BOLD, false)
-	var leaderboard := scene.get_node_or_null("%s/Leaderboard" % base_path)
-	style_label(leaderboard, 28.0, WEIGHT_SEMIBOLD, false)
+	style_label(_node_from_paths(scene, [
+		"%s/StatsSplit/LeftColumn/Score" % base_path,
+		"%s/Score" % base_path,
+	]) as Label, 64.0, WEIGHT_BOLD)
+	style_label(_node_from_paths(scene, [
+		"%s/StatsSplit/LeftColumn/ModeBadge" % base_path,
+		"%s/ModeBadge" % base_path,
+	]) as Label, 20.0, WEIGHT_SEMIBOLD, true)
+	style_label(_node_from_paths(scene, [
+		"%s/StatsSplit/LeftColumn/Best" % base_path,
+		"%s/Best" % base_path,
+	]) as Label, 34.0, WEIGHT_BOLD, false)
+	style_label(_node_from_paths(scene, [
+		"%s/StatsSplit/LeftColumn/Streak" % base_path,
+		"%s/Streak" % base_path,
+	]) as Label, 34.0, WEIGHT_BOLD, false)
+	style_label(_node_from_paths(scene, [
+		"%s/StatsSplit/RightColumn/OnlineStatus" % base_path,
+		"%s/OnlineStatus" % base_path,
+	]) as Label, 30.0, WEIGHT_BOLD, false)
+	var leaderboard := _node_from_paths(scene, [
+		"%s/StatsSplit/RightColumn/Leaderboard" % base_path,
+		"%s/Leaderboard" % base_path,
+	])
+	style_label(leaderboard as Label, 28.0, WEIGHT_SEMIBOLD, false)
 	style_label(scene.get_node_or_null("%s/CoinsEarned" % base_path), 26.0, WEIGHT_BOLD, false)
 	style_label(scene.get_node_or_null("%s/CoinBalance" % base_path), 24.0, WEIGHT_SEMIBOLD, false)
 	if leaderboard != null:

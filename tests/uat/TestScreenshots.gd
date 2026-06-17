@@ -35,7 +35,8 @@ func test_results_scene_smoke() -> void:
 	var scene := await _load_scene("res://src/scenes/Results.tscn")
 	assert_that(scene.get_node_or_null("UI/Panel/Scroll")).is_not_null()
 	assert_that(scene.get_node_or_null("UI/Panel/Scroll/VBox/Title")).is_not_null()
-	assert_that((scene.get_node("UI/Panel/Scroll/VBox/Title") as Label).text).is_equal("Color Crunch")
+	assert_that((scene.get_node("UI/Panel/Scroll/VBox/Title") as Label).text).is_equal("Run Complete")
+	assert_that(scene.get_node_or_null("UI/Panel/Scroll/VBox/RewardCards")).is_not_null()
 	await _free_scene(scene)
 
 func _load_scene(path: String) -> Node:

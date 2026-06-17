@@ -4,7 +4,9 @@ const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.t
 const ICON_MUSIC_ON: Texture2D = preload("res://assets/ui/icons/atlas/music_on.tres")
 const ICON_MUSIC_OFF: Texture2D = preload("res://assets/ui/icons/atlas/music_off.tres")
 
+@onready var kicker_label: Label = $UI/Panel/Scroll/VBox/Kicker
 @onready var title_label: Label = $UI/Panel/Scroll/VBox/Title
+@onready var ui_root: Control = $UI
 @onready var top_right_bar: Control = $UI/TopRightBar
 @onready var audio_button: Button = $UI/TopRightBar/Audio
 @onready var stats_split: GridContainer = $UI/Panel/Scroll/VBox/StatsSplit
@@ -36,6 +38,12 @@ var _unlock_progress: ProgressBar
 var _dual_leaderboard_label: Label
 var _weekly_ladder_label: Label
 var _rival_target_label: Label
+var _grade_label: Label
+var _rival_progress: ProgressBar
+var _reward_cards: GridContainer
+var _best_reward_label: Label
+var _coins_reward_label: Label
+var _streak_reward_label: Label
 
 func _ready() -> void:
 	BackgroundMood.register_controller($BackgroundController)
@@ -44,12 +52,14 @@ func _ready() -> void:
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_results(self)
 	ThemeManager.apply_to_scene(self)
-	_refresh_audio_icon()
-	_layout_results()
-	call_deferred("_layout_results")
 	_ensure_dynamic_stats()
+	_apply_results_copy()
+	_apply_color_crunch_results_style()
+	_refresh_audio_icon()
 	_refresh_intro_pivots()
 	_update_labels()
+	_layout_results()
+	call_deferred("_layout_results")
 	_bind_online_signals()
 	_sync_online_results()
 	_sync_wallet_rewards()
@@ -63,34 +73,46 @@ func _ready() -> void:
 
 func _update_labels() -> void:
 	score_label.text = "%d" % RunManager.last_score
-	mode_badge_label.text = "Mode: %s" % _mode_label()
+	mode_badge_label.text = "%s MODE" % _mode_label().to_upper()
 	var local_best: int = int(SaveStore.data["high_score"])
 	var online_record: Dictionary = NakamaService.get_my_high_score()
 	var online_best: int = int(online_record.get("score", 0))
 	var online_rank: int = int(online_record.get("rank", 0))
 	var best_value: int = max(local_best, online_best)
+	if title_label:
+		title_label.text = _results_title(best_value)
 	if online_best > 0 and online_rank > 0:
-		best_label.text = "Best: %d (Global #%d)" % [best_value, online_rank]
+		best_label.text = "Best %d  Global #%d" % [best_value, online_rank]
 	else:
-		best_label.text = "Best: %d" % best_value
-	streak_label.text = "Streak: %d" % StreakManager.get_streak_days()
-	online_status_label.text = "Online: %s" % NakamaService.get_online_status()
+		best_label.text = "Best %d" % best_value
+	streak_label.text = "Streak %d days" % StreakManager.get_streak_days()
+	online_status_label.text = "Sync %s" % NakamaService.get_online_status()
 	leaderboard_label.text = _format_leaderboard(NakamaService.get_leaderboard_records())
 	if _powerups_label:
-		_powerups_label.text = "Powerups used: %d" % RunManager.last_run_powerups_used
+		_powerups_label.text = "Powerups %d" % RunManager.last_run_powerups_used
 	if _encouragement_label:
 		_encouragement_label.text = _build_encouragement_text(local_best, best_value)
 	if _unlock_progress:
 		_unlock_progress.value = SaveStore.get_unlock_progress() * 100.0
+	if _grade_label:
+		_grade_label.text = _build_grade_text(best_value)
+	if _rival_progress:
+		_rival_progress.value = _rival_progress_value()
 	if _dual_leaderboard_label:
 		_dual_leaderboard_label.text = ""
+	_refresh_reward_cards()
 	_update_social_labels()
-	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
+	coin_balance_label.text = "Vault %d" % NakamaService.get_coin_balance()
 	if _base_reward_claimed:
-		coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
+		coins_earned_label.text = "Coins +%d" % _base_reward_amount
 	else:
-		coins_earned_label.text = "Coins earned: pending"
+		coins_earned_label.text = "Coins pending"
 	_layout_results()
+
+func _results_title(best_value: int) -> String:
+	if RunManager.last_score > 0 and RunManager.last_score >= best_value:
+		return "New Best Run"
+	return "Run Complete"
 
 func _on_play_again_pressed() -> void:
 	_close_audio_overlay()
@@ -127,7 +149,10 @@ func _refresh_intro_pivots() -> void:
 		box.pivot_offset = box.size * 0.5
 
 func _layout_results() -> void:
-	_layout_results_for_size(get_viewport_rect().size)
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if ui_root != null and ui_root.size.x > 0.0 and ui_root.size.y > 0.0:
+		viewport_size = Vector2(max(viewport_size.x, ui_root.size.x), max(viewport_size.y, ui_root.size.y))
+	_layout_results_for_size(viewport_size)
 
 func _layout_results_for_size(viewport_size: Vector2) -> void:
 	if panel == null or scroll == null or box == null:
@@ -136,49 +161,73 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 		return
 
 	var viewport_aspect: float = viewport_size.x / max(1.0, viewport_size.y)
-	var is_wide: bool = viewport_aspect >= 1.55
-	var outer_margin_x: float = clamp(viewport_size.x * 0.04, 18.0, 64.0)
-	var outer_margin_y: float = clamp(viewport_size.y * 0.04, 16.0, 40.0)
+	var is_wide: bool = viewport_aspect >= 1.45
+	var is_ultra_wide: bool = viewport_aspect >= 1.9
+	var is_wide_short: bool = is_wide and viewport_size.y <= 760.0
+	var outer_margin_x: float = clamp(viewport_size.x * 0.032, 12.0, 56.0)
+	var outer_margin_y: float = clamp(viewport_size.y * 0.026, 10.0, 32.0)
 	var max_panel_width: float = max(360.0, viewport_size.x - (outer_margin_x * 2.0))
 	var min_panel_width: float = min(460.0, max_panel_width)
-	var target_panel_width: float = viewport_size.x * (0.62 if is_wide else 0.82)
-	var panel_width: float = clamp(target_panel_width, min_panel_width, min(980.0, max_panel_width))
+	var width_ratio: float = 0.84
+	if is_ultra_wide:
+		width_ratio = 0.74
+	elif is_wide_short:
+		width_ratio = 0.88
+	elif is_wide:
+		width_ratio = 0.84
+	var target_panel_width: float = viewport_size.x * width_ratio
+	var panel_width_cap: float = 2600.0 if is_wide else 1280.0
+	var panel_width: float = clamp(target_panel_width, min_panel_width, min(panel_width_cap, max_panel_width))
 	var max_panel_height: float = max(320.0, viewport_size.y - (outer_margin_y * 2.0))
-	var min_panel_height: float = min(500.0, max_panel_height)
-	var target_panel_height: float = viewport_size.y * (0.84 if is_wide else 0.72)
+	var min_panel_height: float = min(420.0 if is_wide else 560.0, max_panel_height)
+	var height_ratio: float = 0.72
+	if is_wide_short:
+		height_ratio = 0.74
+	elif is_wide:
+		height_ratio = 0.78
+	var target_panel_height: float = viewport_size.y * height_ratio
 	var panel_height: float = clamp(target_panel_height, min_panel_height, max_panel_height)
 	var panel_size: Vector2 = Vector2(panel_width, panel_height)
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	panel.position = (viewport_size - panel_size) * 0.5
+	var panel_x: float = (viewport_size.x - panel_size.x) * 0.5
+	var panel_y: float = (viewport_size.y - panel_size.y) * (0.50 if is_wide else 0.47)
+	panel.position = Vector2(panel_x, panel_y)
 	panel.size = panel_size
 	_layout_top_right(viewport_size)
 
-	var margin_x: float = clamp(panel_size.x * 0.055, 20.0, 44.0)
-	var margin_y: float = clamp(panel_size.y * 0.045, 16.0, 34.0)
+	var margin_x: float = clamp(panel_size.x * 0.044, 16.0, 38.0)
+	var margin_y: float = clamp(panel_size.y * 0.035, 12.0, 30.0)
 	var content_size: Vector2 = panel_size - Vector2(margin_x * 2.0, margin_y * 2.0)
-	var use_split: bool = viewport_aspect >= 1.45
+	var use_split: bool = viewport_aspect >= 1.35 and content_size.x >= 620.0
 	_configure_stats_split(content_size, use_split)
-	var compact_mode: bool = false
+	var compact_mode: bool = is_wide_short
 	_set_compact_optional_rows(compact_mode)
-	var base_separation: float = clamp(round(content_size.y * 0.01), 6.0, 16.0)
+	if _reward_cards:
+		_reward_cards.columns = 3 if content_size.x >= 620.0 else 1
+		_reward_cards.add_theme_constant_override("h_separation", int(clamp(round(content_size.x * 0.018), 8.0, 18.0)))
+		_reward_cards.add_theme_constant_override("v_separation", int(clamp(round(content_size.y * 0.012), 6.0, 12.0)))
+	if spacer:
+		spacer.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var base_separation: float = clamp(round(content_size.y * 0.008), 5.0, 13.0)
 	var compact_scale: float = 1.0
 	for _i in range(8):
-		var separation_min: float = 4.0 if compact_mode else 6.0
-		var separation: int = int(clamp(round(base_separation * compact_scale), separation_min, 16.0))
+		var separation_min: float = 3.0 if compact_mode else 5.0
+		var separation: int = int(clamp(round(base_separation * compact_scale), separation_min, 13.0))
 		box.add_theme_constant_override("separation", separation)
 		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale, compact_mode)
 
-		var secondary_min: float = 30.0 if compact_mode else 38.0
-		var primary_min: float = 36.0 if compact_mode else 48.0
-		var secondary_button_height: float = clamp(content_size.y * (0.07 if is_wide else 0.065) * compact_scale, secondary_min, 84.0)
-		var primary_button_height: float = clamp(content_size.y * (0.09 if is_wide else 0.095) * compact_scale, primary_min, 104.0)
-		double_reward_button.custom_minimum_size.y = secondary_button_height
+		var secondary_min: float = 30.0 if compact_mode else 36.0
+		var primary_min: float = 40.0 if compact_mode else 50.0
+		var secondary_button_height: float = clamp(content_size.y * (0.080 if is_wide else 0.055) * compact_scale, secondary_min, 120.0)
+		var primary_button_height: float = clamp(content_size.y * (0.115 if is_wide else 0.082) * compact_scale, primary_min, 132.0)
+		if double_reward_button:
+			double_reward_button.custom_minimum_size.y = secondary_button_height
 		if play_again_button:
 			play_again_button.custom_minimum_size.y = primary_button_height
 		if menu_button:
-			menu_button.custom_minimum_size.y = primary_button_height
+			menu_button.custom_minimum_size.y = clamp(primary_button_height * 0.92, secondary_min, 122.0)
 		if spacer:
-			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * (0.008 if compact_mode else 0.015) * compact_scale))
+			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * (0.004 if compact_mode else 0.010) * compact_scale))
 
 		var required_height: float = box.get_combined_minimum_size().y
 		if required_height <= content_size.y:
@@ -186,10 +235,10 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 		if not compact_mode:
 			compact_mode = true
 			_set_compact_optional_rows(compact_mode)
-			compact_scale = min(compact_scale, 0.72)
+			compact_scale = min(compact_scale, 0.78)
 			continue
 		var fit_ratio: float = content_size.y / max(1.0, required_height)
-		var next_scale: float = clamp(compact_scale * fit_ratio, 0.5, compact_scale)
+		var next_scale: float = clamp(compact_scale * fit_ratio, 0.58, compact_scale)
 		if absf(next_scale - compact_scale) < 0.01:
 			break
 		compact_scale = next_scale
@@ -200,19 +249,27 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 
 	box.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	box.position = Vector2.ZERO
-	box.size = Vector2(content_size.x, content_size.y)
-	box.alignment = BoxContainer.ALIGNMENT_BEGIN if compact_mode else BoxContainer.ALIGNMENT_CENTER
-	box.custom_minimum_size = Vector2(content_size.x, 0.0)
 	var content_min_height: float = box.get_combined_minimum_size().y
-	box.custom_minimum_size.y = max(content_size.y, content_min_height)
+	box.size = Vector2(content_size.x, max(content_size.y, content_min_height))
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN if compact_mode else BoxContainer.ALIGNMENT_CENTER
+	box.custom_minimum_size = Vector2(content_size.x, max(content_size.y, content_min_height))
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
 func _layout_top_right(viewport_size: Vector2) -> void:
 	if top_right_bar == null or audio_button == null:
 		return
+	var insets: Dictionary = SafeArea.get_insets()
+	var safe_top: float = float(insets.get("top", 0.0))
+	var safe_right: float = float(insets.get("right", 0.0))
 	var margin: float = clamp(min(viewport_size.x, viewport_size.y) * 0.045, 12.0, 32.0)
 	var icon_size: float = clamp(min(viewport_size.x, viewport_size.y) * 0.12, 68.0, 92.0)
+	var target_x: float = viewport_size.x - safe_right - margin - icon_size
+	var target_y: float = safe_top + margin
+	if panel != null and panel.size.x > 0.0 and panel.size.y > 0.0:
+		target_x = panel.position.x + panel.size.x - (icon_size * 0.20)
+		target_y = max(safe_top + margin, panel.position.y - (icon_size * 0.88))
 	top_right_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	top_right_bar.position = Vector2(viewport_size.x - margin - icon_size, margin)
+	top_right_bar.position = Vector2(target_x, target_y)
 	top_right_bar.size = Vector2(icon_size, icon_size)
 	audio_button.custom_minimum_size = Vector2(icon_size, icon_size)
 
@@ -230,6 +287,10 @@ func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
 		stats_right_column.custom_minimum_size.x = column_width if use_split else content_size.x
 	var left_alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if use_split else HORIZONTAL_ALIGNMENT_CENTER
 	var right_alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if use_split else HORIZONTAL_ALIGNMENT_CENTER
+	if kicker_label:
+		kicker_label.horizontal_alignment = left_alignment
+	if title_label:
+		title_label.horizontal_alignment = left_alignment
 	for label in [score_label, mode_badge_label, best_label, streak_label]:
 		if label:
 			label.horizontal_alignment = left_alignment
@@ -237,9 +298,12 @@ func _configure_stats_split(content_size: Vector2, use_split: bool) -> void:
 		online_status_label.horizontal_alignment = right_alignment
 	if leaderboard_label:
 		leaderboard_label.horizontal_alignment = right_alignment
+	for label in [coins_earned_label, coin_balance_label, _powerups_label, _encouragement_label, _weekly_ladder_label, _rival_target_label, _dual_leaderboard_label, _grade_label]:
+		if label:
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float, use_split: bool, compact_scale: float = 1.0, compact_mode: bool = false) -> void:
-	var is_wide: bool = viewport_aspect >= 1.55
+	var is_wide: bool = viewport_aspect >= 1.45
 	var headline_scale: float = compact_scale
 	var action_scale: float = compact_scale
 	var split_gap: float = 20.0
@@ -248,23 +312,28 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
 	var menu_title_px: int = Typography.px(Typography.SIZE_MENU_TITLE)
 	var menu_button_px: int = Typography.px(Typography.SIZE_BUTTON)
-	var title_min: float = 34.0 if compact_mode else 46.0
-	var score_min: float = 44.0 if compact_mode else 58.0
-	var mode_min: float = 14.0 if compact_mode else 18.0
-	var stat_min: float = 16.0 if compact_mode else 22.0
-	var body_min: float = 14.0 if compact_mode else 17.0
-	var coin_min: float = 14.0 if compact_mode else 17.0
-	var reward_min: float = 14.0 if compact_mode else 17.0
-	var primary_min: float = 16.0 if compact_mode else 20.0
-	var title_size: int = int(round(clamp(float(menu_title_px) * 0.82 * headline_scale, title_min, 124.0)))
-	var score_size: int = int(round(clamp(max(float(menu_title_px) * 1.0, stat_column_width * 0.16) * headline_scale, score_min, 156.0)))
-	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale, mode_min, 48.0)))
-	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.9 * compact_scale, stat_min, 58.0)))
-	var body_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale, body_min, 44.0)))
-	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.8 * compact_scale, coin_min, 46.0)))
-	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.78 * action_scale, reward_min, 40.0)))
-	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.9 if is_wide else 0.95) * action_scale, primary_min, 56.0)))
+	var kicker_min: float = 18.0 if compact_mode else 15.0
+	var title_min: float = 44.0 if compact_mode else 38.0
+	var score_min: float = 92.0 if compact_mode else 64.0
+	var mode_min: float = 20.0 if compact_mode else 18.0
+	var stat_min: float = 24.0 if compact_mode else 20.0
+	var body_min: float = 22.0 if compact_mode else 16.0
+	var coin_min: float = 22.0 if compact_mode else 16.0
+	var reward_min: float = 22.0 if compact_mode else 17.0
+	var primary_min: float = 26.0 if compact_mode else 20.0
+	var compact_body_boost: float = 1.22 if compact_mode else 1.0
+	var kicker_size: int = int(round(clamp(float(menu_button_px) * (0.56 if compact_mode else 0.46) * compact_scale, kicker_min, 34.0)))
+	var title_size: int = int(round(clamp(float(menu_title_px) * (0.78 if compact_mode else 0.66) * headline_scale, title_min, 116.0)))
+	var score_size: int = int(round(clamp(max(float(menu_title_px) * 0.98, stat_column_width * 0.18) * headline_scale, score_min, 168.0)))
+	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.72 * compact_scale * compact_body_boost, mode_min, 48.0)))
+	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.82 * compact_scale * compact_body_boost, stat_min, 58.0)))
+	var body_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale * compact_body_boost, body_min, 46.0)))
+	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale * compact_body_boost, coin_min, 48.0)))
+	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.76 * action_scale * compact_body_boost, reward_min, 46.0)))
+	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.88 if is_wide else 0.84) * action_scale * compact_body_boost, primary_min, 58.0)))
 
+	if kicker_label:
+		kicker_label.add_theme_font_size_override("font_size", kicker_size)
 	if title_label:
 		title_label.add_theme_font_size_override("font_size", title_size)
 	if score_label:
@@ -294,6 +363,15 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 		_weekly_ladder_label.add_theme_font_size_override("font_size", int(round(body_size * 0.96)))
 	if _rival_target_label:
 		_rival_target_label.add_theme_font_size_override("font_size", int(round(body_size * 0.94)))
+	if _grade_label:
+		_grade_label.add_theme_font_size_override("font_size", int(round(body_size * 1.08)))
+	if _rival_progress:
+		_rival_progress.custom_minimum_size.y = clamp(content_size.y * 0.022 * compact_scale, 12.0, 22.0)
+	for reward_label in [_best_reward_label, _coins_reward_label, _streak_reward_label]:
+		if reward_label:
+			reward_label.add_theme_font_size_override("font_size", int(round(body_size * (1.0 if compact_mode else 0.92))))
+			var card_height: float = clamp(content_size.y * (0.13 if is_wide else 0.095) * compact_scale, 72.0, 118.0)
+			reward_label.custom_minimum_size.y = card_height
 	if double_reward_button:
 		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)
 	if play_again_button:
@@ -310,7 +388,7 @@ func _bind_online_signals() -> void:
 		NakamaService.leaderboard_updated.connect(_on_leaderboard_updated)
 
 func _on_online_state_changed(status: String) -> void:
-	online_status_label.text = "Online: %s" % status
+	online_status_label.text = "Sync %s" % status
 
 func _on_high_score_updated(_record: Dictionary) -> void:
 	_update_labels()
@@ -349,9 +427,10 @@ func _sync_wallet_rewards() -> void:
 		var data: Dictionary = claim.get("data", {})
 		_base_reward_claimed = bool(data.get("granted", false))
 		_base_reward_amount = int(data.get("rewardCoins", 0))
-	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
-	coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
+	coin_balance_label.text = "Vault %d" % NakamaService.get_coin_balance()
+	coins_earned_label.text = "Coins +%d" % _base_reward_amount
 	double_reward_button.disabled = not RunManager.last_run_completed_by_gameplay
+	_refresh_reward_cards()
 
 func _on_double_reward_pressed() -> void:
 	if not RunManager.last_run_completed_by_gameplay:
@@ -364,7 +443,7 @@ func _on_double_reward_pressed() -> void:
 	if not AdManager.show_rewarded_for_powerup():
 		_double_reward_pending = false
 		double_reward_button.disabled = false
-		double_reward_button.text = "Watch Ad: Double Coins"
+		double_reward_button.text = "Double Coins"
 
 func _on_double_reward_ad_earned() -> void:
 	if not _double_reward_pending:
@@ -381,14 +460,15 @@ func _on_double_reward_ad_earned() -> void:
 		var data: Dictionary = claim.get("data", {})
 		var extra: int = int(data.get("rewardCoins", 0))
 		_base_reward_amount += extra
-	coins_earned_label.text = "Coins earned: %d" % _base_reward_amount
-	coin_balance_label.text = "Coins balance: %d" % NakamaService.get_coin_balance()
+	coins_earned_label.text = "Coins +%d" % _base_reward_amount
+	coin_balance_label.text = "Vault %d" % NakamaService.get_coin_balance()
 	double_reward_button.text = "Coins Doubled"
+	_refresh_reward_cards()
 
 func _format_leaderboard(records: Array) -> String:
 	var mode_label := _mode_label()
 	if records.is_empty():
-		return "%s Leaderboard: no online records yet" % mode_label
+		return "%s leaderboard waiting for records" % mode_label
 	var lines: Array[String] = []
 	var count: int = min(records.size(), 3)
 	for i in range(count):
@@ -400,7 +480,7 @@ func _format_leaderboard(records: Array) -> String:
 		var username: String = str(row.get("username", "Player"))
 		var score: int = int(row.get("score", 0))
 		lines.append("%d. %s - %d" % [rank, username, score])
-	return "%s Leaderboard\n%s" % [mode_label, "\n".join(lines)]
+	return "%s leaderboard\n%s" % [mode_label, "\n".join(lines)]
 
 func _mode_label() -> String:
 	return "Pure" if String(RunManager.last_run_leaderboard_mode).to_upper() == "PURE" else "Open"
@@ -489,8 +569,9 @@ func _ensure_dynamic_stats() -> void:
 		_powerups_label = Label.new()
 		_powerups_label.name = "PowerupsUsed"
 		_powerups_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_powerups_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(_powerups_label)
-		box.move_child(_powerups_label, min(7, box.get_child_count() - 1))
+		_move_before_spacer(_powerups_label)
 	if _encouragement_label == null:
 		_encouragement_label = Label.new()
 		_encouragement_label.name = "Encouragement"
@@ -498,7 +579,7 @@ func _ensure_dynamic_stats() -> void:
 		_encouragement_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_encouragement_label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0, 0.96))
 		box.add_child(_encouragement_label)
-		box.move_child(_encouragement_label, min(8, box.get_child_count() - 1))
+		_move_before_spacer(_encouragement_label)
 	if _unlock_progress == null:
 		_unlock_progress = ProgressBar.new()
 		_unlock_progress.name = "UnlockProgress"
@@ -506,15 +587,18 @@ func _ensure_dynamic_stats() -> void:
 		_unlock_progress.max_value = 100.0
 		_unlock_progress.value = 0.0
 		_unlock_progress.custom_minimum_size.y = 22.0
+		_unlock_progress.show_percentage = false
+		_unlock_progress.add_theme_stylebox_override("background", _progress_style(Color(0.18, 0.28, 0.38, 0.40)))
+		_unlock_progress.add_theme_stylebox_override("fill", _progress_style(Color(0.50, 0.96, 0.62, 0.92)))
 		box.add_child(_unlock_progress)
-		box.move_child(_unlock_progress, min(9, box.get_child_count() - 1))
+		_move_before_spacer(_unlock_progress)
 	if _dual_leaderboard_label == null:
 		_dual_leaderboard_label = Label.new()
 		_dual_leaderboard_label.name = "AltLeaderboard"
 		_dual_leaderboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_dual_leaderboard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(_dual_leaderboard_label)
-		box.move_child(_dual_leaderboard_label, min(10, box.get_child_count() - 1))
+		_move_before_spacer(_dual_leaderboard_label)
 	if _weekly_ladder_label == null:
 		_weekly_ladder_label = Label.new()
 		_weekly_ladder_label.name = "WeeklyLadder"
@@ -522,14 +606,56 @@ func _ensure_dynamic_stats() -> void:
 		_weekly_ladder_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_weekly_ladder_label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0, 0.96))
 		box.add_child(_weekly_ladder_label)
-		box.move_child(_weekly_ladder_label, min(11, box.get_child_count() - 1))
+		_move_before_spacer(_weekly_ladder_label)
 	if _rival_target_label == null:
 		_rival_target_label = Label.new()
 		_rival_target_label.name = "WeeklyRival"
 		_rival_target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_rival_target_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(_rival_target_label)
-		box.move_child(_rival_target_label, min(12, box.get_child_count() - 1))
+		_move_before_spacer(_rival_target_label)
+	if _grade_label == null:
+		_grade_label = Label.new()
+		_grade_label.name = "RunGrade"
+		_grade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_grade_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_grade_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(_grade_label)
+		_move_before_spacer(_grade_label)
+	if _rival_progress == null:
+		_rival_progress = ProgressBar.new()
+		_rival_progress.name = "RivalProgress"
+		_rival_progress.min_value = 0.0
+		_rival_progress.max_value = 100.0
+		_rival_progress.value = 0.0
+		_rival_progress.show_percentage = false
+		_rival_progress.custom_minimum_size.y = 18.0
+		_rival_progress.add_theme_stylebox_override("background", _progress_style(Color(0.18, 0.28, 0.38, 0.42)))
+		_rival_progress.add_theme_stylebox_override("fill", _progress_style(Color(0.46, 0.88, 0.96, 0.96)))
+		box.add_child(_rival_progress)
+		_move_before_spacer(_rival_progress)
+	if _reward_cards == null:
+		_reward_cards = GridContainer.new()
+		_reward_cards.name = "RewardCards"
+		_reward_cards.columns = 3
+		_reward_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_reward_cards.add_theme_constant_override("h_separation", 12)
+		_reward_cards.add_theme_constant_override("v_separation", 8)
+		box.add_child(_reward_cards)
+		_move_before_spacer(_reward_cards)
+		_best_reward_label = _make_reward_card("BestReward", Color(1.0, 0.86, 0.34, 1.0))
+		_coins_reward_label = _make_reward_card("CoinsReward", Color(0.50, 0.96, 0.62, 1.0))
+		_streak_reward_label = _make_reward_card("StreakReward", Color(0.93, 0.48, 0.97, 1.0))
+		_reward_cards.add_child(_best_reward_label)
+		_reward_cards.add_child(_coins_reward_label)
+		_reward_cards.add_child(_streak_reward_label)
+	_apply_color_crunch_results_style()
+
+func _move_before_spacer(node: Control) -> void:
+	if box == null or spacer == null:
+		return
+	var spacer_index: int = spacer.get_index()
+	box.move_child(node, max(0, spacer_index))
 
 func _set_compact_optional_rows(compact_mode: bool) -> void:
 	if _encouragement_label:
@@ -538,6 +664,16 @@ func _set_compact_optional_rows(compact_mode: bool) -> void:
 		_unlock_progress.visible = not compact_mode
 	if _dual_leaderboard_label:
 		_dual_leaderboard_label.visible = not compact_mode
+	if _weekly_ladder_label:
+		_weekly_ladder_label.visible = not compact_mode
+	if _rival_target_label:
+		_rival_target_label.visible = not compact_mode
+	if _grade_label:
+		_grade_label.visible = true
+	if _rival_progress:
+		_rival_progress.visible = true
+	if _reward_cards:
+		_reward_cards.visible = true
 
 func _build_encouragement_text(_local_best: int, best_value: int) -> String:
 	if best_value <= 0:
@@ -549,6 +685,239 @@ func _build_encouragement_text(_local_best: int, best_value: int) -> String:
 		return "You were close! Only %d away from best." % delta
 	return "Strong run. %d points to beat your best." % delta
 
+func _build_grade_text(best_value: int) -> String:
+	var target: int = max(1, int(RunManager.get_rival_snapshot().get("target_before", RunManager.get_active_rival_target())))
+	var ratio: float = float(RunManager.last_score) / float(target)
+	var grade: String = "C"
+	if ratio >= 1.0:
+		grade = "S"
+	elif ratio >= 0.82:
+		grade = "A"
+	elif ratio >= 0.55:
+		grade = "B"
+	var best_suffix: String = "  New best" if best_value > 0 and RunManager.last_score >= best_value else ""
+	return "Grade %s  Rival %d%%%s" % [grade, int(round(clamp(ratio, 0.0, 1.0) * 100.0)), best_suffix]
+
+func _rival_progress_value() -> float:
+	var target: int = max(1, int(RunManager.get_rival_snapshot().get("target_before", RunManager.get_active_rival_target())))
+	return clamp(float(RunManager.last_score) / float(target), 0.0, 1.0) * 100.0
+
+func _refresh_reward_cards() -> void:
+	var local_best: int = int(SaveStore.data["high_score"])
+	var online_best: int = int(NakamaService.get_my_high_score().get("score", 0))
+	if _best_reward_label:
+		_best_reward_label.text = "Best %d" % max(local_best, online_best)
+	if _coins_reward_label:
+		_coins_reward_label.text = "Coins +%d" % _base_reward_amount
+	if _streak_reward_label:
+		_streak_reward_label.text = "Streak %d" % StreakManager.get_streak_days()
+
+func _make_reward_card(node_name: String, accent: Color) -> Label:
+	var label := Label.new()
+	label.name = node_name
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.clip_text = true
+	label.custom_minimum_size = Vector2(0.0, 64.0)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	Typography.style_label(label, 18.0, Typography.WEIGHT_BOLD)
+	label.add_theme_color_override("font_color", accent)
+	label.add_theme_color_override("font_outline_color", Color(0.08, 0.12, 0.18, 0.92))
+	label.add_theme_constant_override("outline_size", 3)
+	label.add_theme_stylebox_override("normal", _card_style(accent, 0.54))
+	return label
+
+func _apply_results_copy() -> void:
+	if kicker_label:
+		kicker_label.text = "RUN RESULTS"
+	if play_again_button:
+		play_again_button.text = "Play Again"
+	if menu_button:
+		menu_button.text = "New Run"
+	if double_reward_button:
+		double_reward_button.text = "Double Coins"
+
+func _apply_color_crunch_results_style() -> void:
+	_style_glass_panel(panel as ColorRect)
+	_style_button(play_again_button, "primary")
+	_style_button(menu_button, "secondary")
+	_style_button(double_reward_button, "reward")
+	_style_button(audio_button, "icon")
+	_style_results_labels()
+	if _unlock_progress:
+		_unlock_progress.add_theme_stylebox_override("background", _progress_style(Color(0.18, 0.28, 0.38, 0.40)))
+		_unlock_progress.add_theme_stylebox_override("fill", _progress_style(Color(0.50, 0.96, 0.62, 0.92)))
+	if _rival_progress:
+		_rival_progress.add_theme_stylebox_override("background", _progress_style(Color(0.18, 0.28, 0.38, 0.42)))
+		_rival_progress.add_theme_stylebox_override("fill", _progress_style(Color(0.46, 0.88, 0.96, 0.96)))
+	if _best_reward_label:
+		_best_reward_label.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.86, 0.34, 1.0), 0.54))
+	if _coins_reward_label:
+		_coins_reward_label.add_theme_stylebox_override("normal", _card_style(Color(0.50, 0.96, 0.62, 1.0), 0.54))
+	if _streak_reward_label:
+		_streak_reward_label.add_theme_stylebox_override("normal", _card_style(Color(0.93, 0.48, 0.97, 1.0), 0.54))
+
+func _style_results_labels() -> void:
+	var shadow := Color(0.08, 0.12, 0.18, 0.94)
+	var primary := Color(1.0, 0.985, 0.92, 1.0)
+	var soft := Color(0.84, 0.98, 0.96, 0.96)
+	var sky := Color(0.72, 0.92, 1.0, 0.98)
+	for label in [title_label, best_label, streak_label, online_status_label, leaderboard_label, coins_earned_label, coin_balance_label, _powerups_label, _encouragement_label, _dual_leaderboard_label, _weekly_ladder_label, _rival_target_label, _grade_label]:
+		if label == null:
+			continue
+		label.add_theme_color_override("font_color", primary)
+		label.add_theme_color_override("font_outline_color", shadow)
+		label.add_theme_constant_override("outline_size", 3)
+	if kicker_label:
+		kicker_label.add_theme_color_override("font_color", Color(0.54, 0.96, 0.86, 1.0))
+		kicker_label.add_theme_color_override("font_outline_color", shadow)
+		kicker_label.add_theme_constant_override("outline_size", 2)
+	if score_label:
+		score_label.add_theme_color_override("font_color", Color(1.0, 0.94, 0.46, 1.0))
+		score_label.add_theme_color_override("font_outline_color", Color(0.16, 0.10, 0.02, 0.96))
+		score_label.add_theme_constant_override("outline_size", 4)
+	if mode_badge_label:
+		mode_badge_label.add_theme_color_override("font_color", soft)
+	if online_status_label:
+		online_status_label.add_theme_color_override("font_color", sky)
+	if leaderboard_label:
+		leaderboard_label.add_theme_color_override("font_color", sky)
+	if _grade_label:
+		_grade_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.34, 1.0))
+
+func _style_glass_panel(node: ColorRect) -> void:
+	if node == null:
+		return
+	var tint := Color(0.06, 0.20, 0.34, 0.74)
+	var edge := Color(1.0, 0.96, 0.76, 0.58)
+	node.color = tint
+	if _has_property(node, "tint"):
+		node.set("tint", tint)
+	if _has_property(node, "edge"):
+		node.set("edge", edge)
+	if _has_property(node, "blur_radius"):
+		node.set("blur_radius", 7.4)
+	if _has_property(node, "edge_width"):
+		node.set("edge_width", 1.35)
+	if _has_property(node, "corner_radius"):
+		node.set("corner_radius", 0.09)
+	var mat := node.material as ShaderMaterial
+	if mat == null:
+		return
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("edge_highlight", edge)
+	mat.set_shader_parameter("blur", 7.4)
+	mat.set_shader_parameter("corner_radius", 0.09)
+	mat.set_shader_parameter("edge_width", 1.35)
+	mat.set_shader_parameter("chromatic_strength", 0.34)
+
+func _style_button(button: BaseButton, role: String) -> void:
+	if button == null:
+		return
+	var normal := _button_style(role)
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color = normal.bg_color.lightened(0.08)
+	hover.border_color = normal.border_color.lightened(0.10)
+	var pressed: StyleBoxFlat = normal.duplicate()
+	pressed.bg_color = normal.bg_color.darkened(0.12)
+	var disabled_style: StyleBoxFlat = normal.duplicate()
+	disabled_style.bg_color = normal.bg_color.darkened(0.22)
+	disabled_style.border_color = normal.border_color * Color(1.0, 1.0, 1.0, 0.55)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", hover)
+	button.add_theme_stylebox_override("disabled", disabled_style)
+	var dark_text := role == "primary"
+	var font_color := Color(0.10, 0.08, 0.02, 1.0) if dark_text else Color(1.0, 0.985, 0.92, 1.0)
+	button.add_theme_color_override("font_color", font_color)
+	button.add_theme_color_override("font_hover_color", font_color)
+	button.add_theme_color_override("font_pressed_color", font_color)
+	button.add_theme_color_override("font_focus_color", font_color)
+	button.add_theme_color_override("font_disabled_color", Color(0.78, 0.90, 0.94, 0.82))
+	button.add_theme_color_override("font_outline_color", Color(1.0, 0.90, 0.42, 0.42) if dark_text else Color(0.08, 0.12, 0.18, 0.94))
+	button.add_theme_constant_override("outline_size", 1 if dark_text else 2)
+	if _has_property(button, "tint"):
+		button.set("tint", normal.bg_color)
+	if _has_property(button, "edge_highlight"):
+		button.set("edge_highlight", normal.border_color)
+	if button.has_method("_sync_glass_state"):
+		button.call_deferred("_sync_glass_state")
+
+func _button_style(role: String) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.40, 0.72, 0.52)
+	style.border_color = Color(0.78, 0.94, 1.0, 0.78)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 18
+	style.corner_radius_top_right = 18
+	style.corner_radius_bottom_left = 18
+	style.corner_radius_bottom_right = 18
+	style.shadow_color = Color(0.12, 0.52, 1.0, 0.20)
+	style.shadow_size = 10
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.2
+	match role:
+		"primary":
+			style.bg_color = Color(1.0, 0.84, 0.30, 0.98)
+			style.border_color = Color(1.0, 0.96, 0.64, 1.0)
+			style.shadow_color = Color(1.0, 0.62, 0.10, 0.40)
+			style.shadow_size = 18
+		"reward":
+			style.bg_color = Color(0.40, 0.94, 0.68, 0.58)
+			style.border_color = Color(0.68, 1.0, 0.74, 0.82)
+			style.shadow_color = Color(0.20, 0.88, 0.48, 0.20)
+		"icon":
+			style.bg_color = Color(0.32, 0.78, 1.0, 0.32)
+			style.border_color = Color(1.0, 1.0, 1.0, 0.62)
+			style.corner_radius_top_left = 16
+			style.corner_radius_top_right = 16
+			style.corner_radius_bottom_left = 16
+			style.corner_radius_bottom_right = 16
+		_:
+			style.bg_color = Color(0.22, 0.46, 0.76, 0.46)
+			style.border_color = Color(0.84, 0.96, 1.0, 0.70)
+	return style
+
+func _card_style(accent: Color, alpha: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.36, 0.58, alpha)
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.78)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 14
+	style.corner_radius_top_right = 14
+	style.corner_radius_bottom_left = 14
+	style.corner_radius_bottom_right = 14
+	style.shadow_color = Color(accent.r, accent.g, accent.b, 0.18)
+	style.shadow_size = 8
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.2
+	return style
+
+func _progress_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = 999
+	style.corner_radius_top_right = 999
+	style.corner_radius_bottom_left = 999
+	style.corner_radius_bottom_right = 999
+	return style
+
+func _has_property(node: Object, property_name: String) -> bool:
+	if node == null:
+		return false
+	for row in node.get_property_list():
+		if str(row.get("name", "")) == property_name:
+			return true
+	return false
+
 func _update_social_labels() -> void:
 	var weekly: Dictionary = RunManager.get_weekly_snapshot()
 	var rival: Dictionary = RunManager.get_rival_snapshot()
@@ -559,7 +928,7 @@ func _update_social_labels() -> void:
 		var tier_after: int = int(weekly.get("tier_after", 0))
 		var to_next: int = int(weekly.get("to_next_tier", 0))
 		var week_best: int = int(weekly.get("week_best", 0))
-		_weekly_ladder_label.text = "Weekly Ladder %s  Tier %d  Points %d (+%d)  Next tier in %d  Week best %d" % [
+		_weekly_ladder_label.text = "Week %s  Tier %d  %d pts (+%d)  Next %d  Best %d" % [
 			week_key,
 			tier_after,
 			points_after,
@@ -573,15 +942,15 @@ func _update_social_labels() -> void:
 		var delta_after: int = int(rival.get("delta_after", max(0, target_after - RunManager.last_score)))
 		var cleared: bool = bool(rival.get("cleared", false))
 		if cleared:
-			_rival_target_label.text = "Rival %s defeated. New async target: %d" % [rival_name, target_after]
+			_rival_target_label.text = "%s cleared  Next target %d" % [rival_name, target_after]
 			_rival_target_label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.58, 0.98))
 		else:
-			_rival_target_label.text = "Rival %s target %d (%d to go)" % [rival_name, target_after, max(0, delta_after)]
+			_rival_target_label.text = "%s target %d  %d to go" % [rival_name, target_after, max(0, delta_after)]
 			_rival_target_label.add_theme_color_override("font_color", Color(0.86, 0.94, 1.0, 0.98))
 
 func _format_alt_mode_leaderboard(mode_id: String, records: Array) -> String:
 	if records.is_empty():
-		return "%s leaderboard has no entries yet." % mode_id.capitalize()
+		return "%s leaderboard waiting." % mode_id.capitalize()
 	var lines: Array[String] = []
 	for i in range(min(2, records.size())):
 		var row_var: Variant = records[i]
@@ -593,10 +962,11 @@ func _format_alt_mode_leaderboard(mode_id: String, records: Array) -> String:
 			str(row.get("username", "Player")),
 			int(row.get("score", 0)),
 		])
-	return "%s Preview\n%s" % [mode_id.capitalize(), "\n".join(lines)]
+	return "%s preview\n%s" % [mode_id.capitalize(), "\n".join(lines)]
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_results(self)
+		_apply_color_crunch_results_style()
 		_layout_results()
 		_refresh_intro_pivots()
