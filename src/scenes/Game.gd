@@ -52,6 +52,7 @@ var _tutorial_motion_tween: Tween
 var _tutorial_focus_tween: Tween
 var _tutorial_focus_target: Control
 var _tutorial_step: int = 0
+var _prism_picker_overlay: Control
 var _pause_overlap_factor: float = 0.5
 var _audio_overlay: AudioTrackOverlay
 var _round_time_left: float = 90.0
@@ -72,6 +73,7 @@ const ICON_MUSIC_ON: Texture2D = preload("res://assets/ui/icons/atlas/music_on.t
 const ICON_MUSIC_OFF: Texture2D = preload("res://assets/ui/icons/atlas/music_off.tres")
 const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
 const TUTORIAL_TEMPLATE := preload("res://addons/arcade_core/ui/ArcadeTutorialTemplate.gd")
+const PRISM_COLOR_PICKER_SCRIPT := preload("res://src/scenes/PrismColorPicker.gd")
 const HUD_MAX_WIDTH: float = 760.0
 const POWERUPS_MAX_WIDTH: float = 700.0
 const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
@@ -267,6 +269,8 @@ func _on_undo_pressed() -> void:
 func _on_remove_color_pressed() -> void:
 	if _ending_transition_started:
 		return
+	if is_instance_valid(_prism_picker_overlay):
+		return
 	if _maybe_gate_powerup_opt_out("prism"):
 		return
 	if _remove_color_charges <= 0:
@@ -274,12 +278,24 @@ func _on_remove_color_pressed() -> void:
 		if not purchased:
 			_request_powerup_refill("prism")
 			return
+	var choices: Array[Dictionary] = _prism_color_choices()
+	if choices.is_empty():
+		return
+	_show_prism_color_picker(choices)
+
+func _apply_prism_to_color(level: int) -> void:
+	if _ending_transition_started:
+		return
+	if _remove_color_charges <= 0:
+		_update_powerup_buttons()
+		return
 	var snapshot: Array = board.capture_snapshot()
 	var score_before: int = score
 	var combo_before: int = combo
-	var result: Dictionary = await board.apply_remove_color_powerup()
+	var result: Dictionary = await board.apply_remove_color_powerup(level)
 	var removed: int = int(result.get("removed", 0))
 	if removed <= 0:
+		_update_powerup_buttons()
 		return
 	_push_undo(snapshot, score_before, combo_before)
 	_remove_color_charges -= 1
@@ -293,6 +309,59 @@ func _on_remove_color_pressed() -> void:
 	_update_powerup_buttons()
 	MusicManager.on_match_made()
 	_play_powerup_juice(Color(1.0, 0.92, 0.7, FeatureFlags.powerup_flash_alpha()))
+
+func _prism_color_choices() -> Array[Dictionary]:
+	var choices: Array[Dictionary] = []
+	if board == null or board.board == null:
+		return choices
+	var counts: Dictionary = {}
+	for y in range(board.height):
+		for x in range(board.width):
+			var level: int = int(board.board.grid[y][x])
+			if level <= 0:
+				continue
+			counts[level] = int(counts.get(level, 0)) + 1
+	var levels: Array = counts.keys()
+	levels.sort()
+	for level_variant in levels:
+		var level: int = int(level_variant)
+		choices.append({
+			"level": level,
+			"label": board._label_for_level(level),
+			"count": int(counts[level]),
+			"color": board._color_from_level(level),
+			"font_color": board._font_color_for_level(level),
+		})
+	return choices
+
+func _show_prism_color_picker(choices: Array[Dictionary]) -> void:
+	if choices.is_empty() or is_instance_valid(_prism_picker_overlay):
+		return
+	_hide_tutorial_for_overlay()
+	if board:
+		board.set_process_input(false)
+	var picker: Control = PRISM_COLOR_PICKER_SCRIPT.new() as Control
+	picker.name = "PrismColorPicker"
+	picker.configure(choices)
+	picker.color_selected.connect(Callable(self, "_on_prism_color_selected"))
+	picker.closed.connect(Callable(self, "_on_prism_picker_closed"))
+	_prism_picker_overlay = picker
+	add_child(picker)
+
+func _on_prism_color_selected(level: int) -> void:
+	call_deferred("_apply_prism_to_color", level)
+
+func _on_prism_picker_closed() -> void:
+	_prism_picker_overlay = null
+	if board and not _ending_transition_started:
+		board.set_process_input(true)
+
+func _dismiss_prism_color_picker() -> void:
+	if not is_instance_valid(_prism_picker_overlay):
+		_prism_picker_overlay = null
+		return
+	_prism_picker_overlay.queue_free()
+	_prism_picker_overlay = null
 
 func _on_shuffle_pressed() -> void:
 	if _ending_transition_started:
@@ -555,6 +624,7 @@ func _finish_run(completed_by_gameplay: bool) -> void:
 	if _ending_transition_started:
 		return
 	get_tree().paused = false
+	_dismiss_prism_color_picker()
 	_ending_transition_started = true
 	await _play_end_transition()
 	_run_finished = true

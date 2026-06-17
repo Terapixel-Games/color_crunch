@@ -1,5 +1,7 @@
 extends GdUnitTestSuite
 
+const PRISM_COLOR_PICKER_SCRIPT := preload("res://src/scenes/PrismColorPicker.gd")
+
 func before() -> void:
 	ProjectSettings.set_setting("lumarush/visual_test_mode", true)
 	ProjectSettings.set_setting("lumarush/audio_test_mode", true)
@@ -207,6 +209,88 @@ func test_game_tutorial_first_run_replay_and_overlay_close_behavior() -> void:
 	await _free_scene(game)
 	SaveStore.set_tutorial_seen(original_seen)
 
+func test_prism_color_picker_input_contract_and_selection() -> void:
+	var picker: Control = _make_prism_picker()
+	get_tree().root.add_child(picker)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_that(picker.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)
+	assert_that(picker.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	assert_that(picker.z_index).is_greater(10)
+	assert_that(picker.z_as_relative).is_false()
+	assert_that((picker.get_node("Backdrop") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_that((picker.get_node("Center") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((picker.get_node("Center/Panel") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((picker.get_node("Center/Panel/ContentMargin") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((picker.get_node("Center/Panel/ContentMargin/VBox") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((picker.get_node("Center/Panel/ContentMargin/VBox/Scroll/Grid") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((picker.get_node("Center/Panel/Close") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_that((picker.get_node("Center/Panel/ContentMargin/VBox/Buttons/Cancel") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_that((picker.get_node("Center/Panel/ContentMargin/VBox/Scroll/Grid/Level2") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+	var selected_level := [-1]
+	var closed := [false]
+	picker.color_selected.connect(func(level: int) -> void:
+		selected_level[0] = level
+	)
+	picker.closed.connect(func() -> void:
+		closed[0] = true
+	)
+	(picker.get_node("Center/Panel/ContentMargin/VBox/Scroll/Grid/Level2") as Button).emit_signal("pressed")
+	assert_that(selected_level[0]).is_equal(2)
+	assert_that(closed[0]).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_that(is_instance_valid(picker)).is_false()
+
+func test_prism_color_picker_close_button_cancels_without_selection() -> void:
+	var picker: Control = _make_prism_picker()
+	get_tree().root.add_child(picker)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var selected := [false]
+	var closed := [false]
+	picker.color_selected.connect(func(_level: int) -> void:
+		selected[0] = true
+	)
+	picker.closed.connect(func() -> void:
+		closed[0] = true
+	)
+	(picker.get_node("Center/Panel/Close") as Button).emit_signal("pressed")
+	assert_that(selected[0]).is_false()
+	assert_that(closed[0]).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_that(is_instance_valid(picker)).is_false()
+
+func test_prism_color_picker_layout_stays_inside_portrait_and_landscape() -> void:
+	var original_size: Vector2i = get_tree().root.size
+	var original_scale_size: Vector2i = get_tree().root.content_scale_size
+	var viewports: Array[Vector2i] = [Vector2i(720, 1280), Vector2i(1280, 720)]
+	for viewport in viewports:
+		get_tree().root.size = viewport
+		get_tree().root.content_scale_size = viewport
+		var picker: Control = _make_prism_picker()
+		get_tree().root.add_child(picker)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		await get_tree().process_frame
+
+		var bounds := Rect2(Vector2.ZERO, Vector2(viewport))
+		var panel: Control = picker.get_node("Center/Panel") as Control
+		var close_button: Control = picker.get_node("Center/Panel/Close") as Control
+		var buttons: Control = picker.get_node("Center/Panel/ContentMargin/VBox/Buttons") as Control
+		_assert_rect_inside(panel.get_global_rect(), bounds)
+		_assert_rect_inside(close_button.get_global_rect(), panel.get_global_rect())
+		_assert_rect_inside(buttons.get_global_rect(), panel.get_global_rect())
+
+		picker.queue_free()
+		await get_tree().process_frame
+	get_tree().root.size = original_size
+	get_tree().root.content_scale_size = original_scale_size
+
 func _spawn_game() -> Control:
 	var scene: PackedScene = load("res://src/scenes/Game.tscn") as PackedScene
 	var game: Control = scene.instantiate() as Control
@@ -215,6 +299,33 @@ func _spawn_game() -> Control:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	return game
+
+func _make_prism_picker() -> Control:
+	var picker: Control = PRISM_COLOR_PICKER_SCRIPT.new() as Control
+	picker.configure([
+		{
+			"level": 1,
+			"label": "MINT",
+			"count": 6,
+			"color": Color(0.56, 0.95, 0.86, 0.96),
+			"font_color": Color(0.04, 0.10, 0.18, 1.0),
+		},
+		{
+			"level": 2,
+			"label": "LIME",
+			"count": 4,
+			"color": Color(0.52, 0.96, 0.62, 0.96),
+			"font_color": Color(0.04, 0.10, 0.18, 1.0),
+		},
+		{
+			"level": 5,
+			"label": "SKY",
+			"count": 2,
+			"color": Color(0.44, 0.78, 0.98, 0.96),
+			"font_color": Color(0.04, 0.10, 0.18, 1.0),
+		},
+	])
+	return picker
 
 func _free_scene(scene: Node) -> void:
 	if is_instance_valid(scene):

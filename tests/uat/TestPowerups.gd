@@ -34,7 +34,12 @@ func test_remove_color_and_shuffle_consume_charges() -> void:
 	]
 	board_view._refresh_tiles()
 
-	await game._on_remove_color_pressed()
+	game._on_remove_color_pressed()
+	await _wait_frames(2)
+	assert_that(game.get_node_or_null("PrismColorPicker")).is_not_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+	await _select_prism_level(game, 2)
 	assert_that(int(game._remove_color_charges)).is_equal(0)
 	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
 	assert_that(RunManager.last_run_powerups_used).is_equal(1)
@@ -80,8 +85,7 @@ func test_first_powerup_waits_for_open_run_tip_confirmation() -> void:
 	var before: Array = board_view.capture_snapshot()
 
 	game._on_remove_color_pressed()
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _wait_frames(2)
 	var modal: Control = game.get_node_or_null("TutorialTipModal") as Control
 	assert_that(modal).is_not_null()
 	assert_that(int(game._remove_color_charges)).is_equal(1)
@@ -90,23 +94,58 @@ func test_first_powerup_waits_for_open_run_tip_confirmation() -> void:
 	assert_that(RunManager.last_run_leaderboard_mode).is_equal("PURE")
 
 	(modal.get_node("Center/Panel/Close") as Button).emit_signal("pressed")
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _wait_frames(2)
 	assert_that(game.get_node_or_null("TutorialTipModal")).is_null()
 	assert_that(int(game._remove_color_charges)).is_equal(1)
 	assert_that(board_view.capture_snapshot()).is_equal(before)
 	assert_that(RunManager.last_run_powerups_used).is_equal(0)
 
 	game._on_remove_color_pressed()
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _wait_frames(2)
 	modal = game.get_node_or_null("TutorialTipModal") as Control
 	assert_that(modal).is_not_null()
 	(modal.get_node("Center/Panel/ContentMargin/VBox/Buttons/Confirm") as Button).emit_signal("pressed")
-	await get_tree().create_timer(0.8).timeout
+	await _wait_frames(3)
+	var picker: Control = game.get_node_or_null("PrismColorPicker") as Control
+	assert_that(picker).is_not_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(board_view.capture_snapshot()).is_equal(before)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+	await _select_prism_level(game, 1)
 	assert_that(int(game._remove_color_charges)).is_equal(0)
 	assert_that(RunManager.last_run_powerups_used).is_equal(1)
 	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
+
+	await _free_scene(game)
+
+func test_prism_picker_close_does_not_consume_charge_or_clear_board() -> void:
+	var game: Control = await _spawn_game()
+	var board_view: BoardView = game.get_node("BoardView") as BoardView
+	board_view.board.grid = [
+		[1, 1, 1, 1],
+		[2, 2, 2, 2],
+		[1, 1, 1, 1],
+		[2, 2, 2, 2],
+	]
+	board_view._refresh_tiles()
+	var before: Array = board_view.capture_snapshot()
+
+	game._on_remove_color_pressed()
+	await _wait_frames(2)
+	var picker: Control = game.get_node_or_null("PrismColorPicker") as Control
+	assert_that(picker).is_not_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+	assert_that(board_view.capture_snapshot()).is_equal(before)
+	if picker != null:
+		(picker.get_node("Center/Panel/Close") as Button).emit_signal("pressed")
+	await _wait_frames(2)
+
+	assert_that(game.get_node_or_null("PrismColorPicker")).is_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("PURE")
+	assert_that(board_view.capture_snapshot()).is_equal(before)
 
 	await _free_scene(game)
 
@@ -117,6 +156,21 @@ func _spawn_game() -> Control:
 	get_tree().root.add_child(game)
 	await get_tree().process_frame
 	return game
+
+func _select_prism_level(game: Control, level: int) -> void:
+	var picker: Control = game.get_node_or_null("PrismColorPicker") as Control
+	assert_that(picker).is_not_null()
+	if picker == null:
+		return
+	var button: Button = picker.get_node("Center/Panel/ContentMargin/VBox/Scroll/Grid/Level%d" % level) as Button
+	assert_that(button).is_not_null()
+	button.emit_signal("pressed")
+	await get_tree().create_timer(0.8).timeout
+	await get_tree().process_frame
+
+func _wait_frames(count: int) -> void:
+	for _i in range(count):
+		await get_tree().process_frame
 
 func _free_scene(scene: Node) -> void:
 	if is_instance_valid(scene):
