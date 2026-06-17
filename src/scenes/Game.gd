@@ -39,6 +39,7 @@ var _run_started_at_unix := 0
 var _run_powerups_used_total: int = 0
 var _run_coins_spent: int = 0
 var _open_tip_shown_this_run: bool = false
+var _pending_open_tip_powerup_type: String = ""
 var _pause_overlay: Control
 var _tutorial_overlay: Control
 var _tutorial_panel: Panel
@@ -240,15 +241,17 @@ func _on_tutorial_requested() -> void:
 	call_deferred("_show_tutorial", true)
 
 func _on_undo_pressed() -> void:
+	if _undo_stack.is_empty():
+		return
+	if _ending_transition_started:
+		return
+	if _maybe_gate_powerup_opt_out("undo"):
+		return
 	if _undo_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("undo")
 		if not purchased:
 			_request_powerup_refill("undo")
 			return
-	if _undo_stack.is_empty():
-		return
-	if _ending_transition_started:
-		return
 	var state: Dictionary = _undo_stack.pop_back()
 	board.restore_snapshot(state["grid"] as Array)
 	score = int(state["score"])
@@ -262,13 +265,15 @@ func _on_undo_pressed() -> void:
 	_play_powerup_juice(Color(0.72, 0.9, 1.0, FeatureFlags.powerup_flash_alpha()))
 
 func _on_remove_color_pressed() -> void:
+	if _ending_transition_started:
+		return
+	if _maybe_gate_powerup_opt_out("prism"):
+		return
 	if _remove_color_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("prism")
 		if not purchased:
 			_request_powerup_refill("prism")
 			return
-	if _ending_transition_started:
-		return
 	var snapshot: Array = board.capture_snapshot()
 	var score_before: int = score
 	var combo_before: int = combo
@@ -290,13 +295,15 @@ func _on_remove_color_pressed() -> void:
 	_play_powerup_juice(Color(1.0, 0.92, 0.7, FeatureFlags.powerup_flash_alpha()))
 
 func _on_shuffle_pressed() -> void:
+	if _ending_transition_started:
+		return
+	if _maybe_gate_powerup_opt_out("shuffle"):
+		return
 	if _shuffle_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("shuffle")
 		if not purchased:
 			_request_powerup_refill("shuffle")
 			return
-	if _ending_transition_started:
-		return
 	var snapshot: Array = board.capture_snapshot()
 	var score_before: int = score
 	var combo_before: int = combo
@@ -570,20 +577,27 @@ func _record_powerup_use(powerup_type: String) -> void:
 	_powerup_usage[powerup_type] = int(_powerup_usage[powerup_type]) + 1
 	_run_powerups_used_total += 1
 	RunManager.set_run_leaderboard_context(_run_powerups_used_total, _run_coins_spent, _powerup_usage)
-	_maybe_show_open_mode_tip()
 	Telemetry.mark_powerup_used(powerup_type, "OPEN", _remaining_powerup_charges(powerup_type))
 	NakamaService.track_client_event("gameplay.powerup_used", {
 		"powerup_type": powerup_type,
 		"remaining": _remaining_powerup_charges(powerup_type),
 	}, true)
 
-func _maybe_show_open_mode_tip() -> void:
-	if _open_tip_shown_this_run:
-		return
+func _maybe_gate_powerup_opt_out(powerup_type: String) -> bool:
+	if _run_powerups_used_total > 0 or _open_tip_shown_this_run:
+		return false
 	if not SaveStore.should_show_tip(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true):
 		_open_tip_shown_this_run = true
+		return false
+	if not _pending_open_tip_powerup_type.is_empty():
+		return true
+	_pending_open_tip_powerup_type = powerup_type
+	_show_open_mode_tip()
+	return true
+
+func _show_open_mode_tip() -> void:
+	if _open_tip_shown_this_run:
 		return
-	_open_tip_shown_this_run = true
 	_hide_tutorial_for_overlay()
 	var modal := TUTORIAL_TIP_SCENE.instantiate()
 	if modal.has_method("configure"):
@@ -591,16 +605,33 @@ func _maybe_show_open_mode_tip() -> void:
 			"title": "Open Run",
 			"message": "Power-ups opt this run out of Pure. This score posts to Open; no-powerup runs stay Pure.",
 			"confirm_text": "Got it",
+			"cancel_text": "Close",
+			"show_cancel": false,
 			"checkbox_text": "Don't show again",
 			"show_checkbox": true,
 		})
-	if modal.has_signal("dismissed"):
-		modal.dismissed.connect(_on_open_mode_tip_dismissed)
+	if modal.has_signal("confirmed"):
+		modal.confirmed.connect(_on_open_mode_tip_confirmed)
+	if modal.has_signal("canceled"):
+		modal.canceled.connect(_on_open_mode_tip_canceled)
 	add_child(modal)
 
-func _on_open_mode_tip_dismissed(do_not_show_again: bool) -> void:
+func _on_open_mode_tip_confirmed(do_not_show_again: bool) -> void:
 	if do_not_show_again:
 		SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
+	var powerup_type := _pending_open_tip_powerup_type
+	_pending_open_tip_powerup_type = ""
+	_open_tip_shown_this_run = true
+	match powerup_type:
+		"undo":
+			call_deferred("_on_undo_pressed")
+		"prism":
+			call_deferred("_on_remove_color_pressed")
+		"shuffle":
+			call_deferred("_on_shuffle_pressed")
+
+func _on_open_mode_tip_canceled(_do_not_show_again: bool) -> void:
+	_pending_open_tip_powerup_type = ""
 
 func _on_audio_pressed() -> void:
 	_hide_tutorial_for_overlay()

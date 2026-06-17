@@ -1,11 +1,14 @@
 extends GdUnitTestSuite
 
 var _original_mode: String = "PURE"
+var _original_open_tip_should_show: bool = true
 
 func before() -> void:
 	_original_mode = RunManager.get_selected_mode()
+	_original_open_tip_should_show = SaveStore.should_show_tip(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
 	RunManager.set_selected_mode("PURE", "test")
 	RunManager.prepare_run_start()
+	SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
 	ProjectSettings.set_setting("lumarush/powerup_undo_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_remove_color_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_shuffle_charges", 1)
@@ -18,6 +21,7 @@ func before() -> void:
 
 func after() -> void:
 	RunManager.set_selected_mode(_original_mode, "test")
+	SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, not _original_open_tip_should_show)
 
 func test_remove_color_and_shuffle_consume_charges() -> void:
 	var game: Control = await _spawn_game()
@@ -59,6 +63,50 @@ func test_undo_restores_snapshot_and_consumes_charge() -> void:
 	assert_that(int(game._undo_charges)).is_equal(0)
 	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
 	assert_that(RunManager.last_run_powerups_used).is_equal(1)
+
+	await _free_scene(game)
+
+func test_first_powerup_waits_for_open_run_tip_confirmation() -> void:
+	SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, false)
+	var game: Control = await _spawn_game()
+	var board_view: BoardView = game.get_node("BoardView") as BoardView
+	board_view.board.grid = [
+		[1, 1, 1, 1],
+		[2, 2, 2, 2],
+		[1, 1, 1, 1],
+		[2, 2, 2, 2],
+	]
+	board_view._refresh_tiles()
+	var before: Array = board_view.capture_snapshot()
+
+	game._on_remove_color_pressed()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var modal: Control = game.get_node_or_null("TutorialTipModal") as Control
+	assert_that(modal).is_not_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(board_view.capture_snapshot()).is_equal(before)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("PURE")
+
+	(modal.get_node("Center/Panel/Close") as Button).emit_signal("pressed")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_that(game.get_node_or_null("TutorialTipModal")).is_null()
+	assert_that(int(game._remove_color_charges)).is_equal(1)
+	assert_that(board_view.capture_snapshot()).is_equal(before)
+	assert_that(RunManager.last_run_powerups_used).is_equal(0)
+
+	game._on_remove_color_pressed()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	modal = game.get_node_or_null("TutorialTipModal") as Control
+	assert_that(modal).is_not_null()
+	(modal.get_node("Center/Panel/ContentMargin/VBox/Buttons/Confirm") as Button).emit_signal("pressed")
+	await get_tree().create_timer(0.8).timeout
+	assert_that(int(game._remove_color_charges)).is_equal(0)
+	assert_that(RunManager.last_run_powerups_used).is_equal(1)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
 
 	await _free_scene(game)
 

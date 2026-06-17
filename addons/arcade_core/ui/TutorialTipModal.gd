@@ -9,6 +9,7 @@ const MODAL_LAYER_Z_INDEX := 1000
 @onready var dim: ColorRect = $Dim
 @onready var center_layer: Control = $Center
 @onready var panel: Panel = $Center/Panel
+@onready var close_button: Button = $Center/Panel/Close
 @onready var content_margin: MarginContainer = $Center/Panel/ContentMargin
 @onready var content_box: VBoxContainer = $Center/Panel/ContentMargin/VBox
 @onready var title_label: Label = $Center/Panel/ContentMargin/VBox/Title
@@ -79,6 +80,9 @@ func _on_confirm_pressed() -> void:
 func _on_cancel_pressed() -> void:
 	_cancel_and_close()
 
+func _on_close_pressed() -> void:
+	_cancel_and_close()
+
 func _on_dim_gui_input(event: InputEvent) -> void:
 	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
 	var touch: bool = event is InputEventScreenTouch and event.pressed
@@ -127,6 +131,8 @@ func _style_controls() -> void:
 	if panel:
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_style_panel(panel)
+	if close_button:
+		_style_close_button(close_button)
 	if content_margin:
 		content_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var inset := 26
@@ -185,12 +191,14 @@ func _layout_tip() -> void:
 	var min_panel_width: float = min(340.0, max_panel_width)
 	var panel_width: float = clamp(view_size.x * (0.56 if is_wide else 0.84), min_panel_width, min(760.0, max_panel_width))
 	var inset: int = int(round(clamp(panel_width * 0.052, 18.0, 28.0)))
+	var close_size: float = clamp(panel_width * 0.082, 38.0, 48.0)
+	var close_reserve: int = int(ceil(close_size + 16.0))
 	if content_margin:
 		content_margin.add_theme_constant_override("margin_left", inset)
 		content_margin.add_theme_constant_override("margin_top", inset)
-		content_margin.add_theme_constant_override("margin_right", inset)
+		content_margin.add_theme_constant_override("margin_right", inset + close_reserve)
 		content_margin.add_theme_constant_override("margin_bottom", inset)
-	var content_width: float = max(160.0, panel_width - (float(inset) * 2.0))
+	var content_width: float = max(160.0, panel_width - float(inset * 2 + close_reserve))
 	_prepare_wrapped_content_sizes(content_width)
 	var max_panel_height: float = max(180.0, view_size.y - (margin * 2.0))
 	var min_panel_height: float = min(330.0, max_panel_height)
@@ -209,6 +217,12 @@ func _layout_tip() -> void:
 	panel.position = Vector2(panel_x, panel_y)
 	panel.size = Vector2(panel_width, panel_height)
 	panel.pivot_offset = panel.size * 0.5
+	if close_button:
+		close_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		close_button.position = Vector2(panel_width - close_size - 12.0, 12.0)
+		close_button.size = Vector2(close_size, close_size)
+		close_button.custom_minimum_size = Vector2(close_size, close_size)
+		close_button.pivot_offset = close_button.size * 0.5
 	content_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layout_pointer()
 	_layout_target_highlight()
@@ -369,6 +383,37 @@ func _style_button(button: Button, primary: bool) -> void:
 		Color(0.40, 0.86, 0.76, 1.0) if primary else Color(0.72, 0.88, 0.96, 0.9),
 		Color(0.06, 0.60, 0.82, 0.95)
 	))
+
+func _style_close_button(button: Button) -> void:
+	button.text = "X"
+	button.focus_mode = Control.FOCUS_NONE
+	button.clip_text = false
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.add_theme_font_override("font", _font_for_role(false, 700))
+	button.add_theme_font_size_override("font_size", _font_px(17.0))
+	button.add_theme_color_override("font_color", Color(0.04, 0.12, 0.20, 0.92))
+	button.add_theme_color_override("font_hover_color", Color(0.02, 0.08, 0.14, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.02, 0.08, 0.14, 1.0))
+	button.add_theme_stylebox_override("normal", _close_button_style(Color(0.95, 1.0, 1.0, 0.66), Color(0.20, 0.72, 0.94, 0.42)))
+	button.add_theme_stylebox_override("hover", _close_button_style(Color(0.82, 0.97, 1.0, 0.94), Color(0.10, 0.86, 1.0, 0.82)))
+	button.add_theme_stylebox_override("pressed", _close_button_style(Color(0.70, 0.90, 0.98, 0.96), Color(0.04, 0.62, 0.86, 0.90)))
+
+func _close_button_style(fill: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 14
+	style.corner_radius_top_right = 14
+	style.corner_radius_bottom_left = 14
+	style.corner_radius_bottom_right = 14
+	style.shadow_color = Color(0.0, 0.16, 0.28, 0.14)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0, 2)
+	return style
 
 func _button_style(fill: Color, border: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

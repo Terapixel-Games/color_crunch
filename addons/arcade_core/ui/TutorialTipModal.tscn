@@ -38,6 +38,12 @@ custom_minimum_size = Vector2(520, 300)
 layout_mode = 1
 mouse_filter = 2
 
+[node name="Close" type="Button" parent="Center/Panel"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 1
+mouse_filter = 0
+text = "X"
+
 [node name="ContentMargin" type="MarginContainer" parent="Center/Panel"]
 layout_mode = 1
 anchors_preset = 15
@@ -97,5 +103,6 @@ mouse_filter = 0
 text = "Got it"
 
 [connection signal="gui_input" from="Dim" to="." method="_on_dim_gui_input"]
+[connection signal="pressed" from="Center/Panel/Close" to="." method="_on_close_pressed"]
 [connection signal="pressed" from="Center/Panel/ContentMargin/VBox/Buttons/Cancel" to="." method="_on_cancel_pressed"]
 [connection signal="pressed" from="Center/Panel/ContentMargin/VBox/Buttons/Confirm" to="." method="_on_confirm_pressed"]

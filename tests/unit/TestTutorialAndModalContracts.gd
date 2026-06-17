@@ -54,10 +54,13 @@ func test_tutorial_tip_modal_uses_consistent_input_and_pivots() -> void:
 	assert_that((modal.get_node("Dim") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_that((modal.get_node("Center") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_that((modal.get_node("Center/Panel/ContentMargin") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that((modal.get_node("Center/Panel/Close") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_that((modal.get_node("Center/Panel/ContentMargin/VBox/Buttons/Cancel") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_that((modal.get_node("Center/Panel/ContentMargin/VBox/Buttons/Confirm") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	var panel: Control = modal.get_node("Center/Panel") as Control
+	var close_button: Control = modal.get_node("Center/Panel/Close") as Control
 	assert_that(panel.pivot_offset).is_equal(panel.size * 0.5)
+	assert_that(close_button.pivot_offset).is_equal(close_button.size * 0.5)
 	assert_that(modal.get_node_or_null("Center/TargetHighlight")).is_not_null()
 
 	var canceled := [false]
@@ -92,20 +95,50 @@ func test_tutorial_tip_modal_keeps_long_tip_inside_panel_on_square_viewport() ->
 	var message: Control = modal.get_node("Center/Panel/ContentMargin/VBox/Message") as Control
 	var checkbox: Control = modal.get_node("Center/Panel/ContentMargin/VBox/DoNotShow") as Control
 	var buttons: Control = modal.get_node("Center/Panel/ContentMargin/VBox/Buttons") as Control
+	var close_button: Control = modal.get_node("Center/Panel/Close") as Control
 	var panel_rect: Rect2 = panel.get_global_rect()
+	var close_rect: Rect2 = close_button.get_global_rect()
 	_assert_rect_inside(title.get_global_rect(), panel_rect)
 	_assert_rect_inside(message.get_global_rect(), panel_rect)
 	_assert_rect_inside(checkbox.get_global_rect(), panel_rect)
 	_assert_rect_inside(buttons.get_global_rect(), panel_rect)
+	_assert_rect_inside(close_rect, panel_rect)
 	assert_that(title.get_global_rect().end.y).is_less_equal(message.get_global_rect().position.y + 1.0)
 	assert_that(message.get_global_rect().end.y).is_less_equal(checkbox.get_global_rect().position.y + 1.0)
 	assert_that(checkbox.get_global_rect().end.y).is_less_equal(buttons.get_global_rect().position.y + 1.0)
+	assert_that(title.get_global_rect().end.x).is_less_equal(close_rect.position.x + 1.0)
 	assert_that(panel.size.x).is_greater_equal(500.0)
 
 	modal.queue_free()
 	await get_tree().process_frame
 	get_tree().root.size = original_size
 	get_tree().root.content_scale_size = original_scale_size
+
+func test_tutorial_tip_modal_close_button_cancels_without_confirming() -> void:
+	var scene: PackedScene = load("res://addons/arcade_core/ui/TutorialTipModal.tscn") as PackedScene
+	var modal: Control = scene.instantiate() as Control
+	get_tree().root.add_child(modal)
+	modal.call("configure", {
+		"title": "Open Run",
+		"message": "Power-ups opt this run out of Pure.",
+		"confirm_text": "Got it",
+		"show_checkbox": true,
+	})
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var confirmed := [false]
+	var canceled := [false]
+	modal.connect("confirmed", func(_do_not_show_again: bool) -> void:
+		confirmed[0] = true
+	)
+	modal.connect("canceled", func(_do_not_show_again: bool) -> void:
+		canceled[0] = true
+	)
+	(modal.get_node("Center/Panel/Close") as Button).emit_signal("pressed")
+	assert_that(confirmed[0]).is_false()
+	assert_that(canceled[0]).is_true()
+	await get_tree().process_frame
 
 func test_game_tutorial_first_run_replay_and_overlay_close_behavior() -> void:
 	var original_seen: bool = SaveStore.is_tutorial_seen()
