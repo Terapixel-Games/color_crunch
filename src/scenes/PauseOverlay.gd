@@ -2,12 +2,14 @@ extends Control
 
 signal resume
 signal quit
+signal tutorial_requested
 
 @onready var panel: Control = $Panel
 @onready var modal_vbox: VBoxContainer = $Panel/VBox
 @onready var top_inset: Control = $Panel/VBox/TopInset
 @onready var title_label: Label = $Panel/VBox/Title
 @onready var resume_button: Button = $Panel/VBox/Resume
+@onready var tutorial_button: Button = $Panel/VBox/Tutorial
 @onready var quit_button: Button = $Panel/VBox/Quit
 @onready var bottom_inset: Control = $Panel/VBox/BottomInset
 
@@ -27,6 +29,10 @@ func _notification(what: int) -> void:
 
 func _on_resume_pressed() -> void:
 	emit_signal("resume")
+	queue_free()
+
+func _on_tutorial_pressed() -> void:
+	emit_signal("tutorial_requested")
 	queue_free()
 
 func _on_quit_pressed() -> void:
@@ -60,11 +66,14 @@ func _layout_modal() -> void:
 
 	_apply_centered_content_width("Panel/VBox/Title", content_width)
 	_apply_centered_content_width("Panel/VBox/Resume", content_width)
+	_apply_centered_content_width("Panel/VBox/Tutorial", content_width)
 	_apply_centered_content_width("Panel/VBox/Quit", content_width)
 
-	var button_height : float = clamp(max_panel_height * 0.18, 84.0, 108.0)
+	var button_height : float = clamp(max_panel_height * 0.15, 68.0, 98.0)
 	if resume_button != null:
 		resume_button.custom_minimum_size.y = button_height
+	if tutorial_button != null:
+		tutorial_button.custom_minimum_size.y = button_height
 	if quit_button != null:
 		quit_button.custom_minimum_size.y = button_height
 

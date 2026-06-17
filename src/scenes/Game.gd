@@ -39,6 +39,18 @@ var _run_started_at_unix := 0
 var _run_powerups_used_total: int = 0
 var _run_coins_spent: int = 0
 var _open_tip_shown_this_run: bool = false
+var _pause_overlay: Control
+var _tutorial_overlay: Control
+var _tutorial_panel: Panel
+var _tutorial_title: Label
+var _tutorial_message: Label
+var _tutorial_next_button: Button
+var _tutorial_skip_button: Button
+var _tutorial_highlights: Array[Control] = []
+var _tutorial_motion_tween: Tween
+var _tutorial_focus_tween: Tween
+var _tutorial_focus_target: Control
+var _tutorial_step: int = 0
 var _pause_overlap_factor: float = 0.5
 var _audio_overlay: AudioTrackOverlay
 var _current_mode: String = "PURE"
@@ -60,11 +72,17 @@ const AUDIO_TRACK_OVERLAY_SCENE := preload("res://src/scenes/AudioTrackOverlay.t
 const ICON_MUSIC_ON: Texture2D = preload("res://assets/ui/icons/atlas/music_on.tres")
 const ICON_MUSIC_OFF: Texture2D = preload("res://assets/ui/icons/atlas/music_off.tres")
 const TUTORIAL_TIP_SCENE := preload("res://addons/arcade_core/ui/TutorialTipModal.tscn")
+const TUTORIAL_TEMPLATE := preload("res://addons/arcade_core/ui/ArcadeTutorialTemplate.gd")
 const HUD_MAX_WIDTH: float = 760.0
 const POWERUPS_MAX_WIDTH: float = 700.0
 const BADGE_BG_COLOR: Color = Color(0.96, 0.22, 0.24, 1.0)
 const BADGE_BORDER_COLOR: Color = Color(1.0, 0.9, 0.92, 0.96)
 const ROUND_LIMIT_SECONDS := 84.0
+const TUTORIAL_STEP_COUNT := 6
+const TUTORIAL_STEP_UNDO := 2
+const TUTORIAL_STEP_PRISM := 3
+const TUTORIAL_STEP_SHUFFLE := 4
+const TUTORIAL_STEP_DONE := 5
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
@@ -137,12 +155,15 @@ func _ready() -> void:
 	call_deferred("_refresh_button_pivots")
 	_play_enter_transition()
 	Telemetry.mark_scene_loaded("game", _scene_opened_msec)
+	_maybe_show_micro_tutorial()
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_game(self)
 		_center_board()
 		call_deferred("_refresh_button_pivots")
+		if _tutorial_overlay and is_instance_valid(_tutorial_overlay):
+			_layout_tutorial_overlay()
 
 func _process(delta: float) -> void:
 	if _run_finished or _ending_transition_started:
@@ -179,21 +200,30 @@ func _on_match_made(group: Array) -> void:
 
 func _on_move_committed(_group: Array, snapshot: Array) -> void:
 	_push_undo(snapshot, score, combo)
+	if _tutorial_overlay and is_instance_valid(_tutorial_overlay) and _tutorial_step <= 1:
+		_advance_tutorial_step()
 
 func _update_score() -> void:
 	score_value_label.text = "%d" % score
 
 func _on_pause_pressed() -> void:
 	_close_audio_overlay()
+	_hide_tutorial_for_overlay()
 	if board and board.has_method("set_hints_enabled"):
 		board.call("set_hints_enabled", false)
 	var pause := preload("res://src/scenes/PauseOverlay.tscn").instantiate()
+	_pause_overlay = pause
 	pause.z_index = 1000
 	add_child(pause)
 	pause.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	pause.tree_exited.connect(func() -> void:
+		if _pause_overlay == pause:
+			_pause_overlay = null
+	)
 	get_tree().paused = true
 	pause.connect("resume", Callable(self, "_on_resume"))
 	pause.connect("quit", Callable(self, "_on_quit"))
+	pause.connect("tutorial_requested", Callable(self, "_on_tutorial_requested"))
 
 func _on_resume() -> void:
 	get_tree().paused = false
@@ -205,6 +235,13 @@ func _on_quit() -> void:
 	if board and board.has_method("set_hints_enabled"):
 		board.call("set_hints_enabled", true)
 	_finish_run(false)
+
+func _on_tutorial_requested() -> void:
+	get_tree().paused = false
+	if board and board.has_method("set_hints_enabled"):
+		board.call("set_hints_enabled", true)
+	SaveStore.set_tutorial_seen(false)
+	call_deferred("_show_tutorial", true)
 
 func _on_undo_pressed() -> void:
 	if _pure_mode_locked:
@@ -567,6 +604,7 @@ func _maybe_show_open_mode_tip() -> void:
 		_open_tip_shown_this_run = true
 		return
 	_open_tip_shown_this_run = true
+	_hide_tutorial_for_overlay()
 	var modal := TUTORIAL_TIP_SCENE.instantiate()
 	if modal.has_method("configure"):
 		modal.configure({
@@ -585,6 +623,7 @@ func _on_open_mode_tip_dismissed(do_not_show_again: bool) -> void:
 		SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
 
 func _on_audio_pressed() -> void:
+	_hide_tutorial_for_overlay()
 	if is_instance_valid(_audio_overlay):
 		_close_audio_overlay()
 		return
@@ -761,6 +800,7 @@ func _center_board() -> void:
 	_layout_powerups(view_size, powerup_row_width, powerup_row_height)
 	_apply_responsive_hud_typography(content_width, top_bar_bg.size.y, powerup_row_height)
 	_refresh_button_pivots()
+	_layout_dynamic_overlays(view_size)
 
 	if board_frame:
 		var frame_padding: float = clamp(board.tile_size * 0.18, 12.0, 24.0)
@@ -901,8 +941,8 @@ func _setup_dynamic_overlays() -> void:
 		_timer_label.name = "RoundTimer"
 		_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_timer_label.add_theme_font_size_override("font_size", 28)
-		_timer_label.add_theme_color_override("font_color", Color(0.94, 0.98, 1.0, 0.98))
-		_timer_label.add_theme_color_override("font_outline_color", Color(0.08, 0.12, 0.22, 0.95))
+		_timer_label.add_theme_color_override("font_color", Color(0.05, 0.12, 0.22, 1.0))
+		_timer_label.add_theme_color_override("font_outline_color", Color(0.92, 0.98, 1.0, 0.72))
 		_timer_label.add_theme_constant_override("outline_size", 2)
 		_timer_label.anchor_left = 0.5
 		_timer_label.anchor_right = 1.0
@@ -933,13 +973,38 @@ func _setup_dynamic_overlays() -> void:
 		$UI.add_child(_near_miss_label)
 	_update_timer_label()
 
+func _layout_dynamic_overlays(view_size: Vector2) -> void:
+	if _timer_label:
+		var timer_width: float = clamp(view_size.x * 0.18, 108.0, 220.0)
+		var timer_height: float = clamp(top_bar_bg.size.y * 0.28, 24.0, 38.0) if top_bar_bg else 32.0
+		var pause_reserve: float = pause_button.size.x + clamp(top_bar_bg.size.y * 0.10, 10.0, 20.0) if pause_button != null and top_bar_bg != null else 76.0
+		_timer_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		if top_bar_bg:
+			var timer_x: float = top_bar_bg.position.x + max(18.0, top_bar_bg.size.x - timer_width - pause_reserve)
+			if pause_button != null and pause_button.size.x > 0.0:
+				timer_x = min(timer_x, pause_button.get_global_rect().position.x - timer_width - 12.0)
+			timer_x = clamp(timer_x, top_bar_bg.position.x + 14.0, top_bar_bg.position.x + top_bar_bg.size.x - timer_width - 14.0)
+			_timer_label.position = Vector2(timer_x, top_bar_bg.position.y + top_bar_bg.size.y + 6.0)
+		else:
+			_timer_label.position = Vector2(max(16.0, view_size.x - timer_width - 112.0), 18.0)
+		_timer_label.size = Vector2(timer_width, timer_height)
+		_timer_label.add_theme_font_size_override("font_size", int(round(clamp(timer_height * 0.86, 16.0, 26.0))))
+	if _combo_label:
+		_combo_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_combo_label.position = Vector2((view_size.x - 360.0) * 0.5, clamp(view_size.y * 0.055, 46.0, 86.0))
+		_combo_label.size = Vector2(360.0, 44.0)
+	if _near_miss_label:
+		_near_miss_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_near_miss_label.position = Vector2(24.0, clamp(view_size.y * 0.06, 54.0, 86.0))
+		_near_miss_label.size = Vector2(max(120.0, view_size.x - 48.0), 38.0)
+
 func _update_timer_label() -> void:
 	if _timer_label == null:
 		return
 	var seconds_left := int(ceil(_round_time_left))
 	_timer_label.text = "Time %02d" % max(0, seconds_left)
 	var danger := _round_time_left <= 15.0
-	_timer_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.46, 1.0) if danger else Color(0.94, 0.98, 1.0, 0.98))
+	_timer_label.add_theme_color_override("font_color", Color(1.0, 0.28, 0.24, 1.0) if danger else Color(0.05, 0.12, 0.22, 1.0))
 
 func _show_combo_feedback() -> void:
 	if _combo_label == null or combo < 2:
@@ -975,6 +1040,7 @@ func _kick_screen_shake(strength: float) -> void:
 	_shake_time_left = 0.12
 
 func _show_pure_mode_notice() -> void:
+	_hide_tutorial_for_overlay()
 	var modal := TUTORIAL_TIP_SCENE.instantiate()
 	if modal and modal.has_method("configure"):
 		modal.configure({
@@ -984,6 +1050,342 @@ func _show_pure_mode_notice() -> void:
 			"show_checkbox": false,
 		})
 	add_child(modal)
+
+func _maybe_show_micro_tutorial() -> void:
+	if SaveStore.is_tutorial_seen():
+		return
+	call_deferred("_show_tutorial", false)
+
+func _show_tutorial(force: bool = false) -> void:
+	if _tutorial_overlay and is_instance_valid(_tutorial_overlay):
+		_layout_tutorial_overlay()
+		return
+	if not force and SaveStore.is_tutorial_seen():
+		return
+	if get_tree().paused or is_instance_valid(_audio_overlay):
+		return
+	_close_tutorial(false)
+	_tutorial_step = 0
+	_tutorial_overlay = Control.new()
+	_tutorial_overlay.name = "TutorialOverlay"
+	_tutorial_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tutorial_overlay.z_index = 80
+	_tutorial_overlay.gui_input.connect(Callable(self, "_on_tutorial_gui_input"))
+	$UI.add_child(_tutorial_overlay)
+
+	_tutorial_panel = Panel.new()
+	_tutorial_panel.name = "Panel"
+	_tutorial_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tutorial_panel.gui_input.connect(Callable(self, "_on_tutorial_gui_input"))
+	TUTORIAL_TEMPLATE.style_panel(_tutorial_panel)
+	_tutorial_overlay.add_child(_tutorial_panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	TUTORIAL_TEMPLATE.apply_margins(margin)
+	_tutorial_panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.name = "VBox"
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 16)
+	margin.add_child(box)
+	_tutorial_title = Label.new()
+	_tutorial_title.name = "Title"
+	TUTORIAL_TEMPLATE.style_label(_tutorial_title, true)
+	box.add_child(_tutorial_title)
+	_tutorial_message = Label.new()
+	_tutorial_message.name = "Message"
+	TUTORIAL_TEMPLATE.style_label(_tutorial_message, false)
+	box.add_child(_tutorial_message)
+	var buttons := HBoxContainer.new()
+	buttons.name = "Buttons"
+	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	buttons.add_theme_constant_override("separation", 14)
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	box.add_child(buttons)
+	_tutorial_skip_button = Button.new()
+	_tutorial_skip_button.name = "Skip"
+	_tutorial_skip_button.text = "Skip Tutorial"
+	TUTORIAL_TEMPLATE.style_button(_tutorial_skip_button, false)
+	_tutorial_skip_button.pressed.connect(Callable(self, "_on_tutorial_skip_pressed"))
+	buttons.add_child(_tutorial_skip_button)
+	_tutorial_next_button = Button.new()
+	_tutorial_next_button.name = "Next"
+	_tutorial_next_button.text = "Next"
+	TUTORIAL_TEMPLATE.style_button(_tutorial_next_button, true)
+	_tutorial_next_button.pressed.connect(Callable(self, "_on_tutorial_next_pressed"))
+	buttons.add_child(_tutorial_next_button)
+	_update_tutorial_step()
+	_layout_tutorial_overlay()
+	_play_tutorial_step_motion()
+
+func _on_tutorial_next_pressed() -> void:
+	_advance_tutorial_step()
+
+func _on_tutorial_gui_input(event: InputEvent) -> void:
+	if not _is_tutorial_click_to_continue_step():
+		return
+	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+	var touch: bool = event is InputEventScreenTouch and event.pressed
+	if not click and not touch:
+		return
+	get_viewport().set_input_as_handled()
+	_advance_tutorial_step()
+
+func _advance_tutorial_step() -> void:
+	if _tutorial_step >= TUTORIAL_STEP_COUNT - 1:
+		_close_tutorial(true)
+		return
+	_tutorial_step += 1
+	_update_tutorial_step()
+	_layout_tutorial_overlay()
+	_play_tutorial_step_motion()
+
+func _on_tutorial_skip_pressed() -> void:
+	_close_tutorial(true)
+
+func _hide_tutorial_for_overlay() -> void:
+	if _tutorial_overlay == null or not is_instance_valid(_tutorial_overlay):
+		return
+	_close_tutorial(false)
+
+func _close_tutorial(mark_seen: bool) -> void:
+	_clear_tutorial_highlights()
+	if _tutorial_motion_tween:
+		_tutorial_motion_tween.kill()
+	if _tutorial_focus_tween:
+		_tutorial_focus_tween.kill()
+	if _tutorial_focus_target and is_instance_valid(_tutorial_focus_target):
+		_tutorial_focus_target.scale = Vector2.ONE
+	_tutorial_motion_tween = null
+	_tutorial_focus_tween = null
+	_tutorial_focus_target = null
+	if _tutorial_overlay and is_instance_valid(_tutorial_overlay):
+		_tutorial_overlay.queue_free()
+	_tutorial_overlay = null
+	_tutorial_panel = null
+	_tutorial_title = null
+	_tutorial_message = null
+	_tutorial_next_button = null
+	_tutorial_skip_button = null
+	if powerups_row:
+		powerups_row.visible = true
+	if mark_seen:
+		SaveStore.set_tutorial_seen(true)
+
+func _update_tutorial_step() -> void:
+	if _tutorial_title == null or _tutorial_message == null or _tutorial_next_button == null:
+		return
+	var title := ""
+	var message := ""
+	match _tutorial_step:
+		0:
+			title = "Swipe to Crunch"
+			message = "Swipe any direction. Matching color tiers slide together and climb the ladder.\nThis lesson advances after your first move."
+		1:
+			title = "Read the Colors"
+			message = "The word on each brick is its color tier. Mint looks mint, Sky looks sky, and Solar glows warm."
+		TUTORIAL_STEP_UNDO:
+			title = "Undo"
+			message = "Undo rewinds your last swipe when the board turns against you."
+		TUTORIAL_STEP_PRISM:
+			title = "Prism"
+			message = "Prism clears one color tier and gives the board breathing room."
+		TUTORIAL_STEP_SHUFFLE:
+			title = "Shuffle"
+			message = "Shuffle rearranges the board when the next merge is hard to see."
+		TUTORIAL_STEP_DONE:
+			title = "You're Set"
+			message = "Swipe fast, keep chains alive, and replay this from Pause any time."
+	_tutorial_title.text = title
+	_tutorial_message.text = message
+	if _tutorial_step >= TUTORIAL_STEP_COUNT - 1:
+		_tutorial_next_button.text = "Done"
+	elif _is_tutorial_click_to_continue_step():
+		_tutorial_next_button.text = "Tap Anywhere"
+	else:
+		_tutorial_next_button.text = "Next"
+	_tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_STOP if _is_tutorial_click_to_continue_step() else Control.MOUSE_FILTER_IGNORE
+	if powerups_row:
+		powerups_row.visible = _tutorial_step >= TUTORIAL_STEP_UNDO
+	_refresh_tutorial_highlights()
+
+func _layout_tutorial_overlay() -> void:
+	if _tutorial_panel == null:
+		return
+	var view_size: Vector2 = get_viewport_rect().size
+	var top_limit: float = _tutorial_top_limit()
+	var bottom_limit: float = view_size.y - 18.0
+	if powerups_row and powerups_row.visible:
+		bottom_limit = min(bottom_limit, powerups_row.global_position.y - 18.0)
+	var board_rect := Rect2()
+	if board:
+		board_rect = Rect2(
+			board.global_position,
+			Vector2(float(board.width) * board.tile_size, float(board.height) * board.tile_size)
+		)
+	var layout: Dictionary = TUTORIAL_TEMPLATE.layout_panel({
+		"view_size": view_size,
+		"board_rect": board_rect,
+		"top_limit": top_limit,
+		"bottom_limit": bottom_limit,
+		"early_step": _tutorial_step <= 1,
+		"powerup_step": _is_tutorial_powerup_step(),
+		"message": _tutorial_message.text if _tutorial_message else "",
+	})
+	_tutorial_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_tutorial_panel.position = layout["position"]
+	_tutorial_panel.size = layout["size"]
+	_tutorial_panel.pivot_offset = _tutorial_panel.size * 0.5
+	if _tutorial_next_button:
+		_tutorial_next_button.pivot_offset = _tutorial_next_button.size * 0.5
+	if _tutorial_skip_button:
+		_tutorial_skip_button.pivot_offset = _tutorial_skip_button.size * 0.5
+	_refresh_tutorial_highlights()
+
+func _tutorial_top_limit() -> float:
+	var top_limit: float = 18.0
+	if top_bar_bg:
+		top_limit = max(top_limit, top_bar_bg.global_position.y + top_bar_bg.size.y + 14.0)
+	return top_limit
+
+func _refresh_tutorial_highlights() -> void:
+	_clear_tutorial_highlights()
+	if _tutorial_overlay == null:
+		return
+	if _tutorial_step <= 1:
+		_set_tutorial_focus_target(null)
+		_add_board_merge_highlights()
+	else:
+		var target: Control = _tutorial_powerup_target()
+		_set_tutorial_focus_target(target)
+		if target:
+			_add_control_highlight(target)
+	if _tutorial_panel and is_instance_valid(_tutorial_panel):
+		_tutorial_overlay.move_child(_tutorial_panel, _tutorial_overlay.get_child_count() - 1)
+
+func _add_board_merge_highlights() -> void:
+	if board == null or board.board == null:
+		return
+	var group: Array = _tutorial_merge_cells()
+	var limit: int = min(group.size(), 4)
+	for i in range(limit):
+		var cell: Vector2i = group[i]
+		var origin: Vector2 = board.global_position + (Vector2(float(cell.x), float(cell.y)) * board.tile_size)
+		_add_highlight_rect(Rect2(origin + Vector2(2, 2), Vector2(board.tile_size - 4, board.tile_size - 4)), i + 1)
+
+func _tutorial_merge_cells() -> Array:
+	if board == null or board.board == null:
+		return []
+	for y in range(board.height):
+		for x in range(board.width):
+			var level: int = int(board.board.grid[y][x])
+			if level <= 0:
+				continue
+			if x + 1 < board.width and int(board.board.grid[y][x + 1]) == level:
+				return [Vector2i(x, y), Vector2i(x + 1, y)]
+			if y + 1 < board.height and int(board.board.grid[y + 1][x]) == level:
+				return [Vector2i(x, y), Vector2i(x, y + 1)]
+	return []
+
+func _add_control_highlight(control: Control) -> void:
+	if control == null:
+		return
+	_add_highlight_rect(control.get_global_rect().grow(10.0), 0)
+
+func _play_tutorial_step_motion() -> void:
+	if _tutorial_panel == null or not is_instance_valid(_tutorial_panel):
+		return
+	if _tutorial_motion_tween:
+		_tutorial_motion_tween.kill()
+	_tutorial_panel.pivot_offset = _tutorial_panel.size * 0.5
+	_tutorial_panel.scale = Vector2(0.96, 0.96)
+	_tutorial_panel.modulate = Color(1, 1, 1, 0.92)
+	_tutorial_motion_tween = _tutorial_panel.create_tween()
+	_tutorial_motion_tween.set_parallel(true)
+	_tutorial_motion_tween.tween_property(_tutorial_panel, "scale", Vector2(1.03, 1.03), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_tutorial_motion_tween.tween_property(_tutorial_panel, "modulate:a", 1.0, 0.08)
+	_tutorial_motion_tween.chain().tween_property(_tutorial_panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _set_tutorial_focus_target(target: Control) -> void:
+	if _tutorial_focus_tween:
+		_tutorial_focus_tween.kill()
+	if _tutorial_focus_target and is_instance_valid(_tutorial_focus_target):
+		_tutorial_focus_target.scale = Vector2.ONE
+	_tutorial_focus_target = target
+	if target == null or not is_instance_valid(target):
+		_tutorial_focus_tween = null
+		return
+	target.pivot_offset = target.size * 0.5
+	target.scale = Vector2.ONE
+	_tutorial_focus_tween = target.create_tween()
+	_tutorial_focus_tween.set_loops()
+	_tutorial_focus_tween.tween_property(target, "scale", Vector2(1.10, 1.10), 0.38).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tutorial_focus_tween.tween_property(target, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+func _is_tutorial_powerup_step() -> bool:
+	return _tutorial_step == TUTORIAL_STEP_UNDO or _tutorial_step == TUTORIAL_STEP_PRISM or _tutorial_step == TUTORIAL_STEP_SHUFFLE
+
+func _is_tutorial_click_to_continue_step() -> bool:
+	return _tutorial_step >= TUTORIAL_STEP_UNDO
+
+func _tutorial_powerup_target() -> Control:
+	match _tutorial_step:
+		TUTORIAL_STEP_UNDO:
+			return undo_button
+		TUTORIAL_STEP_PRISM:
+			return remove_color_button
+		TUTORIAL_STEP_SHUFFLE:
+			return shuffle_button
+	return null
+
+func _add_highlight_rect(rect: Rect2, index: int) -> void:
+	var highlight := Panel.new()
+	highlight.name = "Highlight"
+	highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	TUTORIAL_TEMPLATE.style_highlight(highlight)
+	highlight.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	highlight.global_position = rect.position
+	highlight.size = rect.size
+	highlight.pivot_offset = highlight.size * 0.5
+	_tutorial_overlay.add_child(highlight)
+	_tutorial_highlights.append(highlight)
+	_pulse_tutorial_highlight(highlight, index)
+	if index <= 0:
+		return
+	var marker := Label.new()
+	marker.text = str(index)
+	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	marker.add_theme_font_size_override("font_size", Typography.px(22.0))
+	marker.add_theme_color_override("font_color", Color(0.04, 0.12, 0.18, 1.0))
+	marker.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	marker.global_position = rect.position + Vector2(6, 6)
+	marker.size = Vector2(34, 34)
+	marker.pivot_offset = marker.size * 0.5
+	_tutorial_overlay.add_child(marker)
+	_tutorial_highlights.append(marker)
+
+func _pulse_tutorial_highlight(highlight: Control, index: int) -> void:
+	if _tutorial_overlay == null or not is_instance_valid(_tutorial_overlay):
+		return
+	highlight.scale = Vector2(0.94, 0.94)
+	var pulse := highlight.create_tween()
+	pulse.set_loops()
+	var delay: float = float(max(index, 0)) * 0.04
+	if delay > 0.0:
+		pulse.tween_interval(delay)
+	pulse.tween_property(highlight, "scale", Vector2(1.08, 1.08), 0.36).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pulse.tween_property(highlight, "scale", Vector2.ONE, 0.36).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+func _clear_tutorial_highlights() -> void:
+	for node in _tutorial_highlights:
+		if node and is_instance_valid(node):
+			node.queue_free()
+	_tutorial_highlights.clear()
 
 func _apply_difficulty_curve() -> void:
 	# Gentle curve: higher score trims remaining time cushion and keeps pressure up.

@@ -189,6 +189,7 @@ func style_pause_overlay(scene: Control) -> void:
 	style_label(scene.get_node_or_null("Panel/VBox/Title"), SIZE_MODAL_TITLE, WEIGHT_BOLD)
 	style_button(scene.get_node_or_null("VBox/Resume"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("Panel/VBox/Resume"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
+	style_button(scene.get_node_or_null("Panel/VBox/Tutorial"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("VBox/Quit"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
 	style_button(scene.get_node_or_null("Panel/VBox/Quit"), SIZE_BUTTON, WEIGHT_SEMIBOLD)
 

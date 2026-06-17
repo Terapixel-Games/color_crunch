@@ -20,9 +20,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-color = Color(0, 0, 0, 0.42)
+color = Color(0.02, 0.05, 0.10, 0.34)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Center" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -31,51 +31,70 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(520, 380)
+[node name="Panel" type="Panel" parent="Center"]
+custom_minimum_size = Vector2(520, 300)
+layout_mode = 1
+mouse_filter = 2
+
+[node name="ContentMargin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 26
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/ContentMargin"]
 layout_mode = 2
 mouse_filter = 2
-
-[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = 24.0
-offset_right = -24.0
-offset_bottom = -24.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-alignment = 1
 theme_override_constants/separation = 14
 
-[node name="Title" type="Label" parent="Center/Panel/VBox"]
+[node name="Title" type="Label" parent="Center/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Tip"
-horizontal_alignment = 1
+horizontal_alignment = 0
 autowrap_mode = 3
 
-[node name="Message" type="Label" parent="Center/Panel/VBox"]
+[node name="Message" type="Label" parent="Center/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 text = "This is a tutorial tip."
-horizontal_alignment = 1
+horizontal_alignment = 0
 autowrap_mode = 3
 
-[node name="DoNotShow" type="CheckButton" parent="Center/Panel/VBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Don't show this again"
-
-[node name="Confirm" type="Button" parent="Center/Panel/VBox"]
+[node name="DoNotShow" type="CheckButton" parent="Center/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 0
+text = "Don't show this again"
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Panel/ContentMargin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 12
+alignment = 2
+
+[node name="Cancel" type="Button" parent="Center/Panel/ContentMargin/VBox/Buttons"]
+visible = false
+custom_minimum_size = Vector2(150, 56)
+layout_mode = 2
+mouse_filter = 0
+text = "Cancel"
+
+[node name="Confirm" type="Button" parent="Center/Panel/ContentMargin/VBox/Buttons"]
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
+mouse_filter = 0
 text = "Got it"
-custom_minimum_size = Vector2(0, 64)
 
 [connection signal="gui_input" from="Dim" to="." method="_on_dim_gui_input"]
-[connection signal="pressed" from="Center/Panel/VBox/Confirm" to="." method="_on_confirm_pressed"]
+[connection signal="pressed" from="Center/Panel/ContentMargin/VBox/Buttons/Cancel" to="." method="_on_cancel_pressed"]
+[connection signal="pressed" from="Center/Panel/ContentMargin/VBox/Buttons/Confirm" to="." method="_on_confirm_pressed"]
