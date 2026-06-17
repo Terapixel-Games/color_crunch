@@ -8,16 +8,16 @@ const DEFAULT_TEMPLATE := {
 	"panel_min_height": 216.0,
 	"panel_screen_margin": 18.0,
 	"title_font_size": 28.0,
-	"message_font_size": 22.0,
+	"message_font_size": 21.0,
 	"button_font_size": 16.0,
 	"secondary_button_font_size": 15.0,
 	"title_font_weight": 700,
 	"message_font_weight": 400,
 	"button_font_weight": 700,
 	"secondary_button_font_weight": 600,
-	"button_height": 56.0,
-	"primary_button_width": 136.0,
-	"secondary_button_width": 166.0,
+	"button_height": 58.0,
+	"primary_button_width": 178.0,
+	"secondary_button_width": 190.0,
 	"highlight_growth": 12.0,
 	"title_message_gap": 18.0,
 	"message_button_gap": 24.0,
@@ -58,8 +58,10 @@ static func style_label(label: Label, is_title: bool, template: Dictionary = {})
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if not is_title:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		label.add_theme_constant_override("line_spacing", _font_px(float(template["message_line_spacing"])))
+	label.clip_text = false
+	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	label.add_theme_font_override("font", _font_for_role(not is_title, int(template["message_font_weight"] if not is_title else template["title_font_weight"])))
 	label.add_theme_font_size_override("font_size", _font_px(float(template["title_font_size"] if is_title else template["message_font_size"])))
 	label.add_theme_color_override("font_color", Color(0.05, 0.12, 0.22, 1.0) if is_title else Color(0.08, 0.18, 0.30, 0.98))
@@ -71,6 +73,9 @@ static func style_button(button: Button, primary: bool, template: Dictionary = {
 	button.focus_mode = Control.FOCUS_NONE
 	button.clip_text = false
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	if _has_property(button, "text_overrun_behavior"):
+		button.set("text_overrun_behavior", TextServer.OVERRUN_NO_TRIMMING)
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.custom_minimum_size = Vector2(
 		float(template["primary_button_width"] if primary else template["secondary_button_width"]),
 		float(template["button_height"])
@@ -223,3 +228,11 @@ static func _typography() -> Node:
 	if main_loop is SceneTree:
 		return (main_loop as SceneTree).root.get_node_or_null("/root/Typography")
 	return null
+
+static func _has_property(node: Object, property_name: String) -> bool:
+	if node == null:
+		return false
+	for item in node.get_property_list():
+		if String(item.get("name", "")) == property_name:
+			return true
+	return false

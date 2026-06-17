@@ -89,7 +89,7 @@ func _update_labels() -> void:
 	online_status_label.text = "Sync %s" % NakamaService.get_online_status()
 	leaderboard_label.text = _format_leaderboard(NakamaService.get_leaderboard_records())
 	if _powerups_label:
-		_powerups_label.text = "Powerups %d" % RunManager.last_run_powerups_used
+		_powerups_label.text = "Power-ups %d" % RunManager.last_run_powerups_used
 	if _encouragement_label:
 		_encouragement_label.text = _build_encouragement_text(local_best, best_value)
 	if _unlock_progress:
@@ -218,10 +218,10 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 		box.add_theme_constant_override("separation", separation)
 		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale, compact_mode)
 
-		var secondary_min: float = 30.0 if compact_mode else 36.0
-		var primary_min: float = 40.0 if compact_mode else 50.0
-		var secondary_button_height: float = clamp(content_size.y * (0.080 if is_wide else 0.055) * compact_scale, secondary_min, 120.0)
-		var primary_button_height: float = clamp(content_size.y * (0.115 if is_wide else 0.082) * compact_scale, primary_min, 132.0)
+		var secondary_min: float = 44.0 if compact_mode else 50.0
+		var primary_min: float = 54.0 if compact_mode else 62.0
+		var secondary_button_height: float = clamp(content_size.y * (0.092 if is_wide else 0.066) * compact_scale, secondary_min, 124.0)
+		var primary_button_height: float = clamp(content_size.y * (0.132 if is_wide else 0.094) * compact_scale, primary_min, 140.0)
 		if double_reward_button:
 			double_reward_button.custom_minimum_size.y = secondary_button_height
 		if play_again_button:
@@ -314,25 +314,25 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
 	var menu_title_px: int = Typography.px(Typography.SIZE_MENU_TITLE)
 	var menu_button_px: int = Typography.px(Typography.SIZE_BUTTON)
-	var kicker_min: float = 18.0 if compact_mode else 15.0
-	var title_min: float = 44.0 if compact_mode else 38.0
-	var score_min: float = 92.0 if compact_mode else 64.0
-	var mode_min: float = 20.0 if compact_mode else 18.0
-	var stat_min: float = 24.0 if compact_mode else 20.0
-	var body_min: float = 22.0 if compact_mode else 16.0
-	var coin_min: float = 22.0 if compact_mode else 16.0
-	var reward_min: float = 22.0 if compact_mode else 17.0
-	var primary_min: float = 26.0 if compact_mode else 20.0
-	var compact_body_boost: float = 1.22 if compact_mode else 1.0
-	var kicker_size: int = int(round(clamp(float(menu_button_px) * (0.56 if compact_mode else 0.46) * compact_scale, kicker_min, 34.0)))
-	var title_size: int = int(round(clamp(float(menu_title_px) * (0.78 if compact_mode else 0.66) * headline_scale, title_min, 116.0)))
-	var score_size: int = int(round(clamp(max(float(menu_title_px) * 0.98, stat_column_width * 0.18) * headline_scale, score_min, 168.0)))
-	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.72 * compact_scale * compact_body_boost, mode_min, 48.0)))
-	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.82 * compact_scale * compact_body_boost, stat_min, 58.0)))
-	var body_size: int = int(round(clamp(float(menu_button_px) * 0.74 * compact_scale * compact_body_boost, body_min, 46.0)))
-	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.76 * compact_scale * compact_body_boost, coin_min, 48.0)))
-	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.76 * action_scale * compact_body_boost, reward_min, 46.0)))
-	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.88 if is_wide else 0.84) * action_scale * compact_body_boost, primary_min, 58.0)))
+	var kicker_min: float = 17.0 if compact_mode else 14.0
+	var title_min: float = 40.0 if compact_mode else 36.0
+	var score_min: float = 78.0 if compact_mode else 58.0
+	var mode_min: float = 18.0 if compact_mode else 16.0
+	var stat_min: float = 22.0 if compact_mode else 18.0
+	var body_min: float = 20.0 if compact_mode else 15.0
+	var coin_min: float = 20.0 if compact_mode else 15.0
+	var reward_min: float = 20.0 if compact_mode else 16.0
+	var primary_min: float = 24.0 if compact_mode else 20.0
+	var compact_body_boost: float = 1.08 if compact_mode else 1.0
+	var kicker_size: int = int(round(clamp(float(menu_button_px) * (0.48 if compact_mode else 0.38) * compact_scale, kicker_min, 30.0)))
+	var title_size: int = int(round(clamp(float(menu_title_px) * (0.68 if compact_mode else 0.60) * headline_scale, title_min, 96.0)))
+	var score_size: int = int(round(clamp(max(float(menu_title_px) * 0.84, stat_column_width * 0.16) * headline_scale, score_min, 138.0)))
+	var mode_size: int = int(round(clamp(float(menu_button_px) * 0.56 * compact_scale * compact_body_boost, mode_min, 36.0)))
+	var stat_size: int = int(round(clamp(float(menu_button_px) * 0.64 * compact_scale * compact_body_boost, stat_min, 44.0)))
+	var body_size: int = int(round(clamp(float(menu_button_px) * 0.54 * compact_scale * compact_body_boost, body_min, 34.0)))
+	var coin_size: int = int(round(clamp(float(menu_button_px) * 0.56 * compact_scale * compact_body_boost, coin_min, 36.0)))
+	var reward_button_size: int = int(round(clamp(float(menu_button_px) * 0.58 * action_scale * compact_body_boost, reward_min, 36.0)))
+	var primary_button_size: int = int(round(clamp(float(menu_button_px) * (0.68 if is_wide else 0.66) * action_scale * compact_body_boost, primary_min, 44.0)))
 
 	if kicker_label:
 		kicker_label.add_theme_font_size_override("font_size", kicker_size)
@@ -350,7 +350,7 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 		online_status_label.add_theme_font_size_override("font_size", body_size)
 	if leaderboard_label:
 		leaderboard_label.add_theme_font_size_override("font_size", body_size)
-		leaderboard_label.add_theme_constant_override("line_spacing", int(clamp(round(float(body_size) * 0.25), 4.0, 10.0)))
+		leaderboard_label.add_theme_constant_override("line_spacing", int(clamp(round(float(body_size) * 0.30), 4.0, 10.0)))
 	if coins_earned_label:
 		coins_earned_label.add_theme_font_size_override("font_size", coin_size)
 	if coin_balance_label:
@@ -470,7 +470,7 @@ func _on_double_reward_ad_earned() -> void:
 func _format_leaderboard(records: Array) -> String:
 	var mode_label := _mode_label()
 	if records.is_empty():
-		return "%s leaderboard waiting for records" % mode_label
+		return "%s leaderboard\nWaiting for records" % mode_label
 	var lines: Array[String] = []
 	var count: int = min(records.size(), 3)
 	for i in range(count):
@@ -698,7 +698,7 @@ func _build_grade_text(best_value: int) -> String:
 	elif ratio >= 0.55:
 		grade = "B"
 	var best_suffix: String = "  New best" if best_value > 0 and RunManager.last_score >= best_value else ""
-	return "Grade %s  Rival %d%%%s" % [grade, int(round(clamp(ratio, 0.0, 1.0) * 100.0)), best_suffix]
+	return "Grade %s / Rival %d%%%s" % [grade, int(round(clamp(ratio, 0.0, 1.0) * 100.0)), best_suffix]
 
 func _rival_progress_value() -> float:
 	var target: int = max(1, int(RunManager.get_rival_snapshot().get("target_before", RunManager.get_active_rival_target())))
@@ -767,14 +767,18 @@ func _apply_color_crunch_results_style() -> void:
 func _style_results_labels() -> void:
 	var shadow := Color(0.08, 0.12, 0.18, 0.94)
 	var primary := Color(1.0, 0.985, 0.92, 1.0)
-	var soft := Color(0.84, 0.98, 0.96, 0.96)
-	var sky := Color(0.72, 0.92, 1.0, 0.98)
+	var soft := Color(0.84, 0.98, 0.96, 0.88)
+	var muted := Color(0.74, 0.88, 0.92, 0.86)
+	var sky := Color(0.72, 0.92, 1.0, 0.90)
 	for label in [title_label, best_label, streak_label, online_status_label, leaderboard_label, coins_earned_label, coin_balance_label, _powerups_label, _encouragement_label, _dual_leaderboard_label, _weekly_ladder_label, _rival_target_label, _grade_label]:
 		if label == null:
 			continue
 		label.add_theme_color_override("font_color", primary)
 		label.add_theme_color_override("font_outline_color", shadow)
 		label.add_theme_constant_override("outline_size", 3)
+	for label in [best_label, streak_label, coins_earned_label, coin_balance_label, _powerups_label, _encouragement_label, _weekly_ladder_label, _rival_target_label, _dual_leaderboard_label]:
+		if label:
+			label.add_theme_color_override("font_color", soft)
 	if kicker_label:
 		kicker_label.add_theme_color_override("font_color", Color(0.54, 0.96, 0.86, 1.0))
 		kicker_label.add_theme_color_override("font_outline_color", shadow)
@@ -786,7 +790,7 @@ func _style_results_labels() -> void:
 	if mode_badge_label:
 		mode_badge_label.add_theme_color_override("font_color", soft)
 	if online_status_label:
-		online_status_label.add_theme_color_override("font_color", sky)
+		online_status_label.add_theme_color_override("font_color", muted)
 	if leaderboard_label:
 		leaderboard_label.add_theme_color_override("font_color", sky)
 	if _grade_label:

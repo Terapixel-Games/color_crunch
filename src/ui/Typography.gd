@@ -20,9 +20,12 @@ const WEIGHT_SEMIBOLD: int = 600
 const WEIGHT_BOLD: int = 700
 
 const BASE_FONT_PATH := "res://assets/fonts/SpaceGrotesk.ttf"
+const BODY_FONT_PATH := "res://assets/fonts/Chivo.ttf"
 
 var _base_font: Font
+var _body_font: Font
 var _font_cache: Dictionary = {}
+var _body_font_cache: Dictionary = {}
 
 func scale_factor() -> float:
 	var tree := get_tree()
@@ -45,6 +48,18 @@ func _font_for_weight(weight: int) -> Font:
 	_font_cache[weight] = variation
 	return variation
 
+func interface_font(weight: int = WEIGHT_REGULAR) -> Font:
+	return _font_for_weight(weight)
+
+func body_font(weight: int = WEIGHT_REGULAR) -> Font:
+	if _body_font_cache.has(weight):
+		return _body_font_cache[weight]
+	var variation := FontVariation.new()
+	variation.base_font = _ensure_body_font()
+	variation.variation_opentype = {"wght": weight}
+	_body_font_cache[weight] = variation
+	return variation
+
 func _ensure_base_font() -> Font:
 	if _base_font != null:
 		return _base_font
@@ -55,6 +70,16 @@ func _ensure_base_font() -> Font:
 		_base_font = ThemeDB.fallback_font
 	return _base_font
 
+func _ensure_body_font() -> Font:
+	if _body_font != null:
+		return _body_font
+	var loaded: Resource = load(BODY_FONT_PATH)
+	if loaded is Font:
+		_body_font = loaded as Font
+	else:
+		_body_font = _ensure_base_font()
+	return _body_font
+
 func style_label(label: Label, reference_size: float, weight: int, secondary: bool = false) -> void:
 	if label == null:
 		return
@@ -63,6 +88,8 @@ func style_label(label: Label, reference_size: float, weight: int, secondary: bo
 	label.add_theme_color_override("font_color", SECONDARY_TEXT if secondary else PRIMARY_TEXT)
 	label.add_theme_color_override("font_outline_color", SHADOW_TEXT)
 	label.add_theme_constant_override("outline_size", max(1, int(round(2.0 * scale_factor()))))
+	label.clip_text = false
+	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 
 func style_button(button: BaseButton, reference_size: float, weight: int = WEIGHT_SEMIBOLD) -> void:
 	if button == null:
@@ -75,6 +102,9 @@ func style_button(button: BaseButton, reference_size: float, weight: int = WEIGH
 	button.add_theme_color_override("font_disabled_color", SECONDARY_TEXT)
 	button.add_theme_color_override("font_outline_color", SHADOW_TEXT)
 	button.add_theme_constant_override("outline_size", max(1, int(round(2.0 * scale_factor()))))
+	button.clip_text = false
+	if _has_property(button, "text_overrun_behavior"):
+		button.set("text_overrun_behavior", TextServer.OVERRUN_NO_TRIMMING)
 
 func style_main_menu(scene: Control) -> void:
 	style_label(_node_from_paths(scene, [
@@ -263,3 +293,11 @@ func _style_labels(scene: Node, paths: Array[String], reference_size: float, wei
 		var node := scene.get_node_or_null(path)
 		if node is Label:
 			style_label(node as Label, reference_size, weight, secondary)
+
+func _has_property(node: Object, property_name: String) -> bool:
+	if node == null:
+		return false
+	for item in node.get_property_list():
+		if String(item.get("name", "")) == property_name:
+			return true
+	return false

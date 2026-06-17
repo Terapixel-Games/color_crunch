@@ -107,6 +107,8 @@ func test_tutorial_tip_modal_keeps_long_tip_inside_panel_on_square_viewport() ->
 	assert_that(message.get_global_rect().end.y).is_less_equal(checkbox.get_global_rect().position.y + 1.0)
 	assert_that(checkbox.get_global_rect().end.y).is_less_equal(buttons.get_global_rect().position.y + 1.0)
 	assert_that(title.get_global_rect().end.x).is_less_equal(close_rect.position.x + 1.0)
+	assert_that(panel_rect.end.y - buttons.get_global_rect().end.y).is_greater_equal(12.0)
+	assert_that(checkbox.size.x).is_less_equal(340.0)
 	assert_that(panel.size.x).is_greater_equal(500.0)
 
 	modal.queue_free()
@@ -139,6 +141,41 @@ func test_tutorial_tip_modal_close_button_cancels_without_confirming() -> void:
 	assert_that(confirmed[0]).is_false()
 	assert_that(canceled[0]).is_true()
 	await get_tree().process_frame
+
+func test_game_tutorial_button_labels_fit_portrait_and_tap_anywhere_state() -> void:
+	var original_size: Vector2i = get_tree().root.size
+	var original_scale_size: Vector2i = get_tree().root.content_scale_size
+	var original_seen: bool = SaveStore.is_tutorial_seen()
+	get_tree().root.size = Vector2i(720, 1280)
+	get_tree().root.content_scale_size = Vector2i(720, 1280)
+	SaveStore.set_tutorial_seen(false)
+
+	var game: Control = await _spawn_game()
+	game.call("_show_tutorial", true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var panel: Control = game.get_node("UI/TutorialOverlay/Panel") as Control
+	var skip_button: Button = game.get_node("UI/TutorialOverlay/Panel/Margin/VBox/Buttons/Skip") as Button
+	var next_button: Button = game.get_node("UI/TutorialOverlay/Panel/Margin/VBox/Buttons/Next") as Button
+	_assert_rect_inside(skip_button.get_global_rect(), panel.get_global_rect())
+	_assert_rect_inside(next_button.get_global_rect(), panel.get_global_rect())
+	_assert_button_text_fits(skip_button)
+	_assert_button_text_fits(next_button)
+	assert_that(skip_button.get_global_rect().intersects(next_button.get_global_rect())).is_false()
+
+	game.call("_advance_tutorial_step")
+	game.call("_advance_tutorial_step")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_that(next_button.text).is_equal("Tap Anywhere")
+	_assert_button_text_fits(next_button)
+	_assert_rect_inside(next_button.get_global_rect(), panel.get_global_rect())
+
+	await _free_scene(game)
+	SaveStore.set_tutorial_seen(original_seen)
+	get_tree().root.size = original_size
+	get_tree().root.content_scale_size = original_scale_size
 
 func test_game_tutorial_first_run_replay_and_overlay_close_behavior() -> void:
 	var original_seen: bool = SaveStore.is_tutorial_seen()
@@ -190,3 +227,11 @@ func _assert_rect_inside(inner: Rect2, outer: Rect2, epsilon: float = 1.0) -> vo
 	assert_that(inner.position.y).is_greater_equal(outer.position.y - epsilon)
 	assert_that(inner.end.x).is_less_equal(outer.end.x + epsilon)
 	assert_that(inner.end.y).is_less_equal(outer.end.y + epsilon)
+
+func _assert_button_text_fits(button: Button, horizontal_padding: float = 28.0) -> void:
+	assert_that(button).is_not_null()
+	var font: Font = button.get_theme_font("font")
+	var font_size: int = button.get_theme_font_size("font_size")
+	var text_width: float = font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
+	var available_width: float = max(button.custom_minimum_size.x, button.size.x) - horizontal_padding
+	assert_that(text_width).is_less_equal(available_width)
