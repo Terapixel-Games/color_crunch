@@ -4,6 +4,8 @@ signal dismissed(do_not_show_again: bool)
 signal confirmed(do_not_show_again: bool)
 signal canceled(do_not_show_again: bool)
 
+const MODAL_LAYER_Z_INDEX := 1000
+
 @onready var dim: ColorRect = $Dim
 @onready var center_layer: Control = $Center
 @onready var panel: Panel = $Center/Panel
@@ -28,6 +30,8 @@ var _target_tween: Tween
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	z_index = MODAL_LAYER_Z_INDEX
+	z_as_relative = false
 	set_process_unhandled_input(true)
 	_build_effect_nodes()
 	if not _pending_config.is_empty():

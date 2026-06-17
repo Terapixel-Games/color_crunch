@@ -49,6 +49,8 @@ func test_tutorial_tip_modal_uses_consistent_input_and_pivots() -> void:
 
 	assert_that(modal.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)
 	assert_that(modal.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	assert_that(modal.z_index).is_greater(10)
+	assert_that(modal.z_as_relative).is_false()
 	assert_that((modal.get_node("Dim") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_that((modal.get_node("Center") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_that((modal.get_node("Center/Panel/ContentMargin") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
