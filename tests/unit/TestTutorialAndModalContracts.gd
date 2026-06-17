@@ -209,6 +209,35 @@ func test_game_tutorial_first_run_replay_and_overlay_close_behavior() -> void:
 	await _free_scene(game)
 	SaveStore.set_tutorial_seen(original_seen)
 
+func test_game_timer_chip_is_inside_top_hud_portrait_and_landscape() -> void:
+	var original_size: Vector2i = get_tree().root.size
+	var original_scale_size: Vector2i = get_tree().root.content_scale_size
+	var viewports: Array[Vector2i] = [Vector2i(720, 1280), Vector2i(1280, 720)]
+	for viewport in viewports:
+		get_tree().root.size = viewport
+		get_tree().root.content_scale_size = viewport
+		var game: Control = await _spawn_game()
+		await get_tree().process_frame
+		await get_tree().process_frame
+
+		var top_bar_bg: Control = game.get_node("UI/TopBarBg") as Control
+		var top_bar: Control = game.get_node("UI/TopBar") as Control
+		var score_box: Control = game.get_node("UI/TopBar/ScoreBox") as Control
+		var pause_button: Control = game.get_node("UI/TopBar/Pause") as Control
+		var timer_chip: Control = game.get_node("UI/TopBar/RoundTimerChip") as Control
+		var timer_value: Label = game.get_node("UI/TopBar/RoundTimerChip/Margin/VBox/Value") as Label
+
+		assert_that(timer_chip.get_parent()).is_equal(top_bar)
+		_assert_rect_inside(timer_chip.get_global_rect(), top_bar_bg.get_global_rect().grow(2.0))
+		assert_that(timer_chip.get_global_rect().intersects(score_box.get_global_rect())).is_false()
+		assert_that(timer_chip.get_global_rect().intersects(pause_button.get_global_rect())).is_false()
+		assert_that(timer_value.text.begins_with("Time")).is_false()
+		assert_that(timer_value.get_theme_font_size("font_size")).is_greater_equal(24)
+
+		await _free_scene(game)
+	get_tree().root.size = original_size
+	get_tree().root.content_scale_size = original_scale_size
+
 func test_prism_color_picker_input_contract_and_selection() -> void:
 	var picker: Control = _make_prism_picker()
 	get_tree().root.add_child(picker)

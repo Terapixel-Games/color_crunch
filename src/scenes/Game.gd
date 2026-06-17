@@ -59,6 +59,8 @@ var _round_time_left: float = 90.0
 var _board_anchor_pos: Vector2 = Vector2.ZERO
 var _scene_opened_msec: int = Time.get_ticks_msec()
 var _combo_label: Label
+var _timer_chip: PanelContainer
+var _timer_caption_label: Label
 var _timer_label: Label
 var _near_miss_label: Label
 var _shake_strength: float = 0.0
@@ -1017,23 +1019,39 @@ func _setup_dynamic_overlays() -> void:
 		_combo_label.offset_top = 86.0
 		_combo_label.offset_bottom = 130.0
 		$UI.add_child(_combo_label)
-	if _timer_label == null:
+	if _timer_chip == null:
+		_timer_chip = PanelContainer.new()
+		_timer_chip.name = "RoundTimerChip"
+		_timer_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_timer_chip.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_timer_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top_bar.add_child(_timer_chip)
+		top_bar.move_child(_timer_chip, max(0, top_bar.get_child_count() - 2))
+		var timer_margin := MarginContainer.new()
+		timer_margin.name = "Margin"
+		timer_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_timer_chip.add_child(timer_margin)
+		var timer_box := VBoxContainer.new()
+		timer_box.name = "VBox"
+		timer_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		timer_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		timer_box.add_theme_constant_override("separation", -2)
+		timer_margin.add_child(timer_box)
+		_timer_caption_label = Label.new()
+		_timer_caption_label.name = "Caption"
+		_timer_caption_label.text = "TIME"
+		_timer_caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_timer_caption_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_timer_caption_label.clip_text = false
+		_timer_caption_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		timer_box.add_child(_timer_caption_label)
 		_timer_label = Label.new()
-		_timer_label.name = "RoundTimer"
-		_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_timer_label.add_theme_font_size_override("font_size", 28)
-		_timer_label.add_theme_color_override("font_color", Color(0.05, 0.12, 0.22, 1.0))
-		_timer_label.add_theme_color_override("font_outline_color", Color(0.92, 0.98, 1.0, 0.72))
-		_timer_label.add_theme_constant_override("outline_size", 2)
-		_timer_label.anchor_left = 0.5
-		_timer_label.anchor_right = 1.0
-		_timer_label.anchor_top = 0.0
-		_timer_label.anchor_bottom = 0.0
-		_timer_label.offset_left = -220.0
-		_timer_label.offset_right = -18.0
-		_timer_label.offset_top = 24.0
-		_timer_label.offset_bottom = 68.0
-		$UI.add_child(_timer_label)
+		_timer_label.name = "Value"
+		_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_timer_label.clip_text = false
+		_timer_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		timer_box.add_child(_timer_label)
 	if _near_miss_label == null:
 		_near_miss_label = Label.new()
 		_near_miss_label.name = "NearMissLabel"
@@ -1055,21 +1073,22 @@ func _setup_dynamic_overlays() -> void:
 	_update_timer_label()
 
 func _layout_dynamic_overlays(view_size: Vector2) -> void:
-	if _timer_label:
-		var timer_width: float = clamp(view_size.x * 0.18, 108.0, 220.0)
-		var timer_height: float = clamp(top_bar_bg.size.y * 0.28, 24.0, 38.0) if top_bar_bg else 32.0
-		var pause_reserve: float = pause_button.size.x + clamp(top_bar_bg.size.y * 0.10, 10.0, 20.0) if pause_button != null and top_bar_bg != null else 76.0
-		_timer_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		if top_bar_bg:
-			var timer_x: float = top_bar_bg.position.x + max(18.0, top_bar_bg.size.x - timer_width - pause_reserve)
-			if pause_button != null and pause_button.size.x > 0.0:
-				timer_x = min(timer_x, pause_button.get_global_rect().position.x - timer_width - 12.0)
-			timer_x = clamp(timer_x, top_bar_bg.position.x + 14.0, top_bar_bg.position.x + top_bar_bg.size.x - timer_width - 14.0)
-			_timer_label.position = Vector2(timer_x, top_bar_bg.position.y + top_bar_bg.size.y + 6.0)
-		else:
-			_timer_label.position = Vector2(max(16.0, view_size.x - timer_width - 112.0), 18.0)
-		_timer_label.size = Vector2(timer_width, timer_height)
-		_timer_label.add_theme_font_size_override("font_size", int(round(clamp(timer_height * 0.86, 16.0, 26.0))))
+	if _timer_chip:
+		var top_height: float = top_bar_bg.size.y if top_bar_bg else clamp(view_size.y * 0.12, 72.0, 120.0)
+		var chip_width: float = clamp(view_size.x * 0.16, 82.0, 132.0)
+		var chip_height: float = clamp(top_height * 0.70, 50.0, 78.0)
+		_timer_chip.custom_minimum_size = Vector2(chip_width, chip_height)
+		_timer_chip.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_timer_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_style_timer_chip(_round_time_left <= 15.0)
+		var timer_margin: MarginContainer = _timer_chip.get_node("Margin") as MarginContainer
+		if timer_margin:
+			var margin_x: int = int(round(clamp(chip_width * 0.12, 10.0, 16.0)))
+			var margin_y: int = int(round(clamp(chip_height * 0.08, 4.0, 8.0)))
+			timer_margin.add_theme_constant_override("margin_left", margin_x)
+			timer_margin.add_theme_constant_override("margin_top", margin_y)
+			timer_margin.add_theme_constant_override("margin_right", margin_x)
+			timer_margin.add_theme_constant_override("margin_bottom", margin_y)
 	if _combo_label:
 		_combo_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_combo_label.position = Vector2((view_size.x - 360.0) * 0.5, clamp(view_size.y * 0.055, 46.0, 86.0))
@@ -1083,9 +1102,42 @@ func _update_timer_label() -> void:
 	if _timer_label == null:
 		return
 	var seconds_left := int(ceil(_round_time_left))
-	_timer_label.text = "Time %02d" % max(0, seconds_left)
+	_timer_label.text = "%02d" % max(0, seconds_left)
 	var danger := _round_time_left <= 15.0
-	_timer_label.add_theme_color_override("font_color", Color(1.0, 0.28, 0.24, 1.0) if danger else Color(0.05, 0.12, 0.22, 1.0))
+	_style_timer_chip(danger)
+
+func _style_timer_chip(danger: bool) -> void:
+	if _timer_chip == null:
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.23, 0.24, 0.26) if danger else Color(0.70, 0.92, 1.0, 0.16)
+	style.border_color = Color(1.0, 0.62, 0.58, 0.78) if danger else Color(0.86, 0.97, 1.0, 0.42)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 16
+	style.corner_radius_top_right = 16
+	style.corner_radius_bottom_left = 16
+	style.corner_radius_bottom_right = 16
+	style.shadow_color = Color(0.02, 0.05, 0.16, 0.26)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2(0, 3)
+	_timer_chip.add_theme_stylebox_override("panel", style)
+	var label_color: Color = Color(1.0, 0.35, 0.31, 1.0) if danger else Color(0.93, 0.98, 1.0, 1.0)
+	var caption_color: Color = Color(1.0, 0.76, 0.70, 0.95) if danger else Color(0.74, 0.92, 1.0, 0.88)
+	if _timer_caption_label:
+		_timer_caption_label.add_theme_font_override("font", Typography.interface_font(Typography.WEIGHT_SEMIBOLD))
+		_timer_caption_label.add_theme_font_size_override("font_size", int(round(clamp(_timer_chip.custom_minimum_size.y * 0.22, 11.0, 15.0))))
+		_timer_caption_label.add_theme_color_override("font_color", caption_color)
+		_timer_caption_label.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.12, 0.86))
+		_timer_caption_label.add_theme_constant_override("outline_size", 1)
+	if _timer_label:
+		_timer_label.add_theme_font_override("font", Typography.interface_font(Typography.WEIGHT_BOLD))
+		_timer_label.add_theme_font_size_override("font_size", int(round(clamp(_timer_chip.custom_minimum_size.y * 0.52, 24.0, 40.0))))
+		_timer_label.add_theme_color_override("font_color", label_color)
+		_timer_label.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.12, 0.92))
+		_timer_label.add_theme_constant_override("outline_size", 2)
 
 func _show_combo_feedback() -> void:
 	if _combo_label == null or combo < 2:
