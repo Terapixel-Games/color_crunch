@@ -40,11 +40,11 @@ func start_game() -> void:
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 func prepare_run_start() -> void:
-	last_run_selected_mode = SaveStore.get_preferred_mode()
+	last_run_selected_mode = "PURE"
 	last_run_daily_challenge = SaveStore.get_daily_challenge_enabled()
 	last_run_powerups_used = 0
 	last_run_coins_spent = 0
-	last_run_leaderboard_mode = last_run_selected_mode
+	last_run_leaderboard_mode = "PURE"
 	last_run_powerup_breakdown = {}
 	last_run_duration_ms = 0
 	_run_started_at_unix = Time.get_unix_time_from_system()
@@ -55,7 +55,7 @@ func prepare_run_start() -> void:
 func set_run_leaderboard_context(powerups_used: int, coins_spent: int = 0, powerup_breakdown: Dictionary = {}) -> void:
 	last_run_powerups_used = max(0, powerups_used)
 	last_run_coins_spent = max(0, coins_spent)
-	last_run_leaderboard_mode = "OPEN" if (last_run_powerups_used > 0 or last_run_selected_mode == "OPEN") else "PURE"
+	last_run_leaderboard_mode = "OPEN" if last_run_powerups_used > 0 else "PURE"
 	last_run_powerup_breakdown = powerup_breakdown.duplicate(true)
 
 func end_game(score: int, completed_by_gameplay: bool = true) -> void:
@@ -81,17 +81,15 @@ func end_game(score: int, completed_by_gameplay: bool = true) -> void:
 	_update_unlock_progress()
 	get_tree().change_scene_to_file(RESULTS_SCENE)
 
-func set_selected_mode(mode_id: String, source: String = "ui") -> void:
-	var mode := mode_id.strip_edges().to_upper()
-	if mode != "OPEN":
-		mode = "PURE"
+func set_selected_mode(_mode_id: String, source: String = "ui") -> void:
+	var mode := "PURE"
 	SaveStore.set_preferred_mode(mode)
 	last_run_selected_mode = mode
 	if Telemetry and Telemetry.has_method("mark_mode_selected"):
 		Telemetry.mark_mode_selected(mode, source)
 
 func get_selected_mode() -> String:
-	return SaveStore.get_preferred_mode()
+	return "PURE"
 
 func set_daily_challenge_enabled(enabled: bool) -> void:
 	SaveStore.set_daily_challenge_enabled(enabled)
@@ -130,7 +128,7 @@ func _update_social_loop(score: int) -> void:
 
 	var points_gained: int = max(0, score)
 	points_gained += max(0, StreakManager.get_streak_days() * 12)
-	if last_run_selected_mode == "PURE":
+	if last_run_leaderboard_mode == "PURE":
 		points_gained += int(round(float(score) * 0.15))
 	var week_points_after: int = week_points_before + points_gained
 	var week_best_after: int = max(week_best_before, score)

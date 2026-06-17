@@ -4,7 +4,8 @@ var _original_mode: String = "PURE"
 
 func before() -> void:
 	_original_mode = RunManager.get_selected_mode()
-	RunManager.set_selected_mode("OPEN", "test")
+	RunManager.set_selected_mode("PURE", "test")
+	RunManager.prepare_run_start()
 	ProjectSettings.set_setting("lumarush/powerup_undo_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_remove_color_charges", 1)
 	ProjectSettings.set_setting("lumarush/powerup_shuffle_charges", 1)
@@ -31,9 +32,13 @@ func test_remove_color_and_shuffle_consume_charges() -> void:
 
 	await game._on_remove_color_pressed()
 	assert_that(int(game._remove_color_charges)).is_equal(0)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
+	assert_that(RunManager.last_run_powerups_used).is_equal(1)
 
 	await game._on_shuffle_pressed()
 	assert_that(int(game._shuffle_charges)).is_equal(0)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
+	assert_that(RunManager.last_run_powerups_used).is_equal(2)
 
 	await _free_scene(game)
 
@@ -49,13 +54,16 @@ func test_undo_restores_snapshot_and_consumes_charge() -> void:
 	board_view._refresh_tiles()
 	var before: Array = board_view.capture_snapshot()
 	await board_view._attempt_move(Vector2i.LEFT)
-	game._on_undo_pressed()
+	await game._on_undo_pressed()
 	assert_that(board_view.capture_snapshot()).is_equal(before)
 	assert_that(int(game._undo_charges)).is_equal(0)
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
+	assert_that(RunManager.last_run_powerups_used).is_equal(1)
 
 	await _free_scene(game)
 
 func _spawn_game() -> Control:
+	RunManager.prepare_run_start()
 	var scene: PackedScene = load("res://src/scenes/Game.tscn") as PackedScene
 	var game: Control = scene.instantiate() as Control
 	get_tree().root.add_child(game)

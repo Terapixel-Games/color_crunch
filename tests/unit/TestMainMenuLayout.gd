@@ -17,7 +17,12 @@ func test_menu_panel_is_centered_in_viewport() -> void:
 	assert_that(panel).is_not_null()
 	assert_that(box).is_not_null()
 	var audio_button: Control = menu.get_node_or_null("UI/RootMargin/Layout/TopBar/Audio") as Control
+	var mode_button: Button = menu.get_node_or_null("UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/ModeToggle") as Button
 	assert_that(audio_button).is_not_null()
+	assert_that(mode_button).is_not_null()
+	assert_that(mode_button.visible).is_false()
+	assert_that(mode_button.disabled).is_true()
+	assert_that(mode_button.focus_mode).is_equal(Control.FOCUS_NONE)
 	var viewport_center: Vector2 = menu.get_viewport_rect().size * 0.5
 	var panel_center: Vector2 = panel.global_position + (panel.size * 0.5)
 	var box_center: Vector2 = box.global_position + (box.size * 0.5)

@@ -1,8 +1,12 @@
 extends GdUnitTestSuite
 
 func test_run_mode_switches_to_open_after_powerup_usage() -> void:
+	var original_selected_mode: String = RunManager.last_run_selected_mode
+	RunManager.last_run_selected_mode = "OPEN"
 	RunManager.set_run_leaderboard_context(0, 0, {})
-	assert_that(RunManager.last_run_leaderboard_mode).is_equal("PURE")
+	var no_powerup_mode: String = RunManager.last_run_leaderboard_mode
+	RunManager.last_run_selected_mode = original_selected_mode
+	assert_that(no_powerup_mode).is_equal("PURE")
 	RunManager.set_run_leaderboard_context(1, 0, {"undo": 1})
 	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
 	assert_that(RunManager.last_run_powerups_used).is_equal(1)

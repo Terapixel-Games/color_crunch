@@ -147,9 +147,13 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 96)
 
 [node name="Menu" type="Button" parent="UI/Panel/Scroll/VBox"]
+visible = false
 script = ExtResource( 5 )
 text = "New Run"
 size_flags_horizontal = 3
+focus_mode = 0
+mouse_filter = 2
+disabled = true
 custom_minimum_size = Vector2(0, 86)
 
 [connection signal="pressed" from="UI/Panel/Scroll/VBox/PlayAgain" to="." method="_on_play_again_pressed"]

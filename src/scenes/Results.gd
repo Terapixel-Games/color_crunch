@@ -134,13 +134,15 @@ func _play_intro() -> void:
 	panel_item.scale = Vector2(0.9, 0.9)
 	box_item.scale = Vector2(0.95, 0.95)
 	play_again.modulate.a = 0.0
-	menu.modulate.a = 0.0
+	if menu_button and menu_button.visible:
+		menu.modulate.a = 0.0
 	var t := create_tween()
 	t.tween_property(ui, "modulate:a", 1.0, 0.28)
 	t.parallel().tween_property(panel_item, "scale", Vector2.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.parallel().tween_property(box_item, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(play_again, "modulate:a", 1.0, 0.16)
-	t.tween_property(menu, "modulate:a", 1.0, 0.16)
+	if menu_button and menu_button.visible:
+		t.tween_property(menu, "modulate:a", 1.0, 0.16)
 
 func _refresh_intro_pivots() -> void:
 	if panel:
@@ -224,7 +226,7 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 			double_reward_button.custom_minimum_size.y = secondary_button_height
 		if play_again_button:
 			play_again_button.custom_minimum_size.y = primary_button_height
-		if menu_button:
+		if menu_button and menu_button.visible:
 			menu_button.custom_minimum_size.y = clamp(primary_button_height * 0.92, secondary_min, 122.0)
 		if spacer:
 			spacer.custom_minimum_size.y = max(0.0, round(content_size.y * (0.004 if compact_mode else 0.010) * compact_scale))
@@ -376,7 +378,7 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)
 	if play_again_button:
 		play_again_button.add_theme_font_size_override("font_size", primary_button_size)
-	if menu_button:
+	if menu_button and menu_button.visible:
 		menu_button.add_theme_font_size_override("font_size", primary_button_size)
 
 func _bind_online_signals() -> void:
@@ -735,6 +737,10 @@ func _apply_results_copy() -> void:
 		play_again_button.text = "Play Again"
 	if menu_button:
 		menu_button.text = "New Run"
+		menu_button.visible = false
+		menu_button.disabled = true
+		menu_button.focus_mode = Control.FOCUS_NONE
+		menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if double_reward_button:
 		double_reward_button.text = "Double Coins"
 

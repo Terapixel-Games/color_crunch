@@ -31,6 +31,8 @@ func test_results_actions_stay_inside_panel_on_wide_short_viewports() -> void:
 	assert_that(panel).is_not_null()
 	assert_that(play_again).is_not_null()
 	assert_that(menu).is_not_null()
+	assert_that(menu.visible).is_false()
+	assert_that(menu.disabled).is_true()
 	assert_that(audio_button).is_not_null()
 	assert_that(reward_cards).is_not_null()
 
@@ -47,10 +49,8 @@ func test_results_actions_stay_inside_panel_on_wide_short_viewports() -> void:
 		await get_tree().process_frame
 		var panel_rect: Rect2 = panel.get_global_rect()
 		var play_rect: Rect2 = play_again.get_global_rect()
-		var menu_rect: Rect2 = menu.get_global_rect()
 		var audio_rect: Rect2 = audio_button.get_global_rect()
 		_assert_rect_inside(play_rect, panel_rect)
-		_assert_rect_inside(menu_rect, panel_rect)
 		_assert_rect_inside(reward_cards.get_global_rect(), panel_rect)
 		_assert_rect_inside(audio_rect, Rect2(Vector2.ZERO, size))
 
@@ -58,7 +58,7 @@ func test_results_actions_stay_inside_panel_on_wide_short_viewports() -> void:
 
 func test_results_uses_color_crunch_run_payoff_contract() -> void:
 	RunManager.last_score = 512
-	RunManager.last_run_leaderboard_mode = "PURE"
+	RunManager.last_run_leaderboard_mode = "OPEN"
 	RunManager.last_run_powerups_used = 2
 	SaveStore.data["high_score"] = 1024
 
@@ -82,9 +82,10 @@ func test_results_uses_color_crunch_run_payoff_contract() -> void:
 	assert_that(kicker.text).is_equal("RUN RESULTS")
 	assert_that(title.text).is_equal("Run Complete")
 	assert_that(score.text).is_equal("512")
-	assert_that(mode.text).is_equal("PURE MODE")
+	assert_that(mode.text).is_equal("OPEN MODE")
 	assert_that(play_again.text).is_equal("Play Again")
-	assert_that(menu.text).is_equal("New Run")
+	assert_that(menu.visible).is_false()
+	assert_that(menu.disabled).is_true()
 	assert_that(reward_cards.get_child_count()).is_equal(3)
 	assert_that(grade.text).contains("Grade")
 	assert_that(progress.value).is_greater_equal(0.0)

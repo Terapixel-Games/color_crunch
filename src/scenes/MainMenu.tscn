@@ -204,7 +204,7 @@ text = "Start Puzzle"
 [node name="LaunchNote" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Daily boards and vision filters stay one tap away."
+text = "Use powerups any time. Powered runs move to Open automatically."
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -222,8 +222,12 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="ModeToggle" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow" instance=ExtResource("7")]
+visible = false
 layout_mode = 2
-text = "Leaderboard Mode"
+focus_mode = 0
+mouse_filter = 2
+disabled = true
+text = "Pure runs are automatic"
 
 [node name="DailyToggle" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow" instance=ExtResource("7")]
 layout_mode = 2

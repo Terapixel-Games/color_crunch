@@ -53,8 +53,6 @@ var _tutorial_focus_target: Control
 var _tutorial_step: int = 0
 var _pause_overlap_factor: float = 0.5
 var _audio_overlay: AudioTrackOverlay
-var _current_mode: String = "PURE"
-var _pure_mode_locked: bool = false
 var _round_time_left: float = 90.0
 var _board_anchor_pos: Vector2 = Vector2.ZERO
 var _scene_opened_msec: int = Time.get_ticks_msec()
@@ -86,8 +84,6 @@ const TUTORIAL_STEP_DONE := 5
 
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
-	_current_mode = RunManager.get_selected_mode()
-	_pure_mode_locked = _current_mode == "PURE"
 	_round_time_left = ROUND_LIMIT_SECONDS
 	NakamaService.track_client_event("gameplay.run_started", {
 		"streak_days": StreakManager.get_streak_days(),
@@ -244,9 +240,6 @@ func _on_tutorial_requested() -> void:
 	call_deferred("_show_tutorial", true)
 
 func _on_undo_pressed() -> void:
-	if _pure_mode_locked:
-		_show_pure_mode_notice()
-		return
 	if _undo_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("undo")
 		if not purchased:
@@ -269,9 +262,6 @@ func _on_undo_pressed() -> void:
 	_play_powerup_juice(Color(0.72, 0.9, 1.0, FeatureFlags.powerup_flash_alpha()))
 
 func _on_remove_color_pressed() -> void:
-	if _pure_mode_locked:
-		_show_pure_mode_notice()
-		return
 	if _remove_color_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("prism")
 		if not purchased:
@@ -300,9 +290,6 @@ func _on_remove_color_pressed() -> void:
 	_play_powerup_juice(Color(1.0, 0.92, 0.7, FeatureFlags.powerup_flash_alpha()))
 
 func _on_shuffle_pressed() -> void:
-	if _pure_mode_locked:
-		_show_pure_mode_notice()
-		return
 	if _shuffle_charges <= 0:
 		var purchased := await _try_purchase_powerup_with_coins("shuffle")
 		if not purchased:
@@ -346,20 +333,12 @@ func _update_powerup_buttons() -> void:
 	_update_badge(undo_badge_panel, undo_badge, _undo_charges, _pending_powerup_refill_type == "undo")
 	_update_badge(prism_badge_panel, prism_badge, _remove_color_charges, _pending_powerup_refill_type == "prism")
 	_update_badge(shuffle_badge_panel, shuffle_badge, _shuffle_charges, _pending_powerup_refill_type == "shuffle")
-	if _pure_mode_locked:
-		undo_button.disabled = true
-		remove_color_button.disabled = true
-		shuffle_button.disabled = true
-		undo_button.tooltip_text = "PURE mode disables powerups"
-		remove_color_button.tooltip_text = "PURE mode disables powerups"
-		shuffle_button.tooltip_text = "PURE mode disables powerups"
-	else:
-		undo_button.disabled = (_undo_charges > 0 and _undo_stack.is_empty()) or _is_other_refill_pending("undo")
-		remove_color_button.disabled = _is_other_refill_pending("prism")
-		shuffle_button.disabled = _is_other_refill_pending("shuffle")
-		undo_button.tooltip_text = "Undo"
-		remove_color_button.tooltip_text = "Prism"
-		shuffle_button.tooltip_text = "Shuffle"
+	undo_button.disabled = (_undo_charges > 0 and _undo_stack.is_empty()) or _is_other_refill_pending("undo")
+	remove_color_button.disabled = _is_other_refill_pending("prism")
+	shuffle_button.disabled = _is_other_refill_pending("shuffle")
+	undo_button.tooltip_text = "Undo"
+	remove_color_button.tooltip_text = "Prism"
+	shuffle_button.tooltip_text = "Shuffle"
 
 func _push_undo(snapshot: Array, score_snapshot: int, combo_snapshot: int) -> void:
 	_undo_stack.append({
@@ -590,6 +569,7 @@ func _record_powerup_use(powerup_type: String) -> void:
 		_powerup_usage[powerup_type] = 0
 	_powerup_usage[powerup_type] = int(_powerup_usage[powerup_type]) + 1
 	_run_powerups_used_total += 1
+	RunManager.set_run_leaderboard_context(_run_powerups_used_total, _run_coins_spent, _powerup_usage)
 	_maybe_show_open_mode_tip()
 	Telemetry.mark_powerup_used(powerup_type, "OPEN", _remaining_powerup_charges(powerup_type))
 	NakamaService.track_client_event("gameplay.powerup_used", {
@@ -1038,18 +1018,6 @@ func _show_near_miss_warning(matches_left: int) -> void:
 func _kick_screen_shake(strength: float) -> void:
 	_shake_strength = max(_shake_strength, strength)
 	_shake_time_left = 0.12
-
-func _show_pure_mode_notice() -> void:
-	_hide_tutorial_for_overlay()
-	var modal := TUTORIAL_TIP_SCENE.instantiate()
-	if modal and modal.has_method("configure"):
-		modal.configure({
-			"title": "PURE Mode Active",
-			"message": "Powerups are disabled in PURE mode. Switch to OPEN from the menu to use them.",
-			"confirm_text": "OK",
-			"show_checkbox": false,
-		})
-	add_child(modal)
 
 func _maybe_show_micro_tutorial() -> void:
 	if SaveStore.is_tutorial_seen():

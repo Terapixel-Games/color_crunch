@@ -104,7 +104,8 @@ func _layout_menu() -> void:
 	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
 	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.10, 86.0, 122.0)
-	mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.070, 60.0, 82.0)
+	if mode_button:
+		mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.070, 60.0, 82.0)
 	daily_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
 	contrast_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
 	promo_button.custom_minimum_size.y = mode_button.custom_minimum_size.y
@@ -253,7 +254,11 @@ func _layout_coin_badge(icon_size: float) -> void:
 
 func _sync_mode_buttons() -> void:
 	if mode_button:
-		mode_button.text = "Switch to %s" % ("OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE")
+		mode_button.text = "Pure runs are automatic"
+		mode_button.visible = false
+		mode_button.disabled = true
+		mode_button.focus_mode = Control.FOCUS_NONE
+		mode_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if daily_button:
 		daily_button.text = "Daily %s" % ("On" if SaveStore.get_daily_challenge_enabled() else "Off")
 	if contrast_button:
@@ -262,10 +267,7 @@ func _sync_mode_buttons() -> void:
 		promo_button.text = "Open LumaRush"
 
 func _on_mode_toggle_pressed() -> void:
-	var next_mode := "OPEN" if RunManager.get_selected_mode() == "PURE" else "PURE"
-	RunManager.set_selected_mode(next_mode, "menu_toggle")
 	_sync_mode_buttons()
-	UiFx.pop(mode_button)
 
 func _on_daily_toggle_pressed() -> void:
 	RunManager.set_daily_challenge_enabled(not SaveStore.get_daily_challenge_enabled())

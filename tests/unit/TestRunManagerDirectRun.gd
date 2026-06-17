@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 
-func test_prepare_run_start_supports_direct_game_boot_flow() -> void:
+func test_prepare_run_start_defaults_to_pure_until_powerup_opt_out() -> void:
 	var original_mode: String = SaveStore.get_preferred_mode()
 	var original_daily: bool = SaveStore.get_daily_challenge_enabled()
 	SaveStore.set_preferred_mode("OPEN")
@@ -13,11 +13,11 @@ func test_prepare_run_start_supports_direct_game_boot_flow() -> void:
 	RunManager.last_run_duration_ms = 999
 	RunManager.prepare_run_start()
 
-	assert_that(RunManager.last_run_selected_mode).is_equal("OPEN")
+	assert_that(RunManager.last_run_selected_mode).is_equal("PURE")
 	assert_that(RunManager.last_run_daily_challenge).is_false()
 	assert_that(RunManager.last_run_powerups_used).is_equal(0)
 	assert_that(RunManager.last_run_coins_spent).is_equal(0)
-	assert_that(RunManager.last_run_leaderboard_mode).is_equal("OPEN")
+	assert_that(RunManager.last_run_leaderboard_mode).is_equal("PURE")
 	assert_that(RunManager.last_run_powerup_breakdown).is_empty()
 	assert_that(RunManager.last_run_duration_ms).is_equal(0)
 
