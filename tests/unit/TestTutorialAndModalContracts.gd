@@ -66,6 +66,45 @@ func test_tutorial_tip_modal_uses_consistent_input_and_pivots() -> void:
 	assert_that(canceled[0]).is_true()
 	await get_tree().process_frame
 
+func test_tutorial_tip_modal_keeps_long_tip_inside_panel_on_square_viewport() -> void:
+	var original_size: Vector2i = get_tree().root.size
+	var original_scale_size: Vector2i = get_tree().root.content_scale_size
+	get_tree().root.size = Vector2i(640, 640)
+	get_tree().root.content_scale_size = Vector2i(640, 640)
+
+	var scene: PackedScene = load("res://addons/arcade_core/ui/TutorialTipModal.tscn") as PackedScene
+	var modal: Control = scene.instantiate() as Control
+	get_tree().root.add_child(modal)
+	modal.call("configure", {
+		"title": "Leaderboard Mode Update",
+		"message": "Using power-ups moves this run to the Open leaderboard. Only games without power-up usage are posted to the Pure leaderboard.",
+		"confirm_text": "Got it",
+		"checkbox_text": "Don't show this again",
+		"show_checkbox": true,
+	})
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var panel: Control = modal.get_node("Center/Panel") as Control
+	var title: Control = modal.get_node("Center/Panel/ContentMargin/VBox/Title") as Control
+	var message: Control = modal.get_node("Center/Panel/ContentMargin/VBox/Message") as Control
+	var checkbox: Control = modal.get_node("Center/Panel/ContentMargin/VBox/DoNotShow") as Control
+	var buttons: Control = modal.get_node("Center/Panel/ContentMargin/VBox/Buttons") as Control
+	var panel_rect: Rect2 = panel.get_global_rect()
+	_assert_rect_inside(title.get_global_rect(), panel_rect)
+	_assert_rect_inside(message.get_global_rect(), panel_rect)
+	_assert_rect_inside(checkbox.get_global_rect(), panel_rect)
+	_assert_rect_inside(buttons.get_global_rect(), panel_rect)
+	assert_that(title.get_global_rect().end.y).is_less_equal(message.get_global_rect().position.y + 1.0)
+	assert_that(message.get_global_rect().end.y).is_less_equal(checkbox.get_global_rect().position.y + 1.0)
+	assert_that(checkbox.get_global_rect().end.y).is_less_equal(buttons.get_global_rect().position.y + 1.0)
+	assert_that(panel.size.x).is_greater_equal(500.0)
+
+	modal.queue_free()
+	await get_tree().process_frame
+	get_tree().root.size = original_size
+	get_tree().root.content_scale_size = original_scale_size
+
 func test_game_tutorial_first_run_replay_and_overlay_close_behavior() -> void:
 	var original_seen: bool = SaveStore.is_tutorial_seen()
 	SaveStore.set_tutorial_seen(false)
@@ -110,3 +149,9 @@ func _free_scene(scene: Node) -> void:
 		scene.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
+
+func _assert_rect_inside(inner: Rect2, outer: Rect2, epsilon: float = 1.0) -> void:
+	assert_that(inner.position.x).is_greater_equal(outer.position.x - epsilon)
+	assert_that(inner.position.y).is_greater_equal(outer.position.y - epsilon)
+	assert_that(inner.end.x).is_less_equal(outer.end.x + epsilon)
+	assert_that(inner.end.y).is_less_equal(outer.end.y + epsilon)

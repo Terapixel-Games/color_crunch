@@ -8,9 +8,11 @@ signal canceled(do_not_show_again: bool)
 @onready var center_layer: Control = $Center
 @onready var panel: Panel = $Center/Panel
 @onready var content_margin: MarginContainer = $Center/Panel/ContentMargin
+@onready var content_box: VBoxContainer = $Center/Panel/ContentMargin/VBox
 @onready var title_label: Label = $Center/Panel/ContentMargin/VBox/Title
 @onready var message_label: Label = $Center/Panel/ContentMargin/VBox/Message
 @onready var do_not_show_toggle: CheckButton = $Center/Panel/ContentMargin/VBox/DoNotShow
+@onready var buttons_row: HBoxContainer = $Center/Panel/ContentMargin/VBox/Buttons
 @onready var cancel_button: Button = $Center/Panel/ContentMargin/VBox/Buttons/Cancel
 @onready var confirm_button: Button = $Center/Panel/ContentMargin/VBox/Buttons/Confirm
 
@@ -128,13 +130,18 @@ func _style_controls() -> void:
 		content_margin.add_theme_constant_override("margin_top", inset)
 		content_margin.add_theme_constant_override("margin_right", inset)
 		content_margin.add_theme_constant_override("margin_bottom", inset)
+	if content_box:
+		content_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content_box.add_theme_constant_override("separation", 16)
 	if title_label:
 		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		title_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		title_label.add_theme_font_override("font", _font_for_role(false, 700))
 		title_label.add_theme_font_size_override("font_size", _font_px(30.0))
 		title_label.add_theme_color_override("font_color", Color(0.04, 0.10, 0.18, 1.0))
 	if message_label:
 		message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		message_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		message_label.add_theme_font_override("font", _font_for_role(true, 420))
 		message_label.add_theme_font_size_override("font_size", _font_px(21.0))
@@ -143,8 +150,17 @@ func _style_controls() -> void:
 	if do_not_show_toggle:
 		do_not_show_toggle.focus_mode = Control.FOCUS_NONE
 		do_not_show_toggle.mouse_filter = Control.MOUSE_FILTER_STOP
+		do_not_show_toggle.clip_text = false
+		do_not_show_toggle.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		do_not_show_toggle.custom_minimum_size.y = 38.0
 		do_not_show_toggle.add_theme_font_size_override("font_size", _font_px(16.0))
 		do_not_show_toggle.add_theme_color_override("font_color", Color(0.08, 0.18, 0.28, 1.0))
+		do_not_show_toggle.add_theme_color_override("font_hover_color", Color(0.04, 0.12, 0.20, 1.0))
+		do_not_show_toggle.add_theme_color_override("font_pressed_color", Color(0.04, 0.12, 0.20, 1.0))
+	if buttons_row:
+		buttons_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		buttons_row.add_theme_constant_override("separation", 12)
+		buttons_row.custom_minimum_size.y = 58.0
 	if cancel_button:
 		_style_button(cancel_button, false)
 	if confirm_button:
@@ -159,10 +175,22 @@ func _layout_tip() -> void:
 	if view_size == Vector2.ZERO:
 		return
 	var margin: float = clamp(min(view_size.x, view_size.y) * 0.032, 16.0, 34.0)
-	var is_landscape: bool = view_size.x >= view_size.y
-	var panel_width: float = clamp(view_size.x * (0.52 if is_landscape else 0.78), 320.0, min(760.0, view_size.x - (margin * 2.0)))
-	var message_lines: float = max(2.0, ceil(float(message_label.text.length()) / max(24.0, panel_width / 18.0))) if message_label else 2.0
-	var panel_height: float = clamp(188.0 + (message_lines * 12.0), 260.0, min(430.0, view_size.y - (margin * 2.0)))
+	var aspect: float = view_size.x / max(1.0, view_size.y)
+	var is_wide: bool = aspect >= 1.30 and view_size.x >= 780.0
+	var max_panel_width: float = max(260.0, view_size.x - (margin * 2.0))
+	var min_panel_width: float = min(340.0, max_panel_width)
+	var panel_width: float = clamp(view_size.x * (0.56 if is_wide else 0.84), min_panel_width, min(760.0, max_panel_width))
+	var inset: int = int(round(clamp(panel_width * 0.052, 18.0, 28.0)))
+	if content_margin:
+		content_margin.add_theme_constant_override("margin_left", inset)
+		content_margin.add_theme_constant_override("margin_top", inset)
+		content_margin.add_theme_constant_override("margin_right", inset)
+		content_margin.add_theme_constant_override("margin_bottom", inset)
+	var content_width: float = max(160.0, panel_width - (float(inset) * 2.0))
+	_prepare_wrapped_content_sizes(content_width)
+	var max_panel_height: float = max(180.0, view_size.y - (margin * 2.0))
+	var min_panel_height: float = min(330.0, max_panel_height)
+	var panel_height: float = clamp(_required_panel_height(float(inset)), min_panel_height, max_panel_height)
 	var panel_x: float = (view_size.x - panel_width) * 0.5
 	var panel_y: float = view_size.y - _bottom_offset - panel_height
 	if _target_rect.size != Vector2.ZERO:
@@ -184,6 +212,43 @@ func _layout_tip() -> void:
 		confirm_button.pivot_offset = confirm_button.size * 0.5
 	if cancel_button:
 		cancel_button.pivot_offset = cancel_button.size * 0.5
+
+func _prepare_wrapped_content_sizes(content_width: float) -> void:
+	var title_size: int = _font_px(30.0)
+	var message_size: int = _font_px(21.0)
+	var line_spacing: int = _font_px(7.0)
+	if title_label:
+		title_label.custom_minimum_size = Vector2(content_width, _estimate_wrapped_text_height(title_label.text, title_size, content_width, 0.58, 4.0, 1))
+	if message_label:
+		message_label.custom_minimum_size = Vector2(content_width, _estimate_wrapped_text_height(message_label.text, message_size, content_width, 0.53, float(line_spacing), 2))
+	if do_not_show_toggle:
+		do_not_show_toggle.custom_minimum_size = Vector2(content_width, 38.0)
+	if buttons_row:
+		buttons_row.custom_minimum_size = Vector2(content_width, 58.0)
+
+func _required_panel_height(inset: float) -> float:
+	var separation: float = float(content_box.get_theme_constant("separation")) if content_box else 16.0
+	var blocks: int = 0
+	var content_height: float = 0.0
+	if title_label and title_label.visible:
+		blocks += 1
+		content_height += title_label.custom_minimum_size.y
+	if message_label and message_label.visible:
+		blocks += 1
+		content_height += message_label.custom_minimum_size.y
+	if do_not_show_toggle and do_not_show_toggle.visible:
+		blocks += 1
+		content_height += max(38.0, do_not_show_toggle.custom_minimum_size.y)
+	if buttons_row and buttons_row.visible:
+		blocks += 1
+		content_height += max(58.0, buttons_row.custom_minimum_size.y)
+	content_height += separation * float(max(0, blocks - 1))
+	return ceil((inset * 2.0) + content_height)
+
+func _estimate_wrapped_text_height(text: String, font_size: int, width: float, average_width_factor: float, line_spacing: float, min_lines: int) -> float:
+	var chars_per_line: int = max(8, int(floor(width / max(1.0, float(font_size) * average_width_factor))))
+	var lines: int = max(min_lines, int(ceil(float(max(1, text.length())) / float(chars_per_line))))
+	return float(lines * font_size) + (float(max(0, lines - 1)) * line_spacing)
 
 func _layout_pointer() -> void:
 	if _pointer == null:

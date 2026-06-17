@@ -588,10 +588,10 @@ func _maybe_show_open_mode_tip() -> void:
 	var modal := TUTORIAL_TIP_SCENE.instantiate()
 	if modal.has_method("configure"):
 		modal.configure({
-			"title": "Leaderboard Mode Update",
-			"message": "Using power-ups moves this run to the Open leaderboard. Only games without power-up usage are posted to the Pure leaderboard.",
+			"title": "Open Run",
+			"message": "Power-ups opt this run out of Pure. This score posts to Open; no-powerup runs stay Pure.",
 			"confirm_text": "Got it",
-			"checkbox_text": "Don't show this again",
+			"checkbox_text": "Don't show again",
 			"show_checkbox": true,
 		})
 	if modal.has_signal("dismissed"):

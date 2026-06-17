@@ -64,7 +64,6 @@ autowrap_mode = 3
 [node name="Message" type="Label" parent="Center/Panel/ContentMargin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 text = "This is a tutorial tip."
 horizontal_alignment = 0
 autowrap_mode = 3
