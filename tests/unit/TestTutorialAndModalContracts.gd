@@ -230,6 +230,8 @@ func test_game_timer_chip_is_inside_top_hud_portrait_and_landscape() -> void:
 		_assert_rect_inside(timer_chip.get_global_rect(), top_bar_bg.get_global_rect().grow(-4.0))
 		assert_that(timer_chip.get_global_rect().intersects(score_box.get_global_rect())).is_false()
 		assert_that(timer_chip.get_global_rect().intersects(pause_button.get_global_rect())).is_false()
+		var timer_pause_gap: float = pause_button.get_global_rect().position.x - timer_chip.get_global_rect().end.x
+		assert_that(timer_pause_gap).is_greater_equal(18.0)
 		assert_that(timer_value.text.begins_with("Time")).is_false()
 		assert_that(timer_value.get_theme_font_size("font_size")).is_greater_equal(24)
 

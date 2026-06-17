@@ -1078,7 +1078,7 @@ func _layout_dynamic_overlays(view_size: Vector2) -> void:
 		var chip_height: float = clamp(top_height * 0.54, 36.0, 56.0)
 		var pause_width: float = pause_button.custom_minimum_size.x if pause_button != null else 62.0
 		var right_inset: float = clamp(top_bar_bg.size.x * 0.045, 14.0, 24.0) if top_bar_bg else 18.0
-		var gap_to_pause: float = clamp(top_height * 0.10, 8.0, 14.0)
+		var gap_to_pause: float = clamp(top_height * 0.22, 18.0, 30.0)
 		var chip_x: float = max(right_inset, top_bar_bg.size.x - right_inset - pause_width - gap_to_pause - chip_width) if top_bar_bg else 0.0
 		var chip_y: float = max(4.0, (top_height - chip_height) * 0.5)
 		_timer_chip.set_anchors_preset(Control.PRESET_TOP_LEFT)
