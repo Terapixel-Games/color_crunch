@@ -27,6 +27,7 @@ func test_multiresolution_display_defaults() -> void:
 	assert_true(bool(cfg.get_value("display", "window/size/resizable", false)), "Window should be resizable")
 	assert_equal(str(cfg.get_value("display", "window/stretch/mode", "")), "canvas_items", "Stretch mode should be canvas_items")
 	assert_equal(str(cfg.get_value("display", "window/stretch/aspect", "")), "expand", "Stretch aspect should be expand")
+	assert_equal(int(cfg.get_value("display", "window/handheld/orientation", -1)), 6, "Orientation should allow portrait and landscape")
 
 func test_save_manager_basics() -> void:
 	var script: Script = load("res://addons/arcade_core/SaveManager.gd")

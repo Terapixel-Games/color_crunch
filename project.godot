@@ -13,11 +13,10 @@ config_version=5
 config/name="Color Crunch"
 run/main_scene="res://src/scenes/Boot.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
-config/icon="res://icon.svg"
-boot_splash/use_filter=true
+boot_splash/bg_color=Color(0.015, 0.018, 0.026, 1)
 boot_splash/fullsize=false
 boot_splash/image="res://assets/branding/splash.png"
-boot_splash/bg_color=Color(0.015, 0.018, 0.026, 1)
+config/icon="res://icon.svg"
 
 [autoload]
 
@@ -36,10 +35,10 @@ SafeArea="*res://src/core/SafeArea.gd"
 Typography="*res://src/ui/Typography.gd"
 NakamaService="*res://src/network/NakamaService.gd"
 ThemeManager="*res://src/theme/ThemeManager.gd"
-
 SaveManager="*res://addons/arcade_core/SaveManager.gd"
 AudioManager="*res://addons/arcade_core/AudioManager.gd"
 Fx="*res://addons/arcade_core/Fx.gd"
+
 [color_crunch]
 
 nakama_enable_client=false
@@ -58,17 +57,17 @@ paypal_currency="USD"
 [debug]
 
 gdscript/warnings/treat_warnings_as_errors=false
-window/handheld/orientation="portrait"
+window/handheld/orientation="sensor"
 
 [display]
-
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-window/handheld/orientation=1
 
 window/size/viewport_width=1080
 window/size/viewport_height=1920
 window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=6
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/AdmobPlugin/plugin.cfg", "res://addons/gdUnit4/plugin.cfg")

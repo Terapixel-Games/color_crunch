@@ -117,11 +117,14 @@ func move(direction: Vector2i) -> Dictionary:
 			"score_gain": 0,
 			"merge_positions": [],
 			"spawn_position": Vector2i(-1, -1),
+			"motion_paths": [],
+			"spawn_from_direction": direction,
 		}
 
 	var moved := false
 	var score_gain := 0
 	var merge_positions: Array[Vector2i] = []
+	var motion_paths: Array[Dictionary] = []
 
 	for line_coords in lines:
 		var old_line: Array = []
@@ -135,6 +138,23 @@ func move(direction: Vector2i) -> Dictionary:
 		score_gain += int(result["score_gain"])
 		for idx in result["merged_indices"]:
 			merge_positions.append(line_coords[int(idx)])
+		for path_var in result.get("paths", []):
+			var path: Dictionary = path_var
+			var from_idx: int = int(path.get("from", -1))
+			var to_idx: int = int(path.get("to", -1))
+			if from_idx < 0 or from_idx >= line_coords.size() or to_idx < 0 or to_idx >= line_coords.size():
+				continue
+			var old_cell: Vector2i = line_coords[from_idx]
+			var new_cell: Vector2i = line_coords[to_idx]
+			motion_paths.append({
+				"old_cell": old_cell,
+				"new_cell": new_cell,
+				"from": old_cell,
+				"to": new_cell,
+				"level": int(path.get("level", 0)),
+				"merged": bool(path.get("merged", false)),
+				"spawned": false,
+			})
 
 		for i in range(line_coords.size()):
 			var p: Vector2i = line_coords[i]
@@ -146,14 +166,29 @@ func move(direction: Vector2i) -> Dictionary:
 			"score_gain": 0,
 			"merge_positions": [],
 			"spawn_position": Vector2i(-1, -1),
+			"motion_paths": [],
+			"spawn_from_direction": direction,
 		}
 
 	var spawn_position: Vector2i = spawn_tile()
+	if _in_bounds(spawn_position):
+		var spawn_old_cell: Vector2i = spawn_position - direction
+		motion_paths.append({
+			"old_cell": spawn_old_cell,
+			"new_cell": spawn_position,
+			"from": spawn_old_cell,
+			"to": spawn_position,
+			"level": int(grid[spawn_position.y][spawn_position.x]),
+			"merged": false,
+			"spawned": true,
+		})
 	return {
 		"moved": true,
 		"score_gain": score_gain,
 		"merge_positions": merge_positions,
 		"spawn_position": spawn_position,
+		"motion_paths": motion_paths,
+		"spawn_from_direction": direction,
 	}
 
 func count_available_matches() -> int:
@@ -272,24 +307,52 @@ func _lines_for_direction(direction: Vector2i) -> Array:
 
 func _slide_line(line: Array) -> Dictionary:
 	var items: Array = []
-	for value in line:
+	for source_idx in range(line.size()):
+		var value: Variant = line[source_idx]
 		var v: int = int(value)
 		if v > 0:
-			items.append(v)
+			items.append({
+				"value": v,
+				"source": source_idx,
+			})
 
 	var result: Array = []
 	var merged_indices: Array = []
+	var paths: Array[Dictionary] = []
 	var score_gain := 0
 	var i := 0
 	while i < items.size():
-		if i + 1 < items.size() and int(items[i]) == int(items[i + 1]):
-			var merged_level: int = int(items[i]) + 1
+		var item: Dictionary = items[i]
+		var value: int = int(item.get("value", 0))
+		if i + 1 < items.size() and int((items[i + 1] as Dictionary).get("value", 0)) == value:
+			var next_item: Dictionary = items[i + 1]
+			var merged_level: int = value + 1
+			var target_index: int = result.size()
 			result.append(merged_level)
-			merged_indices.append(result.size() - 1)
+			merged_indices.append(target_index)
+			paths.append({
+				"from": int(item.get("source", -1)),
+				"to": target_index,
+				"level": merged_level,
+				"merged": true,
+			})
+			paths.append({
+				"from": int(next_item.get("source", -1)),
+				"to": target_index,
+				"level": merged_level,
+				"merged": true,
+			})
 			score_gain += int(pow(2.0, float(merged_level)))
 			i += 2
 		else:
-			result.append(int(items[i]))
+			var target_index: int = result.size()
+			result.append(value)
+			paths.append({
+				"from": int(item.get("source", -1)),
+				"to": target_index,
+				"level": value,
+				"merged": false,
+			})
 			i += 1
 
 	while result.size() < line.size():
@@ -298,6 +361,7 @@ func _slide_line(line: Array) -> Dictionary:
 	return {
 		"line": result,
 		"merged_indices": merged_indices,
+		"paths": paths,
 		"score_gain": score_gain,
 	}
 

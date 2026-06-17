@@ -724,11 +724,12 @@ func _center_board() -> void:
 	var min_column_width: float = min(340.0, max_column_width)
 	var content_width: float = clamp(view_size.x - (outer_margin * 2.0), min_column_width, max_column_width)
 	var content_left: float = (view_size.x - content_width) * 0.5
+	var is_landscape: bool = view_size.x >= view_size.y
 
 	_layout_top_bar(view_size, content_left, content_width)
 	_layout_top_right(view_size)
 
-	var powerup_row_height: float = clamp(view_size.y * 0.16, 96.0, 122.0)
+	var powerup_row_height: float = clamp(view_size.y * (0.13 if is_landscape else 0.16), 72.0 if is_landscape else 96.0, 108.0 if is_landscape else 122.0)
 	var max_row_width: float = max(280.0, min(POWERUPS_MAX_WIDTH, content_width))
 	var min_row_width: float = min(320.0, max_row_width)
 	var powerup_row_width: float = clamp(content_width, min_row_width, max_row_width)
@@ -746,7 +747,8 @@ func _center_board() -> void:
 	var available_height: float = max(120.0, bottom_limit - top_limit)
 	var fit_w: float = floor(available_width / float(board.width))
 	var fit_h: float = floor(available_height / float(board.height))
-	var target_tile_size: float = clamp(min(fit_w, fit_h), 72.0, 188.0)
+	var min_tile_size: float = 54.0 if is_landscape or view_size.y < 760.0 else 72.0
+	var target_tile_size: float = clamp(min(fit_w, fit_h), min_tile_size, 188.0)
 	board.set_tile_size(target_tile_size)
 	var board_size: Vector2 = Vector2(board.width * board.tile_size, board.height * board.tile_size)
 	board.position = Vector2(
@@ -774,8 +776,9 @@ func _center_board() -> void:
 func _layout_top_bar(view_size: Vector2, content_left: float, content_width: float) -> void:
 	if top_bar_bg == null or top_bar == null:
 		return
+	var is_landscape: bool = view_size.x >= view_size.y
 	var top_margin: float = clamp(view_size.y * 0.03, 14.0, 30.0)
-	var bar_height: float = clamp(view_size.y * 0.16, 92.0, 132.0)
+	var bar_height: float = clamp(view_size.y * (0.13 if is_landscape else 0.16), 72.0 if is_landscape else 92.0, 116.0 if is_landscape else 132.0)
 	top_bar_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	top_bar_bg.position = Vector2(content_left, top_margin)
 	top_bar_bg.size = Vector2(content_width, bar_height)
@@ -804,8 +807,9 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 func _layout_top_right(view_size: Vector2) -> void:
 	if top_right_bar == null or audio_button == null:
 		return
+	var is_landscape: bool = view_size.x >= view_size.y
 	var margin: float = clamp(min(view_size.x, view_size.y) * 0.045, 12.0, 32.0)
-	var icon_size: float = clamp(min(view_size.x, view_size.y) * 0.12, 68.0, 92.0)
+	var icon_size: float = clamp(min(view_size.x, view_size.y) * (0.1 if is_landscape else 0.12), 56.0 if is_landscape else 68.0, 82.0 if is_landscape else 92.0)
 	top_right_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	top_right_bar.position = Vector2(view_size.x - margin - icon_size, margin)
 	top_right_bar.size = Vector2(icon_size, icon_size)
@@ -833,7 +837,8 @@ func _apply_responsive_hud_typography(content_width: float, bar_height: float, p
 func _layout_powerups(view_size: Vector2, row_width: float, row_height: float) -> void:
 	if powerups_row == null:
 		return
-	var bottom_margin: float = clamp(view_size.y * 0.035, 14.0, 28.0)
+	var is_landscape: bool = view_size.x >= view_size.y
+	var bottom_margin: float = clamp(view_size.y * (0.025 if is_landscape else 0.035), 10.0 if is_landscape else 14.0, 24.0 if is_landscape else 28.0)
 	powerups_row.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	powerups_row.position = Vector2((view_size.x - row_width) * 0.5, view_size.y - bottom_margin - row_height)
 	powerups_row.size = Vector2(row_width, row_height)

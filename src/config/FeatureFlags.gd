@@ -70,258 +70,169 @@ const POWERUP_FLASH_SECONDS := 0.24
 # Screenshot/UAT
 const GOLDEN_RESOLUTION := Vector2i(1170, 2532) # iPhone portrait
 
+static func _setting(name: String, default_value: Variant) -> Variant:
+	var color_key := "color_crunch/%s" % name
+	if ProjectSettings.has_setting(color_key):
+		return ProjectSettings.get_setting(color_key)
+	var legacy_key := "lumarush/%s" % name
+	if ProjectSettings.has_setting(legacy_key):
+		return ProjectSettings.get_setting(legacy_key)
+	return default_value
+
+static func _setting_color(name: String, default_value: Color) -> Color:
+	var value: Variant = _setting(name, default_value)
+	return value if value is Color else default_value
+
 static func is_visual_test_mode() -> bool:
-	if ProjectSettings.has_setting("lumarush/visual_test_mode"):
-		return ProjectSettings.get_setting("lumarush/visual_test_mode")
-	return VISUAL_TEST_MODE
+	return bool(_setting("visual_test_mode", VISUAL_TEST_MODE))
 
 static func is_audio_test_mode() -> bool:
-	if ProjectSettings.has_setting("lumarush/audio_test_mode"):
-		return ProjectSettings.get_setting("lumarush/audio_test_mode")
-	return AUDIO_TEST_MODE
+	return bool(_setting("audio_test_mode", AUDIO_TEST_MODE))
 
 static func tile_blur_mode() -> int:
-	if ProjectSettings.has_setting("lumarush/tile_blur_mode"):
-		return int(ProjectSettings.get_setting("lumarush/tile_blur_mode"))
-	return TILE_BLUR_MODE
+	return int(_setting("tile_blur_mode", TILE_BLUR_MODE))
 
 static func tile_design_mode() -> int:
-	if ProjectSettings.has_setting("lumarush/tile_design_mode"):
-		var value: int = int(ProjectSettings.get_setting("lumarush/tile_design_mode"))
-		return clamp(value, TileDesignMode.MODERN, TileDesignMode.LEGACY)
-	return TILE_DESIGN_MODE
+	var value: int = int(_setting("tile_design_mode", TILE_DESIGN_MODE))
+	return clamp(value, TileDesignMode.MODERN, TileDesignMode.LEGACY)
 
 static func min_match_size() -> int:
-	if ProjectSettings.has_setting("lumarush/min_match_size"):
-		return max(2, int(ProjectSettings.get_setting("lumarush/min_match_size")))
-	return MIN_MATCH_SIZE
+	return max(2, int(_setting("min_match_size", MIN_MATCH_SIZE)))
 
 static func combo_decay_delay_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/combo_decay_delay_seconds"):
-		return float(ProjectSettings.get_setting("lumarush/combo_decay_delay_seconds"))
-	return COMBO_DECAY_DELAY_SECONDS
+	return float(_setting("combo_decay_delay_seconds", COMBO_DECAY_DELAY_SECONDS))
 
 static func combo_decay_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/combo_decay_seconds"):
-		return float(ProjectSettings.get_setting("lumarush/combo_decay_seconds"))
-	return COMBO_DECAY_SECONDS
+	return float(_setting("combo_decay_seconds", COMBO_DECAY_SECONDS))
 
 static func combo_decay_target_db() -> float:
-	if ProjectSettings.has_setting("lumarush/combo_decay_target_db"):
-		return float(ProjectSettings.get_setting("lumarush/combo_decay_target_db"))
-	return COMBO_DECAY_TARGET_DB
+	return float(_setting("combo_decay_target_db", COMBO_DECAY_TARGET_DB))
 
 static func gameplay_calm_return_delay_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/gameplay_calm_return_delay_seconds"):
-		return float(ProjectSettings.get_setting("lumarush/gameplay_calm_return_delay_seconds"))
-	return GAMEPLAY_CALM_RETURN_DELAY_SECONDS
+	return float(_setting("gameplay_calm_return_delay_seconds", GAMEPLAY_CALM_RETURN_DELAY_SECONDS))
 
 static func gameplay_calm_fade_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/gameplay_calm_fade_seconds"):
-		return float(ProjectSettings.get_setting("lumarush/gameplay_calm_fade_seconds"))
-	return GAMEPLAY_CALM_FADE_SECONDS
+	return float(_setting("gameplay_calm_fade_seconds", GAMEPLAY_CALM_FADE_SECONDS))
 
 static func match_hint_delay_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/match_hint_delay_seconds"):
-		return float(ProjectSettings.get_setting("lumarush/match_hint_delay_seconds"))
-	return MATCH_HINT_DELAY_SECONDS
+	return float(_setting("match_hint_delay_seconds", MATCH_HINT_DELAY_SECONDS))
 
 static func gameplay_matches_normalizer() -> float:
-	if ProjectSettings.has_setting("lumarush/gameplay_matches_normalizer"):
-		return max(1.0, float(ProjectSettings.get_setting("lumarush/gameplay_matches_normalizer")))
-	return GAMEPLAY_MATCHES_NORMALIZER
+	return max(1.0, float(_setting("gameplay_matches_normalizer", GAMEPLAY_MATCHES_NORMALIZER)))
 
 static func gameplay_matches_mood_fade_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/gameplay_matches_mood_fade_seconds"):
-		return max(0.0, float(ProjectSettings.get_setting("lumarush/gameplay_matches_mood_fade_seconds")))
-	return GAMEPLAY_MATCHES_MOOD_FADE_SECONDS
+	return max(0.0, float(_setting("gameplay_matches_mood_fade_seconds", GAMEPLAY_MATCHES_MOOD_FADE_SECONDS)))
 
 static func gameplay_matches_max_calm_weight() -> float:
-	if ProjectSettings.has_setting("lumarush/gameplay_matches_max_calm_weight"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/gameplay_matches_max_calm_weight")), 0.0, 1.0)
-	return GAMEPLAY_MATCHES_MAX_CALM_WEIGHT
+	return clamp(float(_setting("gameplay_matches_max_calm_weight", GAMEPLAY_MATCHES_MAX_CALM_WEIGHT)), 0.0, 1.0)
 
 static func hint_pulse_speed_multiplier() -> float:
-	if ProjectSettings.has_setting("lumarush/hint_pulse_speed_multiplier"):
-		return max(0.1, float(ProjectSettings.get_setting("lumarush/hint_pulse_speed_multiplier")))
-	return HINT_PULSE_SPEED_MULTIPLIER
+	return max(0.1, float(_setting("hint_pulse_speed_multiplier", HINT_PULSE_SPEED_MULTIPLIER)))
 
 static func audio_track_id() -> String:
-	if ProjectSettings.has_setting("lumarush/audio_track_id"):
-		return str(ProjectSettings.get_setting("lumarush/audio_track_id"))
-	return AUDIO_TRACK_ID
+	return str(_setting("audio_track_id", AUDIO_TRACK_ID))
 
 static func audio_track_manifest_path() -> String:
-	if ProjectSettings.has_setting("lumarush/audio_track_manifest_path"):
-		return str(ProjectSettings.get_setting("lumarush/audio_track_manifest_path"))
-	return AUDIO_TRACK_MANIFEST_PATH
+	return str(_setting("audio_track_manifest_path", AUDIO_TRACK_MANIFEST_PATH))
 
 static func clear_high_score_on_boot() -> bool:
-	if ProjectSettings.has_setting("lumarush/clear_high_score_on_boot"):
-		return bool(ProjectSettings.get_setting("lumarush/clear_high_score_on_boot"))
-	return CLEAR_HIGH_SCORE_ON_BOOT
+	return bool(_setting("clear_high_score_on_boot", CLEAR_HIGH_SCORE_ON_BOOT))
 
 static func ad_retry_attempts() -> int:
-	if ProjectSettings.has_setting("lumarush/ad_retry_attempts"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/ad_retry_attempts")))
-	return AD_RETRY_ATTEMPTS
+	return max(0, int(_setting("ad_retry_attempts", AD_RETRY_ATTEMPTS)))
 
 static func ad_retry_interval_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/ad_retry_interval_seconds"):
-		return max(0.05, float(ProjectSettings.get_setting("lumarush/ad_retry_interval_seconds")))
-	return AD_RETRY_INTERVAL_SECONDS
+	return max(0.05, float(_setting("ad_retry_interval_seconds", AD_RETRY_INTERVAL_SECONDS)))
 
 static func ad_preload_poll_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/ad_preload_poll_seconds"):
-		return max(0.2, float(ProjectSettings.get_setting("lumarush/ad_preload_poll_seconds")))
-	return AD_PRELOAD_POLL_SECONDS
+	return max(0.2, float(_setting("ad_preload_poll_seconds", AD_PRELOAD_POLL_SECONDS)))
 
 static func starfield_calm_density() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_density"):
-		return max(0.2, float(ProjectSettings.get_setting("lumarush/starfield_calm_density")))
-	return STARFIELD_CALM_DENSITY
+	return max(0.2, float(_setting("starfield_calm_density", STARFIELD_CALM_DENSITY)))
 
 static func starfield_hype_density() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_density"):
-		return max(0.2, float(ProjectSettings.get_setting("lumarush/starfield_hype_density")))
-	return STARFIELD_HYPE_DENSITY
+	return max(0.2, float(_setting("starfield_hype_density", STARFIELD_HYPE_DENSITY)))
 
 static func starfield_calm_speed() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_speed"):
-		return max(0.1, float(ProjectSettings.get_setting("lumarush/starfield_calm_speed")))
-	return STARFIELD_CALM_SPEED
+	return max(0.1, float(_setting("starfield_calm_speed", STARFIELD_CALM_SPEED)))
 
 static func starfield_hype_speed() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_speed"):
-		return max(0.1, float(ProjectSettings.get_setting("lumarush/starfield_hype_speed")))
-	return STARFIELD_HYPE_SPEED
+	return max(0.1, float(_setting("starfield_hype_speed", STARFIELD_HYPE_SPEED)))
 
 static func starfield_calm_brightness() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_brightness"):
-		return max(0.1, float(ProjectSettings.get_setting("lumarush/starfield_calm_brightness")))
-	return STARFIELD_CALM_BRIGHTNESS
+	return max(0.1, float(_setting("starfield_calm_brightness", STARFIELD_CALM_BRIGHTNESS)))
 
 static func starfield_hype_brightness() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_brightness"):
-		return max(0.1, float(ProjectSettings.get_setting("lumarush/starfield_hype_brightness")))
-	return STARFIELD_HYPE_BRIGHTNESS
+	return max(0.1, float(_setting("starfield_hype_brightness", STARFIELD_HYPE_BRIGHTNESS)))
 
 static func starfield_beat_pulse_depth() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_beat_pulse_depth"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/starfield_beat_pulse_depth")), 0.0, 1.0)
-	return STARFIELD_BEAT_PULSE_DEPTH
+	return clamp(float(_setting("starfield_beat_pulse_depth", STARFIELD_BEAT_PULSE_DEPTH)), 0.0, 1.0)
 
 static func starfield_match_pulse_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_match_pulse_seconds"):
-		return max(0.05, float(ProjectSettings.get_setting("lumarush/starfield_match_pulse_seconds")))
-	return STARFIELD_MATCH_PULSE_SECONDS
+	return max(0.05, float(_setting("starfield_match_pulse_seconds", STARFIELD_MATCH_PULSE_SECONDS)))
 
 static func starfield_match_pulse_density_mult() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_match_pulse_density_mult"):
-		return max(1.0, float(ProjectSettings.get_setting("lumarush/starfield_match_pulse_density_mult")))
-	return STARFIELD_MATCH_PULSE_DENSITY_MULT
+	return max(1.0, float(_setting("starfield_match_pulse_density_mult", STARFIELD_MATCH_PULSE_DENSITY_MULT)))
 
 static func starfield_match_pulse_speed_mult() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_match_pulse_speed_mult"):
-		return max(1.0, float(ProjectSettings.get_setting("lumarush/starfield_match_pulse_speed_mult")))
-	return STARFIELD_MATCH_PULSE_SPEED_MULT
+	return max(1.0, float(_setting("starfield_match_pulse_speed_mult", STARFIELD_MATCH_PULSE_SPEED_MULT)))
 
 static func starfield_match_pulse_brightness_mult() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_match_pulse_brightness_mult"):
-		return max(1.0, float(ProjectSettings.get_setting("lumarush/starfield_match_pulse_brightness_mult")))
-	return STARFIELD_MATCH_PULSE_BRIGHTNESS_MULT
+	return max(1.0, float(_setting("starfield_match_pulse_brightness_mult", STARFIELD_MATCH_PULSE_BRIGHTNESS_MULT)))
 
 static func starfield_hype_emission_floor() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_emission_floor"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/starfield_hype_emission_floor")), 0.0, 1.0)
-	return STARFIELD_HYPE_EMISSION_FLOOR
+	return clamp(float(_setting("starfield_hype_emission_floor", STARFIELD_HYPE_EMISSION_FLOOR)), 0.0, 1.0)
 
 static func starfield_calm_emission_floor() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_emission_floor"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/starfield_calm_emission_floor")), 0.0, 1.0)
-	return STARFIELD_CALM_EMISSION_FLOOR
+	return clamp(float(_setting("starfield_calm_emission_floor", STARFIELD_CALM_EMISSION_FLOOR)), 0.0, 1.0)
 
 static func starfield_emission_ramp_up_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/starfield_emission_ramp_up_seconds"):
-		return max(0.0, float(ProjectSettings.get_setting("lumarush/starfield_emission_ramp_up_seconds")))
-	return STARFIELD_EMISSION_RAMP_UP_SECONDS
+	return max(0.0, float(_setting("starfield_emission_ramp_up_seconds", STARFIELD_EMISSION_RAMP_UP_SECONDS)))
 
 static func starfield_calm_point_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_point_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_calm_point_color")
-	return STARFIELD_CALM_POINT_COLOR
+	return _setting_color("starfield_calm_point_color", STARFIELD_CALM_POINT_COLOR)
 
 static func starfield_calm_streak_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_calm_streak_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_calm_streak_color")
-	return STARFIELD_CALM_STREAK_COLOR
+	return _setting_color("starfield_calm_streak_color", STARFIELD_CALM_STREAK_COLOR)
 
 static func starfield_hype_point_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_point_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_hype_point_color")
-	return STARFIELD_HYPE_POINT_COLOR
+	return _setting_color("starfield_hype_point_color", STARFIELD_HYPE_POINT_COLOR)
 
 static func starfield_hype_streak_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_hype_streak_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_hype_streak_color")
-	return STARFIELD_HYPE_STREAK_COLOR
+	return _setting_color("starfield_hype_streak_color", STARFIELD_HYPE_STREAK_COLOR)
 
 static func starfield_boost_point_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_boost_point_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_boost_point_color")
-	return STARFIELD_BOOST_POINT_COLOR
+	return _setting_color("starfield_boost_point_color", STARFIELD_BOOST_POINT_COLOR)
 
 static func starfield_boost_streak_color() -> Color:
-	if ProjectSettings.has_setting("lumarush/starfield_boost_streak_color"):
-		return ProjectSettings.get_setting("lumarush/starfield_boost_streak_color")
-	return STARFIELD_BOOST_STREAK_COLOR
+	return _setting_color("starfield_boost_streak_color", STARFIELD_BOOST_STREAK_COLOR)
 
 static func haptics_enabled() -> bool:
-	if ProjectSettings.has_setting("lumarush/haptics_enabled"):
-		return bool(ProjectSettings.get_setting("lumarush/haptics_enabled"))
-	return HAPTICS_ENABLED
+	return bool(_setting("haptics_enabled", HAPTICS_ENABLED))
 
 static func match_haptic_duration_ms() -> int:
-	if ProjectSettings.has_setting("lumarush/match_haptic_duration_ms"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/match_haptic_duration_ms")))
-	return MATCH_HAPTIC_DURATION_MS
+	return max(0, int(_setting("match_haptic_duration_ms", MATCH_HAPTIC_DURATION_MS)))
 
 static func match_haptic_amplitude() -> float:
-	if ProjectSettings.has_setting("lumarush/match_haptic_amplitude"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/match_haptic_amplitude")), 0.0, 1.0)
-	return MATCH_HAPTIC_AMPLITUDE
+	return clamp(float(_setting("match_haptic_amplitude", MATCH_HAPTIC_AMPLITUDE)), 0.0, 1.0)
 
 static func match_click_haptic_duration_ms() -> int:
-	if ProjectSettings.has_setting("lumarush/match_click_haptic_duration_ms"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/match_click_haptic_duration_ms")))
-	return MATCH_CLICK_HAPTIC_DURATION_MS
+	return max(0, int(_setting("match_click_haptic_duration_ms", MATCH_CLICK_HAPTIC_DURATION_MS)))
 
 static func match_click_haptic_amplitude() -> float:
-	if ProjectSettings.has_setting("lumarush/match_click_haptic_amplitude"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/match_click_haptic_amplitude")), 0.0, 1.0)
-	return MATCH_CLICK_HAPTIC_AMPLITUDE
+	return clamp(float(_setting("match_click_haptic_amplitude", MATCH_CLICK_HAPTIC_AMPLITUDE)), 0.0, 1.0)
 
 static func powerup_undo_charges() -> int:
-	if ProjectSettings.has_setting("lumarush/powerup_undo_charges"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/powerup_undo_charges")))
-	return POWERUP_UNDO_CHARGES
+	return max(0, int(_setting("powerup_undo_charges", POWERUP_UNDO_CHARGES)))
 
 static func powerup_remove_color_charges() -> int:
-	if ProjectSettings.has_setting("lumarush/powerup_remove_color_charges"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/powerup_remove_color_charges")))
-	return POWERUP_REMOVE_COLOR_CHARGES
+	return max(0, int(_setting("powerup_remove_color_charges", POWERUP_REMOVE_COLOR_CHARGES)))
 
 static func powerup_shuffle_charges() -> int:
-	if ProjectSettings.has_setting("lumarush/powerup_shuffle_charges"):
-		return max(0, int(ProjectSettings.get_setting("lumarush/powerup_shuffle_charges")))
-	return POWERUP_SHUFFLE_CHARGES
+	return max(0, int(_setting("powerup_shuffle_charges", POWERUP_SHUFFLE_CHARGES)))
 
 static func powerup_flash_alpha() -> float:
-	if ProjectSettings.has_setting("lumarush/powerup_flash_alpha"):
-		return clamp(float(ProjectSettings.get_setting("lumarush/powerup_flash_alpha")), 0.0, 1.0)
-	return POWERUP_FLASH_ALPHA
+	return clamp(float(_setting("powerup_flash_alpha", POWERUP_FLASH_ALPHA)), 0.0, 1.0)
 
 static func powerup_flash_seconds() -> float:
-	if ProjectSettings.has_setting("lumarush/powerup_flash_seconds"):
-		return max(0.05, float(ProjectSettings.get_setting("lumarush/powerup_flash_seconds")))
-	return POWERUP_FLASH_SECONDS
+	return max(0.05, float(_setting("powerup_flash_seconds", POWERUP_FLASH_SECONDS)))

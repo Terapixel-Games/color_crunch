@@ -82,6 +82,9 @@ const TILE_PALETTE_COLORBLIND := [
 ]
 
 const EMPTY_TILE_COLOR := Color(0.16, 0.22, 0.34, 0.34)
+const MOVE_ANIMATION_SECONDS := 0.13
+const SPAWN_ANIMATION_SECONDS := 0.18
+const MOTION_TRAIL_SEGMENTS := 3
 
 var board: Board
 var tiles: Array = []
@@ -203,11 +206,10 @@ func _attempt_move(direction: Vector2i) -> void:
 		return
 
 	var merge_positions: Array = result.get("merge_positions", [])
-	var spawn_position: Vector2i = result.get("spawn_position", Vector2i(-1, -1))
 	_last_move_score = int(result.get("score_gain", 0))
 	_last_merge_count = merge_positions.size()
 
-	await _animate_board_update(merge_positions, spawn_position)
+	await _animate_board_update(result)
 	emit_signal("move_committed", merge_positions, snapshot)
 	if _last_merge_count > 0:
 		emit_signal("match_made", merge_positions)
@@ -333,14 +335,39 @@ func _rebuild_tiles_from_grid() -> void:
 	_refresh_tiles()
 	queue_redraw()
 
-func _animate_board_update(merge_positions: Array, spawn_position: Vector2i) -> void:
-	var fade: Tween = create_tween()
-	fade.set_parallel(true)
-	for row in tiles:
-		for tile in row:
-			var tile_node: ColorRect = tile as ColorRect
-			fade.tween_property(tile_node, "modulate:a", 0.82, 0.05)
-	await fade.finished
+func _animate_board_update(move_result: Dictionary) -> void:
+	var motion_paths: Array = move_result.get("motion_paths", [])
+	var merge_positions: Array = move_result.get("merge_positions", [])
+	var spawn_position: Vector2i = move_result.get("spawn_position", Vector2i(-1, -1))
+	var spawn_direction: Vector2i = move_result.get("spawn_from_direction", Vector2i.ZERO)
+
+	var slide := create_tween()
+	slide.set_parallel(true)
+	var slide_has_work := false
+	for path_var in motion_paths:
+		var path: Dictionary = path_var
+		if bool(path.get("spawned", false)):
+			continue
+		var old_cell: Vector2i = path.get("old_cell", Vector2i(-1, -1))
+		var new_cell: Vector2i = path.get("new_cell", Vector2i(-1, -1))
+		if not _cell_in_tiles(old_cell) or not _cell_in_tiles(new_cell):
+			continue
+		var tile: ColorRect = tiles[old_cell.y][old_cell.x]
+		if tile == null:
+			continue
+		_create_motion_trail(path)
+		tile.z_index = 50
+		tile.modulate = Color(1, 1, 1, 1)
+		tile.pivot_offset = tile.size * 0.5
+		var target_position: Vector2 = _tile_origin(new_cell)
+		slide.tween_property(tile, "position", target_position, MOVE_ANIMATION_SECONDS).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		if bool(path.get("merged", false)):
+			slide.parallel().tween_property(tile, "scale", Vector2(1.06, 1.06), MOVE_ANIMATION_SECONDS * 0.72)
+		slide_has_work = true
+	if slide_has_work:
+		await slide.finished
+	else:
+		slide.kill()
 
 	_refresh_tiles()
 
@@ -362,9 +389,52 @@ func _animate_board_update(merge_positions: Array, spawn_position: Vector2i) -> 
 	if spawn_position.x >= 0 and spawn_position.y >= 0 and spawn_position.y < tiles.size() and spawn_position.x < tiles[spawn_position.y].size():
 		var spawned_tile: ColorRect = tiles[spawn_position.y][spawn_position.x]
 		spawned_tile.scale = Vector2(0.7, 0.7)
-		pop.tween_property(spawned_tile, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		spawned_tile.modulate.a = 0.0
+		var spawn_offset: Vector2 = Vector2(float(spawn_direction.x), float(spawn_direction.y)) * tile_size * 0.72
+		if spawn_offset == Vector2.ZERO:
+			spawn_offset = Vector2(0.0, -tile_size * 0.4)
+		spawned_tile.position = _tile_origin(spawn_position) - spawn_offset
+		spawned_tile.z_index = 60
+		pop.tween_property(spawned_tile, "position", _tile_origin(spawn_position), SPAWN_ANIMATION_SECONDS).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		pop.parallel().tween_property(spawned_tile, "modulate:a", 1.0, SPAWN_ANIMATION_SECONDS * 0.8)
+		pop.parallel().tween_property(spawned_tile, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	await pop.finished
+
+func _cell_in_tiles(cell: Vector2i) -> bool:
+	return cell.y >= 0 and cell.y < tiles.size() and cell.x >= 0 and cell.x < tiles[cell.y].size()
+
+func _create_motion_trail(path: Dictionary) -> void:
+	var old_cell: Vector2i = path.get("old_cell", Vector2i(-1, -1))
+	var new_cell: Vector2i = path.get("new_cell", Vector2i(-1, -1))
+	if old_cell == new_cell:
+		return
+	if not _cell_in_tiles(old_cell) or not _cell_in_tiles(new_cell):
+		return
+	var start_position: Vector2 = _tile_origin(old_cell)
+	var end_position: Vector2 = _tile_origin(new_cell)
+	var level: int = int(path.get("level", 0))
+	var base_color: Color = _color_from_level(level)
+	for i in range(MOTION_TRAIL_SEGMENTS):
+		var trail := ColorRect.new()
+		trail.name = "MotionTrail"
+		trail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		trail.size = Vector2(max(12.0, tile_size - _tile_gap_px), max(12.0, tile_size - _tile_gap_px))
+		trail.pivot_offset = trail.size * 0.5
+		var t: float = float(i + 1) / float(MOTION_TRAIL_SEGMENTS + 1)
+		trail.position = start_position.lerp(end_position, t)
+		trail.scale = Vector2.ONE.lerp(Vector2(0.78, 0.78), t)
+		trail.color = Color(base_color.r, base_color.g, base_color.b, 0.28 * (1.0 - (t * 0.55)))
+		trail.z_index = 12
+		add_child(trail)
+		var fade := trail.create_tween()
+		fade.set_parallel(true)
+		fade.tween_property(trail, "modulate:a", 0.0, MOVE_ANIMATION_SECONDS + 0.08).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		fade.tween_property(trail, "scale", trail.scale * 0.88, MOVE_ANIMATION_SECONDS + 0.08)
+		fade.finished.connect(func() -> void:
+			if is_instance_valid(trail):
+				trail.queue_free()
+		)
 
 func _apply_tile_visual(tile: ColorRect, level: int) -> void:
 	var color: Color = _color_from_level(level)
@@ -549,7 +619,7 @@ func _palette_size() -> int:
 func _tile_palette() -> Array:
 	if SaveStore.is_colorblind_high_contrast():
 		return TILE_PALETTE_COLORBLIND
-	if _theme_tile_palette.size() >= 3:
+	if _theme_tile_palette.size() >= TILE_PALETTE_MODERN.size():
 		return _theme_tile_palette
 	return TILE_PALETTE_LEGACY if FeatureFlags.tile_design_mode() == FeatureFlags.TileDesignMode.LEGACY else TILE_PALETTE_MODERN
 

@@ -96,3 +96,28 @@ func test_tile_origin_accounts_for_tile_size() -> void:
 	assert_that(origin.x).is_greater(0.0)
 	assert_that(origin.y).is_greater(0.0)
 	view.queue_free()
+
+func test_color_labels_match_color_crunch_theme_palette() -> void:
+	var original_colorblind: bool = SaveStore.is_colorblind_high_contrast()
+	SaveStore.data["colorblind_high_contrast"] = false
+	var view := BoardView.new()
+	view.width = 4
+	view.height = 4
+	view.tile_size = 24.0
+	get_tree().root.add_child(view)
+	view.set_theme_palette(ThemeManager.COLOR_CRUNCH_DEFAULT_TILE_PALETTE)
+
+	assert_that(view._tile_palette().size()).is_equal(BoardView.TILE_PALETTE_MODERN.size())
+	assert_that(view._label_for_level(1)).is_equal("MINT")
+	assert_that(view._color_from_level(1)).is_equal(ThemeManager.COLOR_CRUNCH_DEFAULT_TILE_PALETTE[0])
+	assert_that(view._label_for_level(2)).is_equal("LIME")
+	assert_that(view._color_from_level(2)).is_equal(ThemeManager.COLOR_CRUNCH_DEFAULT_TILE_PALETTE[1])
+	assert_that(view._label_for_level(5)).is_equal("SKY")
+	assert_that(view._color_from_level(5)).is_equal(ThemeManager.COLOR_CRUNCH_DEFAULT_TILE_PALETTE[4])
+	assert_that(view._label_for_level(14)).is_equal("SOLAR")
+	assert_that(view._color_from_level(14)).is_equal(ThemeManager.COLOR_CRUNCH_DEFAULT_TILE_PALETTE[13])
+
+	view.set_theme_palette([Color.RED, Color.BLUE, Color.GREEN])
+	assert_that(view._tile_palette().size()).is_equal(BoardView.TILE_PALETTE_MODERN.size())
+	view.queue_free()
+	SaveStore.data["colorblind_high_contrast"] = original_colorblind

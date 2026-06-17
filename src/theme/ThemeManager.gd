@@ -3,6 +3,44 @@ extends Node
 const THEME_DEFAULT := "default"
 const THEME_NEON := "neon"
 
+const COLOR_CRUNCH_DEFAULT_TILE_PALETTE := [
+	Color(0.56, 0.95, 0.86, 0.82),
+	Color(0.52, 0.96, 0.62, 0.84),
+	Color(0.50, 0.93, 0.56, 0.86),
+	Color(0.46, 0.88, 0.96, 0.86),
+	Color(0.44, 0.78, 0.98, 0.88),
+	Color(0.46, 0.67, 0.99, 0.88),
+	Color(0.54, 0.58, 1.0, 0.88),
+	Color(0.66, 0.54, 1.0, 0.9),
+	Color(0.78, 0.50, 1.0, 0.9),
+	Color(0.93, 0.48, 0.97, 0.9),
+	Color(1.0, 0.50, 0.84, 0.9),
+	Color(1.0, 0.55, 0.69, 0.92),
+	Color(1.0, 0.63, 0.52, 0.92),
+	Color(1.0, 0.75, 0.41, 0.92),
+	Color(1.0, 0.86, 0.34, 0.92),
+	Color(1.0, 0.95, 0.43, 0.94),
+]
+
+const COLOR_CRUNCH_NEON_TILE_PALETTE := [
+	Color(0.38, 1.0, 0.86, 0.9),
+	Color(0.44, 1.0, 0.48, 0.9),
+	Color(0.60, 1.0, 0.34, 0.9),
+	Color(0.18, 1.0, 0.96, 0.9),
+	Color(0.14, 0.80, 1.0, 0.92),
+	Color(0.24, 0.58, 1.0, 0.92),
+	Color(0.38, 0.44, 1.0, 0.92),
+	Color(0.58, 0.36, 1.0, 0.94),
+	Color(0.82, 0.28, 1.0, 0.94),
+	Color(1.0, 0.25, 0.92, 0.94),
+	Color(1.0, 0.30, 0.74, 0.94),
+	Color(1.0, 0.36, 0.58, 0.94),
+	Color(1.0, 0.46, 0.36, 0.94),
+	Color(1.0, 0.64, 0.20, 0.94),
+	Color(1.0, 0.80, 0.18, 0.94),
+	Color(1.0, 0.96, 0.22, 0.96),
+]
+
 const THEMES := {
 	THEME_DEFAULT: {
 		"display_name": "Default",
@@ -10,13 +48,7 @@ const THEMES := {
 		"background_calm_b": Color(0.64, 0.76, 1.0, 1.0),
 		"background_hype_a": Color(0.2, 0.26, 0.66, 1.0),
 		"background_hype_b": Color(0.6, 0.28, 0.94, 1.0),
-		"tile_palette": [
-			Color(0.18, 0.78, 1.0, 0.78),
-			Color(0.98, 0.34, 0.30, 0.78),
-			Color(0.28, 0.94, 0.46, 0.78),
-			Color(1.0, 0.84, 0.18, 0.78),
-			Color(0.88, 0.34, 1.0, 0.84),
-		],
+		"tile_palette": COLOR_CRUNCH_DEFAULT_TILE_PALETTE,
 		"vfx_palette": [
 			Color(0.42, 0.8, 1.0, 0.9),
 			Color(0.96, 0.62, 0.9, 0.9),
@@ -32,13 +64,7 @@ const THEMES := {
 		"background_calm_b": Color(0.12, 0.04, 0.22, 1.0),
 		"background_hype_a": Color(0.0, 0.12, 0.28, 1.0),
 		"background_hype_b": Color(0.62, 0.0, 0.72, 1.0),
-		"tile_palette": [
-			Color(0.0, 0.96, 1.0, 0.86),
-			Color(1.0, 0.2, 0.64, 0.86),
-			Color(0.3, 1.0, 0.7, 0.86),
-			Color(1.0, 0.82, 0.24, 0.86),
-			Color(0.76, 0.42, 1.0, 0.88),
-		],
+		"tile_palette": COLOR_CRUNCH_NEON_TILE_PALETTE,
 		"vfx_palette": [
 			Color(0.0, 0.98, 1.0, 0.94),
 			Color(1.0, 0.32, 0.78, 0.94),

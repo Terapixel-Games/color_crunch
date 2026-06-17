@@ -153,3 +153,11 @@ func test_starfield_mode_color_overrides() -> void:
 	ProjectSettings.set_setting("lumarush/starfield_hype_point_color", Color(1.0, 1.0, 1.0, 1.0))
 	assert_that(FeatureFlags.starfield_calm_point_color()).is_equal(Color(0.2, 0.8, 1.0, 1.0))
 	assert_that(FeatureFlags.starfield_hype_point_color()).is_equal(Color(1.0, 1.0, 1.0, 1.0))
+
+func test_color_crunch_settings_override_lumarush_fallbacks() -> void:
+	ProjectSettings.set_setting("lumarush/tile_blur_mode", FeatureFlags.TileBlurMode.HEAVY)
+	ProjectSettings.set_setting("color_crunch/tile_blur_mode", FeatureFlags.TileBlurMode.LITE)
+	assert_that(FeatureFlags.tile_blur_mode()).is_equal(FeatureFlags.TileBlurMode.LITE)
+	ProjectSettings.clear("color_crunch/tile_blur_mode")
+	assert_that(FeatureFlags.tile_blur_mode()).is_equal(FeatureFlags.TileBlurMode.HEAVY)
+	ProjectSettings.set_setting("lumarush/tile_blur_mode", FeatureFlags.TileBlurMode.LITE)

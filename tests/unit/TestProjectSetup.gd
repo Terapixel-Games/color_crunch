@@ -14,8 +14,9 @@ func test_required_autoloads_are_registered() -> void:
 	assert_that(String(ProjectSettings.get_setting("autoload/RunManager"))).is_equal("*res://src/core/RunManager.gd")
 	assert_that(String(ProjectSettings.get_setting("autoload/NakamaService"))).is_equal("*res://src/network/NakamaService.gd")
 
-func test_mobile_portrait_and_stretch_settings() -> void:
-	assert_that(int(ProjectSettings.get_setting("display/window/handheld/orientation"))).is_equal(1)
+func test_mobile_orientation_and_stretch_settings() -> void:
+	assert_that(int(ProjectSettings.get_setting("display/window/handheld/orientation"))).is_equal(6)
+	assert_that(bool(ProjectSettings.get_setting("display/window/size/resizable"))).is_true()
 	assert_that(String(ProjectSettings.get_setting("display/window/stretch/mode"))).is_equal("canvas_items")
 	assert_that(String(ProjectSettings.get_setting("display/window/stretch/aspect"))).is_equal("expand")
 
