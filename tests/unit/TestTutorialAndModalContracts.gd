@@ -221,14 +221,13 @@ func test_game_timer_chip_is_inside_top_hud_portrait_and_landscape() -> void:
 		await get_tree().process_frame
 
 		var top_bar_bg: Control = game.get_node("UI/TopBarBg") as Control
-		var top_bar: Control = game.get_node("UI/TopBar") as Control
 		var score_box: Control = game.get_node("UI/TopBar/ScoreBox") as Control
 		var pause_button: Control = game.get_node("UI/TopBar/Pause") as Control
-		var timer_chip: Control = game.get_node("UI/TopBar/RoundTimerChip") as Control
-		var timer_value: Label = game.get_node("UI/TopBar/RoundTimerChip/Margin/VBox/Value") as Label
+		var timer_chip: Control = game.get_node("UI/TopBarBg/RoundTimerChip") as Control
+		var timer_value: Label = game.get_node("UI/TopBarBg/RoundTimerChip/Margin/VBox/Value") as Label
 
-		assert_that(timer_chip.get_parent()).is_equal(top_bar)
-		_assert_rect_inside(timer_chip.get_global_rect(), top_bar_bg.get_global_rect().grow(2.0))
+		assert_that(timer_chip.get_parent()).is_equal(top_bar_bg)
+		_assert_rect_inside(timer_chip.get_global_rect(), top_bar_bg.get_global_rect().grow(-4.0))
 		assert_that(timer_chip.get_global_rect().intersects(score_box.get_global_rect())).is_false()
 		assert_that(timer_chip.get_global_rect().intersects(pause_button.get_global_rect())).is_false()
 		assert_that(timer_value.text.begins_with("Time")).is_false()

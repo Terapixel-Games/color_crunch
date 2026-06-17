@@ -1025,8 +1025,7 @@ func _setup_dynamic_overlays() -> void:
 		_timer_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_timer_chip.size_flags_horizontal = Control.SIZE_SHRINK_END
 		_timer_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		top_bar.add_child(_timer_chip)
-		top_bar.move_child(_timer_chip, max(0, top_bar.get_child_count() - 2))
+		top_bar_bg.add_child(_timer_chip)
 		var timer_margin := MarginContainer.new()
 		timer_margin.name = "Margin"
 		timer_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1075,11 +1074,20 @@ func _setup_dynamic_overlays() -> void:
 func _layout_dynamic_overlays(view_size: Vector2) -> void:
 	if _timer_chip:
 		var top_height: float = top_bar_bg.size.y if top_bar_bg else clamp(view_size.y * 0.12, 72.0, 120.0)
-		var chip_width: float = clamp(view_size.x * 0.16, 82.0, 132.0)
-		var chip_height: float = clamp(top_height * 0.70, 50.0, 78.0)
+		var chip_width: float = clamp(top_bar_bg.size.x * 0.17, 74.0, 118.0) if top_bar_bg else clamp(view_size.x * 0.14, 74.0, 118.0)
+		var chip_height: float = clamp(top_height * 0.54, 36.0, 56.0)
+		var pause_width: float = pause_button.custom_minimum_size.x if pause_button != null else 62.0
+		var right_inset: float = clamp(top_bar_bg.size.x * 0.045, 14.0, 24.0) if top_bar_bg else 18.0
+		var gap_to_pause: float = clamp(top_height * 0.10, 8.0, 14.0)
+		var chip_x: float = max(right_inset, top_bar_bg.size.x - right_inset - pause_width - gap_to_pause - chip_width) if top_bar_bg else 0.0
+		var chip_y: float = max(4.0, (top_height - chip_height) * 0.5)
+		_timer_chip.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_timer_chip.position = Vector2(chip_x, chip_y)
+		_timer_chip.size = Vector2(chip_width, chip_height)
 		_timer_chip.custom_minimum_size = Vector2(chip_width, chip_height)
 		_timer_chip.size_flags_horizontal = Control.SIZE_SHRINK_END
 		_timer_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_timer_chip.pivot_offset = _timer_chip.size * 0.5
 		_style_timer_chip(_round_time_left <= 15.0)
 		var timer_margin: MarginContainer = _timer_chip.get_node("Margin") as MarginContainer
 		if timer_margin:
