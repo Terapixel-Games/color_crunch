@@ -39,6 +39,8 @@ SaveManager="*res://addons/arcade_core/SaveManager.gd"
 AudioManager="*res://addons/arcade_core/AudioManager.gd"
 Fx="*res://addons/arcade_core/Fx.gd"
 
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+
 [color_crunch]
 
 nakama_enable_client=false
@@ -70,7 +72,7 @@ window/handheld/orientation=6
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/AdmobPlugin/plugin.cfg", "res://addons/gdUnit4/plugin.cfg")
+enabled=PackedStringArray("res://addons/AdmobPlugin/plugin.cfg", "res://addons/gdUnit4/plugin.cfg", "res://addons/godot_ai/plugin.cfg")
 
 [rendering]
 
