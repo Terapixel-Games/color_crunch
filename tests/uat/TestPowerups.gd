@@ -6,6 +6,12 @@ var _original_open_tip_should_show: bool = true
 func before() -> void:
 	_original_mode = RunManager.get_selected_mode()
 	_original_open_tip_should_show = SaveStore.should_show_tip(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)
+	_reset_powerup_test_state()
+
+func before_test() -> void:
+	_reset_powerup_test_state()
+
+func _reset_powerup_test_state() -> void:
 	RunManager.set_selected_mode("PURE", "test")
 	RunManager.prepare_run_start()
 	SaveStore.set_tip_dismissed(SaveStore.TIP_OPEN_LEADERBOARD_FIRST_POWERUP, true)

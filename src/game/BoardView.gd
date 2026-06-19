@@ -242,14 +242,42 @@ func apply_shuffle_powerup() -> bool:
 	_clear_hint()
 	await _animate_powerup_charge(Color(0.7, 0.95, 1.0, 1.0))
 	var before: Array = board.snapshot()
-	board.shuffle_tiles()
-	var changed: bool = before != board.snapshot()
+	var changed: bool = false
+	for _attempt in range(8):
+		board.shuffle_tiles()
+		if before != board.snapshot():
+			changed = true
+			break
+	if not changed:
+		changed = _force_shuffle_difference(before)
+	changed = changed or before != board.snapshot()
 	_refresh_tiles()
 	await _animate_powerup_release()
 	if _check_no_moves_and_emit():
 		_restart_hint_timer()
 	_animating = false
 	return changed
+
+func _force_shuffle_difference(before: Array) -> bool:
+	var first := Vector2i(-1, -1)
+	var first_value: int = 0
+	for y in range(height):
+		for x in range(width):
+			var value: int = int(board.grid[y][x])
+			if value <= 0:
+				continue
+			if first.x < 0:
+				first = Vector2i(x, y)
+				first_value = value
+				continue
+			if value == first_value:
+				continue
+			board.grid[first.y][first.x] = value
+			board.grid[y][x] = first_value
+			if not board.has_move():
+				board.ensure_min_available_matches(1)
+			return before != board.snapshot()
+	return false
 
 func apply_remove_color_powerup(color_idx: int = -1) -> Dictionary:
 	if _animating:

@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          ./addons/gdUnit4/runtest.sh --godot_binary "$GODOT_BIN" -a tests --ignoreHeadlessMode
+          bash ./addons/gdUnit4/runtest.sh --godot_binary "$GODOT_BIN" -a tests --ignoreHeadlessMode
 
       - name: Run Nakama Module Tests
         shell: bash

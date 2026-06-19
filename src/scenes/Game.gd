@@ -916,11 +916,13 @@ func _layout_top_bar(view_size: Vector2, content_left: float, content_width: flo
 		max(220.0, content_width - (content_inset_x * 2.0) - right_reserve),
 		max(56.0, bar_height - (content_inset_y * 2.0))
 	)
-	top_bar.add_theme_constant_override("separation", int(round(clamp(content_width * 0.016, 10.0, 20.0))))
+	var pause_size: float = clamp(top_bar.size.y * 0.74, 52.0, 82.0)
+	var timer_chip_width: float = clamp(content_width * 0.17, 74.0, 118.0)
+	var timer_gap: float = clamp(bar_height * 0.22, 18.0, 30.0)
+	top_bar.add_theme_constant_override("separation", int(round(timer_chip_width + (timer_gap * 2.0))))
 	if score_box:
 		score_box.add_theme_constant_override("separation", int(round(clamp(bar_height * 0.035, 4.0, 8.0))))
 	if pause_button:
-		var pause_size: float = clamp(top_bar.size.y * 0.74, 52.0, 82.0)
 		pause_button.custom_minimum_size = Vector2(pause_size, pause_size)
 		pause_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -1080,6 +1082,11 @@ func _layout_dynamic_overlays(view_size: Vector2) -> void:
 		var right_inset: float = clamp(top_bar_bg.size.x * 0.045, 14.0, 24.0) if top_bar_bg else 18.0
 		var gap_to_pause: float = clamp(top_height * 0.22, 18.0, 30.0)
 		var chip_x: float = max(right_inset, top_bar_bg.size.x - right_inset - pause_width - gap_to_pause - chip_width) if top_bar_bg else 0.0
+		if top_bar_bg and top_bar:
+			var top_bar_local_x: float = top_bar.position.x - top_bar_bg.position.x
+			var pause_local_x: float = top_bar_local_x + top_bar.size.x - pause_width
+			chip_x = pause_local_x - gap_to_pause - chip_width
+			chip_x = clamp(chip_x, right_inset, max(right_inset, top_bar_bg.size.x - right_inset - chip_width))
 		var chip_y: float = max(4.0, (top_height - chip_height) * 0.5)
 		_timer_chip.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_timer_chip.position = Vector2(chip_x, chip_y)
@@ -1369,11 +1376,37 @@ func _layout_tutorial_overlay() -> void:
 	_tutorial_panel.position = layout["position"]
 	_tutorial_panel.size = layout["size"]
 	_tutorial_panel.pivot_offset = _tutorial_panel.size * 0.5
+	_fit_tutorial_buttons()
 	if _tutorial_next_button:
 		_tutorial_next_button.pivot_offset = _tutorial_next_button.size * 0.5
 	if _tutorial_skip_button:
 		_tutorial_skip_button.pivot_offset = _tutorial_skip_button.size * 0.5
 	_refresh_tutorial_highlights()
+
+func _fit_tutorial_buttons() -> void:
+	if _tutorial_panel == null or _tutorial_next_button == null or _tutorial_skip_button == null:
+		return
+	var buttons := _tutorial_next_button.get_parent() as HBoxContainer
+	if buttons == null:
+		return
+	var gap: float = float(buttons.get_theme_constant("separation"))
+	var available_width: float = max(240.0, _tutorial_panel.size.x - 56.0)
+	var button_width: float = max(142.0, (available_width - gap) * 0.5)
+	for button in [_tutorial_skip_button, _tutorial_next_button]:
+		button.custom_minimum_size.x = button_width
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_fit_tutorial_button_font(button, button_width - 28.0)
+
+func _fit_tutorial_button_font(button: Button, available_width: float) -> void:
+	if button == null:
+		return
+	var font: Font = button.get_theme_font("font")
+	var font_size: int = button.get_theme_font_size("font_size")
+	if font == null:
+		return
+	while font_size > 12 and font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x > available_width:
+		font_size -= 1
+	button.add_theme_font_size_override("font_size", font_size)
 
 func _tutorial_top_limit() -> float:
 	var top_limit: float = 18.0

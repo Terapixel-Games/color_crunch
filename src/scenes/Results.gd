@@ -190,11 +190,9 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 	var target_panel_height: float = viewport_size.y * height_ratio
 	var panel_height: float = clamp(target_panel_height, min_panel_height, max_panel_height)
 	var panel_size: Vector2 = Vector2(panel_width, panel_height)
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	var panel_x: float = (viewport_size.x - panel_size.x) * 0.5
 	var panel_y: float = (viewport_size.y - panel_size.y) * (0.50 if is_wide else 0.47)
-	panel.position = Vector2(panel_x, panel_y)
-	panel.size = panel_size
+	_place_control_rect(panel, Vector2(panel_x, panel_y), panel_size)
 	_layout_top_right(viewport_size)
 
 	var margin_x: float = clamp(panel_size.x * 0.044, 16.0, 38.0)
@@ -217,6 +215,7 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 		var separation: int = int(clamp(round(base_separation * compact_scale), separation_min, 13.0))
 		box.add_theme_constant_override("separation", separation)
 		_apply_responsive_typography(content_size, viewport_aspect, use_split, compact_scale, compact_mode)
+		_constrain_results_content_widths(content_size, use_split)
 
 		var secondary_min: float = 44.0 if compact_mode else 50.0
 		var primary_min: float = 54.0 if compact_mode else 62.0
@@ -245,17 +244,55 @@ func _layout_results_for_size(viewport_size: Vector2) -> void:
 			break
 		compact_scale = next_scale
 
-	scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	scroll.position = Vector2(margin_x, margin_y)
-	scroll.size = content_size
-
-	box.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	box.position = Vector2.ZERO
 	var content_min_height: float = box.get_combined_minimum_size().y
-	box.size = Vector2(content_size.x, max(content_size.y, content_min_height))
+	_place_control_rect(scroll, Vector2(margin_x, margin_y), content_size)
+	_place_control_rect(box, Vector2.ZERO, Vector2(content_size.x, max(content_size.y, content_min_height)))
 	box.alignment = BoxContainer.ALIGNMENT_BEGIN if compact_mode else BoxContainer.ALIGNMENT_CENTER
 	box.custom_minimum_size = Vector2(content_size.x, max(content_size.y, content_min_height))
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_refresh_intro_pivots()
+
+func _place_control_rect(control: Control, rect_position: Vector2, rect_size: Vector2) -> void:
+	if control == null:
+		return
+	control.anchor_left = 0.0
+	control.anchor_top = 0.0
+	control.anchor_right = 0.0
+	control.anchor_bottom = 0.0
+	control.offset_left = rect_position.x
+	control.offset_top = rect_position.y
+	control.offset_right = rect_position.x + rect_size.x
+	control.offset_bottom = rect_position.y + rect_size.y
+
+func _constrain_results_content_widths(content_size: Vector2, use_split: bool) -> void:
+	var full_width: float = max(180.0, content_size.x)
+	if stats_split:
+		stats_split.custom_minimum_size.x = full_width
+	var split_gap: float = float(stats_split.get_theme_constant("h_separation")) if stats_split else 0.0
+	var column_width: float = max(160.0, (full_width - split_gap) * 0.5) if use_split else full_width
+	for label in [kicker_label, title_label, coins_earned_label, coin_balance_label, _powerups_label, _encouragement_label, _dual_leaderboard_label, _weekly_ladder_label, _rival_target_label, _grade_label]:
+		_constrain_label_width(label, full_width)
+	for label in [score_label, mode_badge_label, best_label, streak_label]:
+		_constrain_label_width(label, column_width)
+	for label in [online_status_label, leaderboard_label]:
+		_constrain_label_width(label, column_width if use_split else full_width)
+	for button in [double_reward_button, play_again_button, menu_button]:
+		if button:
+			button.custom_minimum_size.x = full_width
+	if _reward_cards:
+		_reward_cards.custom_minimum_size.x = full_width
+		var columns: int = max(1, _reward_cards.columns)
+		var h_gap: float = float(_reward_cards.get_theme_constant("h_separation"))
+		var card_width: float = max(96.0, (full_width - h_gap * float(columns - 1)) / float(columns))
+		for reward_label in [_best_reward_label, _coins_reward_label, _streak_reward_label]:
+			_constrain_label_width(reward_label, card_width)
+
+func _constrain_label_width(label: Label, width: float) -> void:
+	if label == null:
+		return
+	label.custom_minimum_size.x = max(0.0, width)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.clip_text = true
 
 func _layout_top_right(viewport_size: Vector2) -> void:
 	if top_right_bar == null or audio_button == null:
@@ -270,6 +307,8 @@ func _layout_top_right(viewport_size: Vector2) -> void:
 	if panel != null and panel.size.x > 0.0 and panel.size.y > 0.0:
 		target_x = panel.position.x + panel.size.x - (icon_size * 0.20)
 		target_y = max(safe_top + margin, panel.position.y - (icon_size * 0.88))
+	var max_x: float = viewport_size.x - safe_right - margin - icon_size
+	target_x = clamp(target_x, margin, max(margin, max_x))
 	top_right_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	top_right_bar.position = Vector2(target_x, target_y)
 	top_right_bar.size = Vector2(icon_size, icon_size)
@@ -314,16 +353,16 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 	var stat_column_width: float = max(220.0, (content_size.x - split_gap) * 0.5) if use_split else content_size.x
 	var menu_title_px: int = Typography.px(Typography.SIZE_MENU_TITLE)
 	var menu_button_px: int = Typography.px(Typography.SIZE_BUTTON)
-	var kicker_min: float = 17.0 if compact_mode else 14.0
-	var title_min: float = 40.0 if compact_mode else 36.0
-	var score_min: float = 78.0 if compact_mode else 58.0
-	var mode_min: float = 18.0 if compact_mode else 16.0
-	var stat_min: float = 22.0 if compact_mode else 18.0
-	var body_min: float = 20.0 if compact_mode else 15.0
-	var coin_min: float = 20.0 if compact_mode else 15.0
-	var reward_min: float = 20.0 if compact_mode else 16.0
-	var primary_min: float = 24.0 if compact_mode else 20.0
-	var compact_body_boost: float = 1.08 if compact_mode else 1.0
+	var kicker_min: float = 13.0 if compact_mode else 14.0
+	var title_min: float = 28.0 if compact_mode else 36.0
+	var score_min: float = 48.0 if compact_mode else 58.0
+	var mode_min: float = 13.0 if compact_mode else 16.0
+	var stat_min: float = 14.0 if compact_mode else 18.0
+	var body_min: float = 13.0 if compact_mode else 15.0
+	var coin_min: float = 13.0 if compact_mode else 15.0
+	var reward_min: float = 14.0 if compact_mode else 16.0
+	var primary_min: float = 18.0 if compact_mode else 20.0
+	var compact_body_boost: float = 0.92 if compact_mode else 1.0
 	var kicker_size: int = int(round(clamp(float(menu_button_px) * (0.48 if compact_mode else 0.38) * compact_scale, kicker_min, 30.0)))
 	var title_size: int = int(round(clamp(float(menu_title_px) * (0.68 if compact_mode else 0.60) * headline_scale, title_min, 96.0)))
 	var score_size: int = int(round(clamp(max(float(menu_title_px) * 0.84, stat_column_width * 0.16) * headline_scale, score_min, 138.0)))
@@ -372,7 +411,8 @@ func _apply_responsive_typography(content_size: Vector2, viewport_aspect: float,
 	for reward_label in [_best_reward_label, _coins_reward_label, _streak_reward_label]:
 		if reward_label:
 			reward_label.add_theme_font_size_override("font_size", int(round(body_size * (1.0 if compact_mode else 0.92))))
-			var card_height: float = clamp(content_size.y * (0.13 if is_wide else 0.095) * compact_scale, 72.0, 118.0)
+			var min_card_height: float = 44.0 if compact_mode else 72.0
+			var card_height: float = clamp(content_size.y * (0.105 if is_wide else 0.095) * compact_scale, min_card_height, 118.0)
 			reward_label.custom_minimum_size.y = card_height
 	if double_reward_button:
 		double_reward_button.add_theme_font_size_override("font_size", reward_button_size)

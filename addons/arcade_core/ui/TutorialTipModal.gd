@@ -160,7 +160,8 @@ func _style_controls() -> void:
 	if do_not_show_toggle:
 		do_not_show_toggle.focus_mode = Control.FOCUS_NONE
 		do_not_show_toggle.mouse_filter = Control.MOUSE_FILTER_STOP
-		do_not_show_toggle.clip_text = false
+		do_not_show_toggle.clip_text = true
+		do_not_show_toggle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		do_not_show_toggle.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		do_not_show_toggle.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		do_not_show_toggle.custom_minimum_size.y = 42.0
@@ -191,20 +192,33 @@ func _layout_tip() -> void:
 	var max_panel_width: float = max(260.0, view_size.x - (margin * 2.0))
 	var min_panel_width: float = min(340.0, max_panel_width)
 	var panel_width: float = clamp(view_size.x * (0.56 if is_wide else 0.84), min_panel_width, min(760.0, max_panel_width))
-	var inset: int = int(round(clamp(panel_width * 0.052, 18.0, 28.0)))
-	var close_size: float = clamp(panel_width * 0.082, 38.0, 48.0)
-	var close_reserve: int = int(ceil(close_size + 16.0))
-	var bottom_inset: int = inset + int(round(clamp(panel_width * 0.024, 12.0, 18.0)))
+	var max_panel_height: float = max(180.0, view_size.y - (margin * 2.0))
+	var layout_scale: float = 1.0
+	var inset: int = 0
+	var close_size: float = 0.0
+	var close_reserve: int = 0
+	var bottom_inset: int = 0
+	var content_width: float = 0.0
+	var required_height: float = 0.0
+	for _i in range(6):
+		inset = int(round(clamp(panel_width * 0.052 * layout_scale, 16.0, 28.0)))
+		close_size = clamp(panel_width * 0.082 * layout_scale, 34.0, 48.0)
+		close_reserve = int(ceil(close_size + 12.0 * layout_scale))
+		bottom_inset = inset + int(round(clamp(panel_width * 0.024 * layout_scale, 10.0, 18.0)))
+		content_width = max(160.0, panel_width - float(inset * 2 + close_reserve))
+		_prepare_wrapped_content_sizes(content_width, layout_scale)
+		required_height = _required_panel_height(float(inset), float(bottom_inset))
+		if required_height <= max_panel_height or layout_scale <= 0.70:
+			break
+		var fit_ratio: float = max_panel_height / max(1.0, required_height)
+		layout_scale = clamp(layout_scale * fit_ratio, 0.70, layout_scale - 0.01)
 	if content_margin:
 		content_margin.add_theme_constant_override("margin_left", inset)
 		content_margin.add_theme_constant_override("margin_top", inset)
 		content_margin.add_theme_constant_override("margin_right", inset + close_reserve)
 		content_margin.add_theme_constant_override("margin_bottom", bottom_inset)
-	var content_width: float = max(160.0, panel_width - float(inset * 2 + close_reserve))
-	_prepare_wrapped_content_sizes(content_width)
-	var max_panel_height: float = max(180.0, view_size.y - (margin * 2.0))
-	var min_panel_height: float = min(330.0, max_panel_height)
-	var panel_height: float = clamp(_required_panel_height(float(inset), float(bottom_inset)), min_panel_height, max_panel_height)
+	var min_panel_height: float = min(280.0 if view_size.y < 720.0 else 330.0, max_panel_height)
+	var panel_height: float = clamp(required_height, min_panel_height, max_panel_height)
 	var panel_x: float = (view_size.x - panel_width) * 0.5
 	var panel_y: float = view_size.y - _bottom_offset - panel_height
 	if _target_rect.size != Vector2.ZERO:
@@ -233,18 +247,35 @@ func _layout_tip() -> void:
 	if cancel_button:
 		cancel_button.pivot_offset = cancel_button.size * 0.5
 
-func _prepare_wrapped_content_sizes(content_width: float) -> void:
-	var title_size: int = _font_px(30.0)
-	var message_size: int = _font_px(21.0)
-	var line_spacing: int = _font_px(7.0)
+func _prepare_wrapped_content_sizes(content_width: float, layout_scale: float = 1.0) -> void:
+	var title_size: int = _font_px(30.0 * layout_scale)
+	var message_size: int = _font_px(21.0 * layout_scale)
+	var checkbox_size: int = _font_px(16.0 * layout_scale)
+	var button_size: int = _font_px(17.0 * layout_scale)
+	var line_spacing: int = _font_px(7.0 * layout_scale)
+	var separation: int = int(round(clamp(16.0 * layout_scale, 8.0, 16.0)))
+	var button_height: float = clamp(58.0 * layout_scale, 44.0, 58.0)
+	if content_box:
+		content_box.add_theme_constant_override("separation", separation)
 	if title_label:
+		title_label.add_theme_font_size_override("font_size", title_size)
 		title_label.custom_minimum_size = Vector2(content_width, _estimate_wrapped_text_height(title_label.text, title_size, content_width, 0.58, 4.0, 1))
 	if message_label:
+		message_label.add_theme_font_size_override("font_size", message_size)
+		message_label.add_theme_constant_override("line_spacing", line_spacing)
 		message_label.custom_minimum_size = Vector2(content_width, _estimate_wrapped_text_height(message_label.text, message_size, content_width, 0.53, float(line_spacing), 2))
 	if do_not_show_toggle:
-		do_not_show_toggle.custom_minimum_size = Vector2(min(content_width, 320.0), 42.0)
+		if do_not_show_toggle.text == "Don't show this again" and content_width < 430.0:
+			do_not_show_toggle.text = "Don't show again"
+		do_not_show_toggle.add_theme_font_size_override("font_size", checkbox_size)
+		do_not_show_toggle.custom_minimum_size = Vector2(min(content_width, 320.0), clamp(42.0 * layout_scale, 34.0, 42.0))
 	if buttons_row:
-		buttons_row.custom_minimum_size = Vector2(content_width, 58.0)
+		buttons_row.add_theme_constant_override("separation", int(round(clamp(12.0 * layout_scale, 8.0, 12.0))))
+		buttons_row.custom_minimum_size = Vector2(content_width, button_height)
+	for button in [cancel_button, confirm_button]:
+		if button:
+			button.add_theme_font_size_override("font_size", button_size)
+			button.custom_minimum_size.y = button_height
 
 func _required_panel_height(top_inset: float, bottom_inset: float) -> float:
 	var separation: float = float(content_box.get_theme_constant("separation")) if content_box else 16.0
@@ -263,7 +294,7 @@ func _required_panel_height(top_inset: float, bottom_inset: float) -> float:
 		blocks += 1
 		content_height += max(58.0, buttons_row.custom_minimum_size.y)
 	content_height += separation * float(max(0, blocks - 1))
-	return ceil(top_inset + bottom_inset + content_height)
+	return ceil(top_inset + bottom_inset + content_height + 72.0)
 
 func _estimate_wrapped_text_height(text: String, font_size: int, width: float, average_width_factor: float, line_spacing: float, min_lines: int) -> float:
 	var chars_per_line: int = max(8, int(floor(width / max(1.0, float(font_size) * average_width_factor))))
@@ -316,13 +347,10 @@ func _play_entry_motion() -> void:
 	if _entry_tween:
 		_entry_tween.kill()
 	panel.pivot_offset = panel.size * 0.5
-	panel.scale = Vector2(0.96, 0.96)
+	panel.scale = Vector2.ONE
 	panel.modulate = Color(1, 1, 1, 0.0)
 	_entry_tween = panel.create_tween()
-	_entry_tween.set_parallel(true)
-	_entry_tween.tween_property(panel, "scale", Vector2(1.025, 1.025), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_entry_tween.tween_property(panel, "modulate:a", 1.0, 0.10)
-	_entry_tween.chain().tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_entry_tween.tween_property(panel, "modulate:a", 1.0, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func _stop_motion() -> void:
 	if _entry_tween:
