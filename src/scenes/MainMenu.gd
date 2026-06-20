@@ -12,6 +12,7 @@ const PROMO_URL := "https://terapixel.games/lumarush"
 @onready var panel: ColorRect = $UI/RootMargin/Layout/Center/PanelShell/Panel
 @onready var content_margin: MarginContainer = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin
 @onready var title_label: Label = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/Title
+@onready var logo_art: TextureRect = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/LogoArt
 @onready var start_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/PrimaryCTA/Start
 @onready var mode_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/ModeToggle
 @onready var daily_button: Button = $UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox/SecondaryOptions/OptionRow/DailyToggle
@@ -49,10 +50,12 @@ func _ready() -> void:
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	Typography.style_main_menu(self)
 	ThemeManager.apply_to_scene(self)
+	_apply_brand_logo()
 	_layout_menu()
 	call_deferred("_layout_menu")
 	_sync_mode_buttons()
-	title_label.add_theme_color_override("font_color", _title_base_color)
+	if title_label != null:
+		title_label.add_theme_color_override("font_color", _title_base_color)
 	_populate_track_options()
 	_refresh_audio_icon()
 	_play_menu_motion()
@@ -68,12 +71,14 @@ func _process(delta: float) -> void:
 	if FeatureFlags.is_visual_test_mode():
 		return
 	_title_t += delta
-	var color_wave: float = (sin(_title_t * 1.10) + 1.0) * 0.5
-	title_label.add_theme_color_override("font_color", _title_base_color.lerp(_title_accent_color, color_wave))
+	if title_label != null and title_label.visible:
+		var color_wave: float = (sin(_title_t * 1.10) + 1.0) * 0.5
+		title_label.add_theme_color_override("font_color", _title_base_color.lerp(_title_accent_color, color_wave))
 
 func _notification(what: int) -> void:
 	if what == Control.NOTIFICATION_RESIZED:
 		Typography.style_main_menu(self)
+		_apply_brand_logo()
 		_layout_menu()
 		_refresh_title_pivots()
 
@@ -103,6 +108,8 @@ func _layout_menu() -> void:
 	content_margin.add_theme_constant_override("margin_right", inner_margin)
 	content_margin.add_theme_constant_override("margin_bottom", inner_margin)
 
+	if logo_art != null:
+		logo_art.custom_minimum_size = Vector2(0, clamp(viewport_size.y * 0.15, 92.0, 138.0))
 	start_button.custom_minimum_size.y = clamp(viewport_size.y * 0.10, 86.0, 122.0)
 	if mode_button:
 		mode_button.custom_minimum_size.y = clamp(viewport_size.y * 0.070, 60.0, 82.0)
@@ -120,6 +127,8 @@ func _layout_menu() -> void:
 func _refresh_title_pivots() -> void:
 	if title_label:
 		title_label.pivot_offset = title_label.size * 0.5
+	if logo_art:
+		logo_art.pivot_offset = logo_art.size * 0.5
 
 func _play_menu_motion() -> void:
 	_run_panel_fade_in()
@@ -130,10 +139,21 @@ func _play_menu_motion() -> void:
 func _run_logo_idle_float() -> void:
 	if is_instance_valid(_logo_idle_tween):
 		_logo_idle_tween.kill()
+	var logo_target: Control = logo_art if logo_art != null else title_label
+	if logo_target == null:
+		return
 	_logo_idle_tween = create_tween()
 	_logo_idle_tween.set_loops()
-	_logo_idle_tween.tween_property(title_label, "scale", Vector2(1.02, 1.02), 1.45)
-	_logo_idle_tween.tween_property(title_label, "scale", Vector2.ONE, 1.45)
+	_logo_idle_tween.tween_property(logo_target, "scale", Vector2(1.02, 1.02), 1.45)
+	_logo_idle_tween.tween_property(logo_target, "scale", Vector2.ONE, 1.45)
+
+func _apply_brand_logo() -> void:
+	if logo_art != null:
+		logo_art.visible = true
+		logo_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		logo_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if title_label != null:
+		title_label.visible = false
 
 func _run_cta_pulse() -> void:
 	if is_instance_valid(_cta_pulse_tween):

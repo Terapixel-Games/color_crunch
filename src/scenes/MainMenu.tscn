@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/scenes/MainMenu.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/visual/BackgroundController.tscn" id="2"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/person.tres" id="10"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/cart.tres" id="11"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/atlas/music_on.tres" id="12"]
+[ext_resource type="Texture2D" path="res://assets/marketing/logo_horizontal.png" id="13"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -141,7 +142,17 @@ size_flags_horizontal = 3
 text = "ARCADE COLOR GRID"
 horizontal_alignment = 1
 
+[node name="LogoArt" type="TextureRect" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+texture = ExtResource("13")
+expand_mode = 1
+stretch_mode = 5
+
 [node name="Title" type="Label" parent="UI/RootMargin/Layout/Center/PanelShell/Panel/ContentMargin/VBox"]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 84
