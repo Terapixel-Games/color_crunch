@@ -56,6 +56,7 @@ var _prism_picker_overlay: Control
 var _pause_overlap_factor: float = 0.5
 var _audio_overlay: AudioTrackOverlay
 var _round_time_left: float = 90.0
+var _round_timer_started: bool = false
 var _board_anchor_pos: Vector2 = Vector2.ZERO
 var _scene_opened_msec: int = Time.get_ticks_msec()
 var _combo_label: Label
@@ -90,6 +91,7 @@ const TUTORIAL_STEP_DONE := 5
 func _ready() -> void:
 	_run_started_at_unix = Time.get_unix_time_from_system()
 	_round_time_left = ROUND_LIMIT_SECONDS
+	_round_timer_started = false
 	NakamaService.track_client_event("gameplay.run_started", {
 		"streak_days": StreakManager.get_streak_days(),
 		"track_id": MusicManager.get_current_track_id(),
@@ -112,6 +114,7 @@ func _ready() -> void:
 	MusicManager.set_gameplay()
 	VisualTestMode.apply_if_enabled($BackgroundController, $BackgroundController)
 	board.connect("match_made", Callable(self, "_on_match_made"))
+	board.connect("move_attempted", Callable(self, "_on_move_attempted"))
 	board.connect("move_committed", Callable(self, "_on_move_committed"))
 	board.connect("no_moves", Callable(self, "_on_no_moves"))
 	if not AdManager.is_connected("rewarded_powerup_earned", Callable(self, "_on_powerup_rewarded_earned")):
@@ -169,11 +172,12 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if _run_finished or _ending_transition_started:
 		return
-	_round_time_left = max(0.0, _round_time_left - delta)
-	_update_timer_label()
-	if _round_time_left <= 0.0:
-		_finish_run(true)
-		return
+	if _round_timer_started:
+		_round_time_left = max(0.0, _round_time_left - delta)
+		_update_timer_label()
+		if _round_time_left <= 0.0:
+			_finish_run(true)
+			return
 	if _shake_time_left > 0.0:
 		_shake_time_left = max(0.0, _shake_time_left - delta)
 		var amp: float = max(0.0, _shake_strength * (_shake_time_left / 0.12))
@@ -199,7 +203,11 @@ func _on_match_made(group: Array) -> void:
 		MusicManager.maybe_trigger_high_combo_fx()
 	_apply_difficulty_curve()
 
+func _on_move_attempted(_direction: Vector2i) -> void:
+	_start_round_timer()
+
 func _on_move_committed(_group: Array, snapshot: Array) -> void:
+	_start_round_timer()
 	_push_undo(snapshot, score, combo)
 	if _tutorial_overlay and is_instance_valid(_tutorial_overlay) and _tutorial_step <= 1:
 		_advance_tutorial_step()
@@ -1120,6 +1128,12 @@ func _update_timer_label() -> void:
 	_timer_label.text = "%02d" % max(0, seconds_left)
 	var danger := _round_time_left <= 15.0
 	_style_timer_chip(danger)
+
+func _start_round_timer() -> void:
+	if _round_timer_started:
+		return
+	_round_timer_started = true
+	_update_timer_label()
 
 func _style_timer_chip(danger: bool) -> void:
 	if _timer_chip == null:

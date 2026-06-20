@@ -3,6 +3,7 @@ class_name BoardView
 
 signal match_made(group: Array)
 signal no_moves
+signal move_attempted(direction: Vector2i)
 signal move_committed(group: Array, snapshot: Array)
 signal match_click_haptic_triggered(duration_ms: int, amplitude: float)
 signal match_haptic_triggered(duration_ms: int, amplitude: float)
@@ -194,6 +195,7 @@ func _attempt_move(direction: Vector2i) -> void:
 	if not _check_no_moves_and_emit():
 		return
 
+	emit_signal("move_attempted", direction)
 	_trigger_match_click_haptic()
 	_animating = true
 	_clear_hint()

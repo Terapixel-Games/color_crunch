@@ -239,6 +239,35 @@ func test_game_timer_chip_is_inside_top_hud_portrait_and_landscape() -> void:
 	get_tree().root.size = original_size
 	get_tree().root.content_scale_size = original_scale_size
 
+func test_round_timer_waits_for_first_directional_swipe() -> void:
+	var original_seen: bool = SaveStore.is_tutorial_seen()
+	SaveStore.set_tutorial_seen(true)
+	var game: Control = await _spawn_game()
+	var board_view: BoardView = game.get_node("BoardView") as BoardView
+	var initial_time: float = float(game.get("_round_time_left"))
+
+	assert_that(bool(game.get("_round_timer_started"))).is_false()
+	game.call("_process", 12.0)
+	assert_that(float(game.get("_round_time_left"))).is_equal(initial_time)
+	assert_that(bool(game.get("_run_finished"))).is_false()
+
+	board_view.board.grid = [
+		[1, 0, 0, 0],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+	]
+	board_view._refresh_tiles()
+	await board_view._attempt_move(Vector2i.LEFT)
+
+	assert_that(bool(game.get("_round_timer_started"))).is_true()
+	var armed_time: float = float(game.get("_round_time_left"))
+	game.call("_process", 1.25)
+	assert_that(float(game.get("_round_time_left"))).is_less(armed_time)
+
+	await _free_scene(game)
+	SaveStore.set_tutorial_seen(original_seen)
+
 func test_prism_color_picker_input_contract_and_selection() -> void:
 	var picker: Control = _make_prism_picker()
 	get_tree().root.add_child(picker)

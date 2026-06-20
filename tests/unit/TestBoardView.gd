@@ -49,6 +49,32 @@ func test_attempt_move_emits_commit_and_match() -> void:
 	assert_that(view.consume_last_move_score()).is_equal(4)
 	view.queue_free()
 
+func test_attempt_move_emits_directional_attempt_even_without_tile_motion() -> void:
+	var view := BoardView.new()
+	view.width = 4
+	view.height = 4
+	view.tile_size = 24.0
+	get_tree().root.add_child(view)
+	view.board.grid = [
+		[1, 0, 0, 0],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+	]
+	view._refresh_tiles()
+	var attempted: Array[Vector2i] = [Vector2i.ZERO]
+	var committed: Array[bool] = [false]
+	view.connect("move_attempted", func(direction: Vector2i) -> void:
+		attempted[0] = direction
+	)
+	view.connect("move_committed", func(_group: Array, _snapshot: Array) -> void:
+		committed[0] = true
+	)
+	await view._attempt_move(Vector2i.LEFT)
+	assert_that(attempted[0]).is_equal(Vector2i.LEFT)
+	assert_that(committed[0]).is_false()
+	view.queue_free()
+
 func test_restore_snapshot_restores_grid_state() -> void:
 	var view := BoardView.new()
 	view.width = 4
